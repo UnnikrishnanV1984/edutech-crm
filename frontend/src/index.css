@@ -1,20 +1,70 @@
 :root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --text-muted: #9a94a3;
-  --bg: #fff;
-  --surface: #f7f7f8;
-  --surface-hover: #eeeef0;
-  --border: #e5e4e7;
-  --accent: #aa3bff;
-  --accent-fg: #fff;
-  --danger: #d3232f;
-  --danger-bg: #fdecec;
-  --success: #1a7f4b;
-  --radius: 6px;
+  /* Neutral scale (light) — see DESIGN_SYSTEM_REFRESH.md §2 */
+  --bg: #ffffff;
+  --surface: #f9f8fb;
+  --surface-hover: #f1eff5;
+  --border: #e6e3ec;
+  --text-muted: #736c82;
+  --text: #4a4556;
+  --text-h: #1c1a22;
+
+  /* Elevation (§3) */
+  --elevation-2: #ffffff;
+
+  /* Shadows (§4) — light mode leans on these where lightness has no headroom */
+  --shadow-sm: 0 1px 2px rgba(20, 16, 30, 0.06);
+  --shadow-md: 0 4px 16px rgba(20, 16, 30, 0.1);
+  --shadow-lg: 0 8px 24px rgba(20, 16, 30, 0.16);
+
+  /* Spacing (§5) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+
+  /* Radius (§5) */
+  --radius-sm: 4px;
+  --radius: 8px;
+  --radius-lg: 12px;
+
+  /* Typography (§6) */
+  --text-xs: 12px;
+  --line-xs: 16px;
+  --text-sm: 13px;
+  --line-sm: 18px;
+  --text-base: 14px;
+  --line-base: 20px;
+  --text-lg: 16px;
+  --line-lg: 24px;
+  --text-xl: 20px;
+  --line-xl: 28px;
+  --text-2xl: 24px;
+  --line-2xl: 32px;
+  --weight-normal: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+
+  /* Action/status colors (§7) — single saturated accent, kept quiet
+     elsewhere. Values tuned to clear WCAG AA 4.5:1 against their own
+     background (verified numerically, not eyeballed — see the design
+     doc's contrast-check note). */
+  --accent: #6a3ff0;
+  --accent-hover: #5c2fe0;
+  --accent-fg: #ffffff;
+  --accent-subtle: #efeaff;
+  --danger: #bb3348;
+  --danger-bg: #fdecef;
+  --success: #0e6e4a;
+  --success-bg: #e6f7ef;
+  --warning: #95630a;
+  --warning-bg: #fdf3e0;
+
   --sans: system-ui, "Segoe UI", Roboto, sans-serif;
 
-  font: 16px/145% var(--sans);
+  font: var(--text-base) / var(--line-base) var(--sans);
   color-scheme: light dark;
   color: var(--text);
   background: var(--bg);
@@ -23,18 +73,32 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --text-muted: #6b7280;
-    --bg: #16171d;
-    --surface: #1c1d24;
-    --surface-hover: #24252d;
-    --border: #2e303a;
-    --accent: #c084fc;
-    --accent-fg: #16171d;
-    --danger: #f87171;
-    --danger-bg: #3a1f22;
-    --success: #4ade80;
+    /* Neutral scale (dark) — true-grey base in the #0E-#1A range, not
+       pure black; each elevation step lighter than the last. */
+    --bg: #121319;
+    --surface: #191a22;
+    --surface-hover: #21222c;
+    --border: #2b2c38;
+    --text-muted: #8d8fa3;
+    --text: #c7c8d6;
+    --text-h: #f5f5f9;
+
+    --elevation-2: #21222c;
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.35);
+    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.45);
+
+    --accent: #b8a6ff;
+    --accent-hover: #a58cf7;
+    --accent-fg: #1a1130;
+    --accent-subtle: #2a2340;
+    --danger: #f27a8a;
+    --danger-bg: #3a1e24;
+    --success: #6ee7b0;
+    --success-bg: #163829;
+    --warning: #f0b84e;
+    --warning-bg: #3a2c10;
   }
 }
 
@@ -53,24 +117,40 @@ body {
 }
 
 h1 {
-  font-size: 24px;
+  font-size: var(--text-2xl);
+  line-height: var(--line-2xl);
+  font-weight: var(--weight-semibold);
   color: var(--text-h);
-  margin: 0 0 8px;
+  margin: 0 0 var(--space-2);
 }
 
 button {
   font: inherit;
+  font-weight: var(--weight-medium);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 8px 16px;
+  padding: var(--space-2) var(--space-4);
   background: transparent;
   color: var(--text-h);
   cursor: pointer;
 }
 
 button:disabled {
-  opacity: 0.6;
+  opacity: 0.5;
   cursor: not-allowed;
+}
+
+.btn-primary:not(:disabled):hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+.btn-secondary:not(:disabled):hover {
+  background: var(--surface-hover);
+}
+
+.btn-text:not(:disabled):hover {
+  text-decoration: underline;
 }
 
 input,
@@ -79,7 +159,7 @@ textarea {
   font: inherit;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 8px 10px;
+  padding: var(--space-2) var(--space-3);
   background: var(--bg);
   color: var(--text-h);
 }
@@ -91,7 +171,7 @@ a {
 .contact-detail-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 24px;
+  gap: var(--space-5);
 }
 
 @media (min-width: 900px) {
@@ -102,7 +182,7 @@ a {
 
 .pipeline-columns {
   display: flex;
-  gap: 16px;
+  gap: var(--space-4);
   overflow-x: auto;
-  padding-bottom: 16px;
+  padding-bottom: var(--space-4);
 }

@@ -66,7 +66,7 @@ fighting it:
 | 50 | `#f9f8fb` | `--surface` |
 | 100 | `#f1eff5` | `--surface-hover` |
 | 200 | `#e6e3ec` | `--border` |
-| 500 | `#8b859a` | `--text-muted` |
+| 500 | `#736c82` | `--text-muted` (darkened from an initial `#8b859a` — that only cleared 3.55:1 against `--bg`, short of AA; see §7's note on how every color pair here was checked numerically) |
 | 700 | `#4a4556` | `--text` |
 | 900 | `#1c1a22` | `--text-h` |
 
@@ -156,19 +156,24 @@ headers) `--weight-semibold: 600` (`h1`, page titles)
 Single saturated accent — kept in the existing violet family (continuity
 with what's already shipped) but the value is refined so it reads as
 *the one accent*, not one of several bright colors once badges go
-pastel:
+pastel. **Every value below was checked programmatically against WCAG
+AA's 4.5:1 text-contrast floor against the background it's actually
+paired with** (not eyeballed) — an earlier pass of this table had
+`--accent`/`--danger`/`--success`/`--warning` a shade too light/pastel
+themselves and fell short (as low as 3.1:1 for `--success` on
+`--success-bg`); these are the corrected values:
 
 | Token | Light | Dark |
 |---|---|---|
-| `--accent` | `#7c5cff` | `#b8a6ff` |
-| `--accent-hover` | `#6a47f5` | `#a58cf7` |
+| `--accent` | `#6a3ff0` | `#b8a6ff` |
+| `--accent-hover` | `#5c2fe0` | `#a58cf7` |
 | `--accent-fg` | `#ffffff` | `#1a1130` |
 | `--accent-subtle` (selected-tab underline area, focus fill) | `#efeaff` | `#2a2340` |
-| `--danger` | `#d1435a` | `#f27a8a` |
+| `--danger` | `#bb3348` | `#f27a8a` |
 | `--danger-bg` | `#fdecef` | `#3a1e24` |
-| `--success` | `#1f9d6f` | `#6ee7b0` |
+| `--success` | `#0e6e4a` | `#6ee7b0` |
 | `--success-bg` | `#e6f7ef` | `#163829` |
-| `--warning` *(new)* | `#b6790a` | `#f0b84e` |
+| `--warning` *(new)* | `#95630a` | `#f0b84e` |
 | `--warning-bg` *(new)* | `#fdf3e0` | `#3a2c10` |
 
 `--warning` is additive — nothing in `PHASE_1_UI_DESIGN.md` currently
@@ -177,7 +182,12 @@ needs a "pending/in-progress" tone distinct from danger/success.
 `--danger` softened from the current `#d3232f` (pure alarm red) to a
 rose-leaning red — still unambiguous, less "error klaxon" for things
 like overdue-task text that fire constantly during normal use, not just
-on real failures.
+on real failures. Note the pattern throughout §7-§9: the pastel
+*background* stays as light/soft as originally chosen — only the *text*
+color sitting on it was darkened where needed. Pastel fill + a
+sufficiently dark ink text is the standard version of this pattern (it's
+how Radix/Tailwind-style colored badges stay legible), not a compromise
+of the pastel brief.
 
 ## 8. Stage color sequence (position-based, pastel chips)
 
@@ -193,10 +203,10 @@ dot:
 | # | Hue | Light `bg` / `fg` / `border` | Dark `bg` / `fg` / `border` |
 |---|---|---|---|
 | 1 | Sky | `#e6f1fc` / `#1f6fb8` / `#c9e2f7` | `#16283a` / `#7ec1f2` / `#234a68` |
-| 2 | Teal | `#e1f5f1` / `#147d6f` / `#bfe8df` | `#123430` / `#5fd8c4` / `#1d5348` |
+| 2 | Teal | `#e1f5f1` / `#0f6c60` / `#bfe8df` | `#123430` / `#5fd8c4` / `#1d5348` |
 | 3 | Amber | `#fdf1de` / `#a15c07` / `#f6ddad` | `#3a2a10` / `#f0b84e` / `#5c431c` |
 | 4 | Rose | `#fce8ee` / `#b23760` / `#f6cddb` | `#3a1c28` / `#f4a0bb` / `#5c2d3f` |
-| 5 | Sage | `#eef3e3` / `#5a7a2f` / `#d9e6c2` | `#26301a` / `#b7d688` / `#3c4d28` |
+| 5 | Sage | `#eef3e3` / `#4d6c26` / `#d9e6c2` | `#26301a` / `#b7d688` / `#3c4d28` |
 | 6 | Slate | `#eceef2` / `#4b5567` / `#d7dce4` | `#22242e` / `#b7bccb` / `#343747` |
 
 Sage is a distinct olive-leaning green from `--success`'s cleaner
@@ -214,11 +224,15 @@ use the full `{bg, fg, border}` triple as a standard Badge.
 **`is_won`/`is_lost` overrides**, re-colored to the new tokens, same
 behavior as `PHASE_1_UI_DESIGN.md` specifies: `is_won` → `--success`/
 `--success-bg` treatment + checkmark glyph, replacing the position color
-entirely for that column/card. `is_lost` → flat `--surface-hover`
-(light) / `--surface-hover` (dark) fill with `--text-muted` text + dash
-glyph — deliberately colorless, not just a dimmed version of its
+entirely for that column/card. `is_lost` → a flat, dedicated tone
+(`#f1eff5`/`#68617a`/`#e6e3ec` light, reusing `--surface-hover` as `bg`
+in dark) — deliberately colorless, not just a dimmed version of its
 position hue, so a dropped lead reads as "outside the active pipeline"
-rather than "a muted version of whatever column it happened to be."
+rather than "a muted version of whatever column it happened to be." Its
+light-mode `fg` is its own darker value rather than a straight reuse of
+`--text-muted` — `--text-muted` is tuned for legibility against `--bg`,
+not against this tone's own pastel background, and reusing it fell short
+of the 4.5:1 floor.
 
 ## 9. Lead-source colors (fixed enum, pastel chips)
 
@@ -229,9 +243,9 @@ never appear as the same visual element needing mutual differentiation):
 | Source | Light `bg` / `fg` / `border` | Dark `bg` / `fg` / `border` |
 |---|---|---|
 | Meta | `#e8ecfd` / `#3f4fc7` / `#cfd6f7` | `#1d2140` / `#a3b0f5` / `#2e3560` |
-| Google | `#fdefdd` / `#b8560a` / `#f6d9ad` | `#3a2410` / `#f5a355` / `#5c3a1c` |
+| Google | `#fdefdd` / `#9c4a09` / `#f6d9ad` | `#3a2410` / `#f5a355` / `#5c3a1c` |
 | Web | `#eceef2` / `#4b5567` / `#d7dce4` | `#22242e` / `#b7bccb` / `#343747` |
-| WhatsApp | `#e3f7e6` / `#1f8a3d` / `#c3ebca` | `#163a1e` / `#6fd88a` / `#235c30` |
+| WhatsApp | `#e3f7e6` / `#187233` / `#c3ebca` | `#163a1e` / `#6fd88a` / `#235c30` |
 | Manual | `#f1eef5` / `#6b5f7a` / `#ded6e6` | `#241f2e` / `#b8a8c7` / `#372f45` |
 
 Text label always alongside the chip — unchanged rule from
@@ -276,10 +290,18 @@ Task-count badge next to "Tasks": Badge count variant.
 `--elevation-1`) to stay calm across 25+ rows; hover → `--surface-hover`
 — unchanged from current spec, confirming it still fits the new system.
 
-**Pipeline cards** — `bg: --elevation-1`, `1px solid --border`, 3px
-left-border strip in the column's hue `fg` value, `--radius`. Dragging →
-`--shadow-lg` + `transform: scale(1.02)`. Column header top-border strip:
-same hue `fg`, 3px.
+**Pipeline board** — the column itself is the `--elevation-1` "tray";
+each card inside is `--elevation-2` so it reads as raised out of the
+tray, not flush with it — in dark mode that means the card is *lighter*
+than its column (closer-to-viewer convention from §3), in light mode
+it's white-on-tinted-grey, the conventional kanban card look. (Using
+`--elevation-1` for both, as an earlier draft of this doc had it, would
+make cards invisible against their own column in light mode and read as
+recessed holes rather than raised cards in dark mode — corrected here
+before implementation.) Card: `bg: --elevation-2`, `1px solid --border`,
+3px left-border strip in the column's hue `fg` value, `--radius`.
+Dragging → `--shadow-lg` + `transform: scale(1.02)`. Column header
+top-border strip: same hue `fg`, 3px.
 
 **`SlideOverPanel` / `Toast` / popovers** (won/lost confirm, owner-select)
 — `bg: --elevation-2`, `--radius-lg`, `--shadow-md`. In light mode the
