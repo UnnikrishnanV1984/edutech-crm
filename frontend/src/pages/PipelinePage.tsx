@@ -111,7 +111,7 @@ export function PipelinePage() {
 
       <div className="pipeline-columns">
         {stages.map((stage, index) => {
-          const color = stageColor(stage, index);
+          const tone = stageColor(stage, index);
           const columnDeals = deals.filter((d) => d.stage_id === stage.id);
           return (
             <div
@@ -128,11 +128,12 @@ export function PipelinePage() {
             >
               <div
                 style={{
-                  borderTop: `3px solid ${color}`,
-                  padding: 8,
+                  borderTop: `3px solid ${tone.fg}`,
+                  borderRadius: "var(--radius) var(--radius) 0 0",
+                  padding: "var(--space-2)",
                   display: "flex",
                   justifyContent: "space-between",
-                  fontWeight: 600,
+                  fontWeight: "var(--weight-semibold)",
                 }}
               >
                 <span>
@@ -140,40 +141,55 @@ export function PipelinePage() {
                 </span>
                 <span style={{ color: "var(--text-muted)" }}>{columnDeals.length}</span>
               </div>
-              <div style={{ padding: 8, display: "flex", flexDirection: "column", gap: 8 }}>
+              <div
+                style={{
+                  padding: "var(--space-2)",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "var(--space-2)",
+                }}
+              >
                 {columnDeals.map((deal) => {
                   const contact = contactsById[deal.contact_id];
                   const daysInStage = Math.floor(
                     (Date.now() - new Date(deal.stage_changed_at).getTime()) / 86_400_000,
                   );
+                  const dragging = draggingDealId === deal.id;
                   return (
                     <div
                       key={deal.id}
                       draggable
                       onDragStart={() => setDraggingDealId(deal.id)}
+                      onDragEnd={() => setDraggingDealId(undefined)}
                       onClick={() => navigate(`/contacts/${deal.contact_id}`)}
                       style={{
-                        background: "var(--bg)",
-                        borderLeft: `3px solid ${color}`,
+                        background: "var(--elevation-2)",
+                        borderLeft: `3px solid ${tone.fg}`,
                         border: "1px solid var(--border)",
                         borderRadius: "var(--radius)",
-                        padding: 8,
+                        padding: "var(--space-2)",
                         cursor: "grab",
+                        boxShadow: dragging ? "var(--shadow-lg)" : undefined,
+                        transform: dragging ? "scale(1.02)" : undefined,
+                        transition: "box-shadow 120ms ease, transform 120ms ease",
                       }}
                     >
-                      <div style={{ fontWeight: 600 }}>{contact?.full_name ?? "…"}</div>
-                      <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                      <div style={{ fontWeight: "var(--weight-semibold)" }}>
+                        {contact?.full_name ?? "…"}
+                      </div>
+                      <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
                         {courseName(deal.course_id)}
                       </div>
                       <div
                         style={{
                           display: "flex",
                           justifyContent: "space-between",
+                          alignItems: "center",
                           marginTop: 4,
                         }}
                       >
                         <Avatar name={userDisplayName(users, deal.owner_id)} size={18} />
-                        <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                        <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
                           {daysInStage}d
                         </span>
                       </div>
@@ -193,12 +209,13 @@ export function PipelinePage() {
             bottom: 24,
             left: "50%",
             transform: "translateX(-50%)",
-            background: "var(--surface)",
+            background: "var(--elevation-2)",
             border: "1px solid var(--border)",
-            borderRadius: "var(--radius)",
-            padding: 16,
+            borderRadius: "var(--radius-lg)",
+            boxShadow: "var(--shadow-md)",
+            padding: "var(--space-4)",
             display: "flex",
-            gap: 12,
+            gap: "var(--space-3)",
             alignItems: "center",
           }}
         >
@@ -273,9 +290,15 @@ function PipelineCreateDealEntry({
     >
       <div
         onClick={(event) => event.stopPropagation()}
-        style={{ width: 420, background: "var(--surface)", padding: 24 }}
+        style={{
+          width: 420,
+          background: "var(--elevation-2)",
+          borderLeft: "1px solid var(--border)",
+          boxShadow: "var(--shadow-md)",
+          padding: "var(--space-5)",
+        }}
       >
-        <h1 style={{ fontSize: 18 }}>Find a contact</h1>
+        <h1 style={{ fontSize: "var(--text-xl)", lineHeight: "var(--line-xl)" }}>Find a contact</h1>
         <input
           autoFocus
           placeholder="Search contacts…"
