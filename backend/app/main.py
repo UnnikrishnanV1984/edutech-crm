@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.api import contacts, health, me
+from app.api import contacts, health, me, pipeline_stages
 from app.core.config import get_settings
 from app.core.errors import (
     ApiError,
@@ -56,6 +56,7 @@ def create_app() -> FastAPI:
     app.include_router(health.router)
     app.include_router(me.router)
     app.include_router(contacts.router)
+    app.include_router(pipeline_stages.router)
 
     return app
 
