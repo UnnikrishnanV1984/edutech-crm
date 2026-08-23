@@ -17,4 +17,17 @@ export const config = {
   get backendBaseUrl(): string {
     return required("BACKEND_BASE_URL");
   },
+  // External/browser-facing issuer URL — must match the `iss` claim exactly,
+  // since Keycloak stamps `iss` from the host the browser used to log in.
+  get keycloakIssuerUrl(): string {
+    return required("KEYCLOAK_ISSUER_URL");
+  },
+  // Internal (container-to-container) JWKS URL — fine to differ in host
+  // from keycloakIssuerUrl; only used to fetch signing keys.
+  get keycloakJwksUrl(): string {
+    return required("KEYCLOAK_JWKS_URL");
+  },
+  get keycloakClientId(): string {
+    return required("KEYCLOAK_CLIENT_ID");
+  },
 };

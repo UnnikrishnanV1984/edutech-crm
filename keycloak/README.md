@@ -20,6 +20,15 @@ than generated, purely so local dev has a stable pairing.
 ## Token claims
 
 The `web` client maps:
+- `sub` — via an explicit property mapper (`sub-explicit`). **Do not remove
+  this mapper.** On the Keycloak image pinned here (26.7.2), the access
+  token omits `sub` by default — confirmed against both a from-scratch
+  client and the built-in `admin-cli` client, so it's server behavior, not a
+  config mistake in this realm. `sub` is only reliably present in the
+  **ID token** without this mapper. Verified live: without it, `bff`'s proxy
+  crashed the process outright (`ERR_HTTP_INVALID_HEADER_VALUE`, setting
+  `X-User-Id` to `"undefined"`) — see auth.ts's checks, which now reject a
+  token missing `sub` with 401 instead of letting that reach the proxy.
 - `tenant_id` — from the user attribute of the same name (custom mapper)
 - `realm_access.roles` — via the built-in `roles` client scope
 - `email`, `name` — via the built-in `email`/`profile` client scopes
