@@ -4,6 +4,7 @@ import { AuthProvider } from "./auth/AuthProvider";
 import { ToastProvider } from "./components/ToastProvider";
 import { ContactDetailPage } from "./pages/ContactDetailPage";
 import { ContactsListPage } from "./pages/ContactsListPage";
+import { IntegrationsPage } from "./pages/IntegrationsPage";
 import { PipelinePage } from "./pages/PipelinePage";
 import { TasksPage } from "./pages/TasksPage";
 import { Nav } from "./Nav";
@@ -19,6 +20,7 @@ function AppRoutes() {
           <Route path="/contacts/:contactId" element={<ContactDetailPage />} />
           <Route path="/pipeline" element={<PipelinePage />} />
           <Route path="/tasks" element={<TasksPage />} />
+          <Route path="/integrations" element={<IntegrationsPage />} />
         </Routes>
       </main>
     </>

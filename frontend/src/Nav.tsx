@@ -65,6 +65,11 @@ export function Nav() {
             </span>
           )}
         </NavLink>
+        {me?.user.role === "admin" && (
+          <NavLink to="/integrations" style={linkStyle}>
+            Integrations
+          </NavLink>
+        )}
       </div>
       {me && (
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
