@@ -1,4 +1,5 @@
-import { config } from "../config";
+import { apiGet } from "./client";
+import type { DataEnvelope } from "./types";
 
 export interface MeUser {
   id: string;
@@ -14,27 +15,8 @@ export interface MeTenant {
   name: string;
 }
 
-export interface MeResponse {
-  data: { user: MeUser; tenant: MeTenant };
-  meta: { request_id: string };
-}
-
-interface ErrorResponse {
-  error: { code: string; message: string };
-  meta: { request_id: string };
-}
+export type MeResponse = DataEnvelope<{ user: MeUser; tenant: MeTenant }>;
 
 export async function fetchMe(token: string): Promise<MeResponse> {
-  const response = await fetch(`${config.bffBaseUrl}/api/v1/me`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  const body: unknown = await response.json();
-  if (!response.ok) {
-    const message =
-      body && typeof body === "object" && "error" in body
-        ? (body as ErrorResponse).error.message
-        : "Request failed";
-    throw new Error(message);
-  }
-  return body as MeResponse;
+  return apiGet<MeResponse>(token, "/api/v1/me");
 }
