@@ -1,0 +1,96 @@
+import uuid
+
+from fastapi import APIRouter, Depends, Query, Request
+from sqlalchemy.exc import IntegrityError
+
+from app.core.envelope import collection_envelope, data_envelope
+from app.core.errors import NOT_FOUND, VALIDATION_ERROR, ApiError
+from app.deps.tenant import TenantContext, get_tenant_context
+from app.schemas.deal import DealCreate, DealOut, DealUpdate
+from app.services.contact_service import get_contact
+from app.services.deal_service import create_deal, get_deal, list_deals, update_deal
+
+router = APIRouter(tags=["deals"])
+
+
+@router.post("/api/v1/contacts/{contact_id}/deals")
+async def post_deal(
+    request: Request,
+    contact_id: uuid.UUID,
+    body: DealCreate,
+    context: TenantContext = Depends(get_tenant_context),
+) -> dict:
+    contact = await get_contact(context.db, context.tenant.id, contact_id)
+    if contact is None:
+        raise ApiError(404, NOT_FOUND, "Contact not found")
+
+    try:
+        deal = await create_deal(
+            context.db, context.tenant.id, contact_id, body, default_owner_id=context.user.id
+        )
+    except IntegrityError as exc:
+        await context.db.rollback()
+        raise ApiError(
+            400, VALIDATION_ERROR, "course_id, stage_id, or owner_id does not exist"
+        ) from exc
+
+    return data_envelope(
+        DealOut.model_validate(deal).model_dump(mode="json"), request.state.request_id
+    )
+
+
+@router.get("/api/v1/deals")
+async def get_deals(
+    request: Request,
+    stage_id: uuid.UUID | None = None,
+    owner_id: uuid.UUID | None = None,
+    contact_id: uuid.UUID | None = None,
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=25, ge=1, le=100),
+    context: TenantContext = Depends(get_tenant_context),
+) -> dict:
+    deals, total = await list_deals(
+        context.db, context.tenant.id, stage_id, owner_id, contact_id, page, page_size
+    )
+    items = [DealOut.model_validate(d).model_dump(mode="json") for d in deals]
+    return collection_envelope(items, request.state.request_id, page, page_size, total)
+
+
+@router.get("/api/v1/deals/{deal_id}")
+async def get_deal_by_id(
+    request: Request,
+    deal_id: uuid.UUID,
+    context: TenantContext = Depends(get_tenant_context),
+) -> dict:
+    deal = await get_deal(context.db, context.tenant.id, deal_id)
+    if deal is None:
+        raise ApiError(404, NOT_FOUND, "Deal not found")
+    return data_envelope(
+        DealOut.model_validate(deal).model_dump(mode="json"), request.state.request_id
+    )
+
+
+@router.patch("/api/v1/deals/{deal_id}")
+async def patch_deal(
+    request: Request,
+    deal_id: uuid.UUID,
+    body: DealUpdate,
+    context: TenantContext = Depends(get_tenant_context),
+) -> dict:
+    deal = await get_deal(context.db, context.tenant.id, deal_id)
+    if deal is None:
+        raise ApiError(404, NOT_FOUND, "Deal not found")
+
+    try:
+        deal, _old_stage_id = await update_deal(context.db, deal, body)
+    except IntegrityError as exc:
+        await context.db.rollback()
+        raise ApiError(
+            400, VALIDATION_ERROR, "course_id, stage_id, or owner_id does not exist"
+        ) from exc
+
+    # _old_stage_id will drive the activities write once that table
+    # exists (PHASE_1_PLAN.md §7 step 9) — not yet in this commit.
+    return data_envelope(
+        DealOut.model_validate(deal).model_dump(mode="json"), request.state.request_id
+    )

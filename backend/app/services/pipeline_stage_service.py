@@ -56,6 +56,30 @@ async def list_stages(db: AsyncSession, tenant_id: uuid.UUID) -> list[PipelineSt
     return list(result.scalars().all())
 
 
+async def get_default_stage_id(db: AsyncSession, tenant_id: uuid.UUID) -> uuid.UUID:
+    """First non-won/lost stage by sort_order — where a new deal starts
+    (PHASE_1_PLAN.md §4.2)."""
+    await ensure_default_stages(db, tenant_id)
+    result = await db.execute(
+        select(PipelineStage.id)
+        .where(
+            PipelineStage.tenant_id == tenant_id,
+            PipelineStage.is_won.is_(False),
+            PipelineStage.is_lost.is_(False),
+        )
+        .order_by(PipelineStage.sort_order)
+        .limit(1)
+    )
+    stage_id = result.scalar_one_or_none()
+    if stage_id is None:
+        # Every tenant has at least one open stage in the default set;
+        # this only fires if a tenant edited every stage into won/lost,
+        # which the current PATCH (rename/reorder only) can't do — but
+        # fail loudly rather than silently picking a won/lost stage.
+        raise RuntimeError(f"Tenant {tenant_id} has no open pipeline stage")
+    return stage_id
+
+
 async def get_stage(
     db: AsyncSession, tenant_id: uuid.UUID, stage_id: uuid.UUID
 ) -> PipelineStage | None:
