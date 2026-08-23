@@ -31,8 +31,19 @@ async def create_deal(
     return deal
 
 
-async def get_deal(db: AsyncSession, tenant_id: uuid.UUID, deal_id: uuid.UUID) -> Deal | None:
-    result = await db.execute(select(Deal).where(Deal.tenant_id == tenant_id, Deal.id == deal_id))
+async def get_deal(
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+    deal_id: uuid.UUID,
+    owner_ids: list[uuid.UUID] | None = None,
+) -> Deal | None:
+    """owner_ids is the RowScope filter (PHASE_3_PLAN.md §4) — None is
+    unrestricted, for call sites checking existence rather than scoping
+    a view/edit."""
+    stmt = select(Deal).where(Deal.tenant_id == tenant_id, Deal.id == deal_id)
+    if owner_ids is not None:
+        stmt = stmt.where(Deal.owner_id.in_(owner_ids))
+    result = await db.execute(stmt)
     return result.scalar_one_or_none()
 
 
@@ -44,8 +55,11 @@ async def list_deals(
     contact_id: uuid.UUID | None,
     page: int,
     page_size: int,
+    scoped_owner_ids: list[uuid.UUID] | None = None,
 ) -> tuple[list[Deal], int]:
     stmt = select(Deal).where(Deal.tenant_id == tenant_id)
+    if scoped_owner_ids is not None:
+        stmt = stmt.where(Deal.owner_id.in_(scoped_owner_ids))
     if stage_id:
         stmt = stmt.where(Deal.stage_id == stage_id)
     if owner_id:

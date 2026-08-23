@@ -4,6 +4,8 @@ from fastapi import APIRouter, Depends, Query, Request
 
 from app.core.envelope import collection_envelope, data_envelope
 from app.core.errors import NOT_FOUND, ApiError
+from app.core.reassignment import guard_reassignment
+from app.deps.scope import RowScope, get_row_scope
 from app.deps.tenant import TenantContext, get_tenant_context
 from app.schemas.activity import ActivityOut
 from app.schemas.contact import ContactCreate, ContactOut, ContactUpdate
@@ -42,6 +44,7 @@ async def get_contacts(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=25, ge=1, le=100),
     context: TenantContext = Depends(get_tenant_context),
+    scope: RowScope = Depends(get_row_scope),
 ) -> dict:
     contacts, total = await list_contacts(
         context.db,
@@ -52,6 +55,7 @@ async def get_contacts(
         page=page,
         page_size=page_size,
         sort=sort,
+        scoped_owner_ids=scope.owner_ids,
     )
     items = [ContactOut.model_validate(c).model_dump(mode="json") for c in contacts]
     return collection_envelope(items, request.state.request_id, page, page_size, total)
@@ -62,8 +66,9 @@ async def get_contact_by_id(
     request: Request,
     contact_id: uuid.UUID,
     context: TenantContext = Depends(get_tenant_context),
+    scope: RowScope = Depends(get_row_scope),
 ) -> dict:
-    contact = await get_contact(context.db, context.tenant.id, contact_id)
+    contact = await get_contact(context.db, context.tenant.id, contact_id, scope.owner_ids)
     if contact is None:
         raise ApiError(404, NOT_FOUND, "Contact not found")
     return data_envelope(
@@ -77,10 +82,12 @@ async def patch_contact(
     contact_id: uuid.UUID,
     body: ContactUpdate,
     context: TenantContext = Depends(get_tenant_context),
+    scope: RowScope = Depends(get_row_scope),
 ) -> dict:
-    contact = await get_contact(context.db, context.tenant.id, contact_id)
+    contact = await get_contact(context.db, context.tenant.id, contact_id, scope.owner_ids)
     if contact is None:
         raise ApiError(404, NOT_FOUND, "Contact not found")
+    guard_reassignment(context, scope, body.model_dump(exclude_unset=True), "owner_id")
     contact = await update_contact(context.db, contact, body)
     return data_envelope(
         ContactOut.model_validate(contact).model_dump(mode="json"), request.state.request_id
@@ -92,8 +99,9 @@ async def get_contact_activities(
     request: Request,
     contact_id: uuid.UUID,
     context: TenantContext = Depends(get_tenant_context),
+    scope: RowScope = Depends(get_row_scope),
 ) -> dict:
-    contact = await get_contact(context.db, context.tenant.id, contact_id)
+    contact = await get_contact(context.db, context.tenant.id, contact_id, scope.owner_ids)
     if contact is None:
         raise ApiError(404, NOT_FOUND, "Contact not found")
     activities = await list_activities_for_contact(context.db, context.tenant.id, contact_id)

@@ -32,6 +32,11 @@ class User(Base):
     email: Mapped[str] = mapped_column(String, nullable=False)
     full_name: Mapped[str | None] = mapped_column(String, nullable=True)
     role: Mapped[str] = mapped_column(String, nullable=False)
+    manager_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    """Self-referencing — the RBAC team mapping (PHASE_3_PLAN.md §3.1),
+    not enforced as a composite FK at the ORM level (SQLAlchemy can't
+    express a self-referencing composite FK on the same table cleanly);
+    the DB constraint in alembic 0010 is the real guarantee."""
     status: Mapped[str] = mapped_column(String, nullable=False, server_default="active")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()

@@ -78,11 +78,20 @@ async def create_contact(
 
 
 async def get_contact(
-    db: AsyncSession, tenant_id: uuid.UUID, contact_id: uuid.UUID
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+    contact_id: uuid.UUID,
+    owner_ids: list[uuid.UUID] | None = None,
 ) -> Contact | None:
-    result = await db.execute(
-        select(Contact).where(Contact.tenant_id == tenant_id, Contact.id == contact_id)
-    )
+    """owner_ids is the RowScope filter (PHASE_3_PLAN.md §4) — None means
+    unrestricted, used by call sites that check contact existence for a
+    related-resource action (creating a deal/document under it) rather
+    than the contact itself being viewed/edited, where row-scoping
+    doesn't apply per REQUIREMENTS.md §1.2's "Create/edit contacts" row."""
+    stmt = select(Contact).where(Contact.tenant_id == tenant_id, Contact.id == contact_id)
+    if owner_ids is not None:
+        stmt = stmt.where(Contact.owner_id.in_(owner_ids))
+    result = await db.execute(stmt)
     return result.scalar_one_or_none()
 
 
@@ -109,8 +118,15 @@ async def list_contacts(
     page: int,
     page_size: int,
     sort: str | None = None,
+    scoped_owner_ids: list[uuid.UUID] | None = None,
 ) -> tuple[list[Contact], int]:
+    """owner_id is the caller-supplied ?owner_id= filter; scoped_owner_ids
+    is the RowScope enforcement (PHASE_3_PLAN.md §4) — the two compose:
+    a Manager can still filter to one teammate via owner_id, but can
+    never widen past scoped_owner_ids."""
     stmt = select(Contact).where(Contact.tenant_id == tenant_id)
+    if scoped_owner_ids is not None:
+        stmt = stmt.where(Contact.owner_id.in_(scoped_owner_ids))
     if search:
         pattern = f"%{search.lower()}%"
         stmt = stmt.where(

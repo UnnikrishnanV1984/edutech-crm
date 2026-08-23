@@ -27,8 +27,18 @@ async def create_task(
     return task
 
 
-async def get_task(db: AsyncSession, tenant_id: uuid.UUID, task_id: uuid.UUID) -> Task | None:
-    result = await db.execute(select(Task).where(Task.tenant_id == tenant_id, Task.id == task_id))
+async def get_task(
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+    task_id: uuid.UUID,
+    owner_ids: list[uuid.UUID] | None = None,
+) -> Task | None:
+    """owner_ids is the RowScope filter (PHASE_3_PLAN.md §4), matched
+    against assignee_id — None is unrestricted."""
+    stmt = select(Task).where(Task.tenant_id == tenant_id, Task.id == task_id)
+    if owner_ids is not None:
+        stmt = stmt.where(Task.assignee_id.in_(owner_ids))
+    result = await db.execute(stmt)
     return result.scalar_one_or_none()
 
 
@@ -40,8 +50,11 @@ async def list_tasks(
     contact_id: uuid.UUID | None,
     page: int,
     page_size: int,
+    scoped_owner_ids: list[uuid.UUID] | None = None,
 ) -> tuple[list[Task], int]:
     stmt = select(Task).where(Task.tenant_id == tenant_id)
+    if scoped_owner_ids is not None:
+        stmt = stmt.where(Task.assignee_id.in_(scoped_owner_ids))
     if assignee_id:
         stmt = stmt.where(Task.assignee_id == assignee_id)
     if status:

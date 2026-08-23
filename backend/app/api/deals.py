@@ -5,6 +5,8 @@ from sqlalchemy.exc import IntegrityError
 
 from app.core.envelope import collection_envelope, data_envelope
 from app.core.errors import NOT_FOUND, VALIDATION_ERROR, ApiError
+from app.core.reassignment import guard_reassignment
+from app.deps.scope import RowScope, get_row_scope
 from app.deps.tenant import TenantContext, get_tenant_context
 from app.schemas.deal import DealCreate, DealOut, DealUpdate
 from app.services.activity_service import log_deal_stage_changed
@@ -49,9 +51,17 @@ async def get_deals(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=25, ge=1, le=100),
     context: TenantContext = Depends(get_tenant_context),
+    scope: RowScope = Depends(get_row_scope),
 ) -> dict:
     deals, total = await list_deals(
-        context.db, context.tenant.id, stage_id, owner_id, contact_id, page, page_size
+        context.db,
+        context.tenant.id,
+        stage_id,
+        owner_id,
+        contact_id,
+        page,
+        page_size,
+        scoped_owner_ids=scope.owner_ids,
     )
     items = [DealOut.model_validate(d).model_dump(mode="json") for d in deals]
     return collection_envelope(items, request.state.request_id, page, page_size, total)
@@ -62,8 +72,9 @@ async def get_deal_by_id(
     request: Request,
     deal_id: uuid.UUID,
     context: TenantContext = Depends(get_tenant_context),
+    scope: RowScope = Depends(get_row_scope),
 ) -> dict:
-    deal = await get_deal(context.db, context.tenant.id, deal_id)
+    deal = await get_deal(context.db, context.tenant.id, deal_id, scope.owner_ids)
     if deal is None:
         raise ApiError(404, NOT_FOUND, "Deal not found")
     return data_envelope(
@@ -77,10 +88,12 @@ async def patch_deal(
     deal_id: uuid.UUID,
     body: DealUpdate,
     context: TenantContext = Depends(get_tenant_context),
+    scope: RowScope = Depends(get_row_scope),
 ) -> dict:
-    deal = await get_deal(context.db, context.tenant.id, deal_id)
+    deal = await get_deal(context.db, context.tenant.id, deal_id, scope.owner_ids)
     if deal is None:
         raise ApiError(404, NOT_FOUND, "Deal not found")
+    guard_reassignment(context, scope, body.model_dump(exclude_unset=True), "owner_id")
 
     try:
         deal, old_stage_id = await update_deal(context.db, deal, body)

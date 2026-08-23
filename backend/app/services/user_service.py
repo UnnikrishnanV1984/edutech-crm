@@ -4,6 +4,7 @@ from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.errors import VALIDATION_ERROR, ApiError
 from app.models.user import User
 
 
@@ -41,6 +42,40 @@ async def upsert_user(
     ).returning(User)
     result = await db.execute(stmt)
     return result.scalar_one()
+
+
+async def get_user(db: AsyncSession, tenant_id: uuid.UUID, user_id: uuid.UUID) -> User | None:
+    result = await db.execute(select(User).where(User.tenant_id == tenant_id, User.id == user_id))
+    return result.scalar_one_or_none()
+
+
+async def update_user_manager(
+    db: AsyncSession, tenant_id: uuid.UUID, user: User, manager_id: uuid.UUID | None
+) -> User:
+    """The manager-to-team mapping (REQUIREMENTS.md §5.3) — users.manager_id
+    *is* the mapping, no separate table. manager_id=None clears it."""
+    if manager_id is not None:
+        manager = await get_user(db, tenant_id, manager_id)
+        if manager is None or manager.role != "manager":
+            raise ApiError(400, VALIDATION_ERROR, "manager_id must reference a manager")
+    user.manager_id = manager_id
+    await db.flush()
+    await db.refresh(user)
+    return user
+
+
+async def list_team_member_ids(
+    db: AsyncSession, tenant_id: uuid.UUID, manager_id: uuid.UUID
+) -> list[uuid.UUID]:
+    """Direct reports only (users.manager_id == manager_id) — used by
+    app/deps/scope.py to build a Manager's RowScope. Does not include the
+    manager themselves; the caller adds that separately, since "my own
+    rows" and "my team's rows" are conceptually distinct even though
+    they're unioned in practice (PHASE_3_PLAN.md §4)."""
+    result = await db.execute(
+        select(User.id).where(User.tenant_id == tenant_id, User.manager_id == manager_id)
+    )
+    return list(result.scalars().all())
 
 
 async def list_counselor_ids(db: AsyncSession, tenant_id: uuid.UUID) -> list[uuid.UUID]:
