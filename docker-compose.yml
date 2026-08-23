@@ -47,6 +47,8 @@ services:
     env_file: .env
     ports:
       - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      - ./keycloak/realm-export.json:/app/dev-realm.json:ro
     depends_on:
       db:
         condition: service_healthy
