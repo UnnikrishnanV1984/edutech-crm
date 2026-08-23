@@ -237,4 +237,25 @@ describe("requireAuth + proxy", () => {
     expect(lastBackendUrl).toBe("/api/v1/deals/44444444-0000-0000-0000-000000000001");
     expect(JSON.parse(lastBackendBody)).toEqual(payload);
   });
+
+  it("proxies a deeply nested resource path intact (documents upload-url)", async () => {
+    // Every prior path test was two segments deep (/api/v1/me,
+    // /api/v1/contacts). The documents endpoints nest three deep
+    // (/api/v1/contacts/{id}/documents/upload-url) — worth checking
+    // pathRewrite's string-prepend doesn't do anything path-length-
+    // dependent that only breaks at this depth.
+    const token = await signToken(validClaims());
+    const { createApp } = await import("../app.js");
+    const payload = { filename: "resume.pdf", content_type: "application/pdf" };
+    const response = await request(createApp())
+      .post("/api/v1/contacts/44444444-0000-0000-0000-000000000001/documents/upload-url")
+      .set("Authorization", `Bearer ${token}`)
+      .send(payload);
+
+    expect(response.status).toBe(200);
+    expect(lastBackendUrl).toBe(
+      "/api/v1/contacts/44444444-0000-0000-0000-000000000001/documents/upload-url",
+    );
+    expect(JSON.parse(lastBackendBody)).toEqual(payload);
+  });
 });
