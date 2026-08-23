@@ -1,8 +1,9 @@
 # CLAUDE.md
 
 Instructions for Claude Code working in this repository. Read
-`ARCHITECTURE.md`, `FEATURES_AND_PLAN.md`, `DATABASE_SCHEMA.md`, and
-`API_CONVENTIONS.md` before making structural changes.
+`ARCHITECTURE.md`, `FEATURES_AND_PLAN.md`, `DATABASE_SCHEMA.md`,
+`API_CONVENTIONS.md`, and `REQUIREMENTS.md` before making structural
+changes.
 
 ## Project
 

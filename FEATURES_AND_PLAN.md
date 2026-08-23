@@ -32,7 +32,17 @@
 
 ### Platform
 - Multi-tenant auth (JWT, tenant resolution)
-- Role-based access control (admin, manager, counselor)
+- Role-based access control (Admin, Manager, Staff) — permission matrix and
+  enforcement layers in `REQUIREMENTS.md` Section 1
+- SLA policy engine (per-stage/task targets, business-hours-aware clocks,
+  on_track/at_risk/breached states) — `REQUIREMENTS.md` Section 3
+- Escalation management (SLA breach, workflow failure, manual roadblock
+  flags; acknowledge/resolve lifecycle) — `REQUIREMENTS.md` Section 4
+- Manager follow-up flags (personal reminder tool, distinct from
+  escalations) — `REQUIREMENTS.md` Section 4.3
+- Role-specific dashboards: Staff (queue + SLA timers), Manager (team
+  funnel + escalations queue), Admin (org funnel + policy/user/integration
+  management) — `REQUIREMENTS.md` Section 5
 - Tenant admin console (users, roles, pipeline config)
 - Audit log
 
@@ -76,16 +86,25 @@
 - Email integration (transactional sends, tracking opens/clicks)
 - Workflow engine: rule builder, trigger evaluation, background execution
 - Auto-assignment logic
+- RBAC enforcement (Admin/Manager/Staff row-level scoping) — see
+  `REQUIREMENTS.md` Section 1
+- SLA policy engine and escalation lifecycle — see `REQUIREMENTS.md`
+  Sections 3-4
 - **Exit criteria**: a configured rule ("no contact in 24h") actually fires
-  and notifies the right counselor without manual intervention.
+  and notifies the right counselor without manual intervention; an SLA
+  breach automatically raises an escalation visible on the manager's queue.
 
 ### Phase 4 — Reporting, forecasting, conversion feedback loop
 - Pipeline funnel and source ROI dashboards
 - Stage-weighted forecasting and win-probability
 - Meta Conversions API + Google offline conversions (send enrollment/fee-paid
   events back to ad platforms)
+- Role-specific dashboards: Staff, Manager, Admin — content and layout
+  defined in `REQUIREMENTS.md` Section 5; build on precomputed reporting
+  aggregates, not live heavy queries
 - **Exit criteria**: marketing team can see cost-per-enrollment by channel,
-  and ad platforms are receiving conversion signals.
+  ad platforms are receiving conversion signals, and each role sees the
+  dashboard defined for it in `REQUIREMENTS.md`.
 
 ### Phase 5 — Multi-tenancy hardening & single-tenant packaging
 - Hash-partitioning for high-volume tables (activities, communication logs)

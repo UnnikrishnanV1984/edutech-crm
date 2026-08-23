@@ -16,6 +16,15 @@
 | `workflow_rules` | Automation rule definitions | `tenant_id` |
 | `workflow_runs` | Execution log of triggered workflows | `tenant_id`, high write volume |
 | `payments` | Fee/EMI records | `tenant_id`, `contact_id` |
+| `sla_policies` | Tenant-configured SLA targets per stage/task type | `tenant_id` — see `REQUIREMENTS.md` Section 3 |
+| `sla_states` | Computed on_track/at_risk/breached state per tracked item | `tenant_id`, high write volume |
+| `escalations` | Escalation records with lifecycle and resolution notes | `tenant_id` — see `REQUIREMENTS.md` Section 4 |
+| `follow_up_flags` | Manager's personal follow-up reminders on leads | `tenant_id`, `manager_id` |
+| `audit_log` | Configuration change history for Admin visibility | `tenant_id`, append-only |
+
+Role-based access (Admin/Manager/Staff) is enforced at the application layer
+on top of these tables, not as additional RLS policies — see
+`REQUIREMENTS.md` Section 1.3 for why.
 
 ## 2. Standard tenant-scoped table pattern
 
