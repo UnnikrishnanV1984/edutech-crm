@@ -154,6 +154,40 @@ Three tiers, same application code throughout:
 
 See `DATABASE_SCHEMA.md` for the concrete DDL pattern.
 
+## 7a. Lead-capture connectors and dev-data seeding
+
+The Phase 2 integrations in Section 1 (Meta/Google/web/WhatsApp lead
+capture) share one interface, defined now so sample data can exercise it
+before the real integrations exist: `LeadConnector`
+(`backend/app/connectors/base.py`) — a `source` plus
+`fetch_raw_leads() -> list[RawLead]` — with a `normalize()` step that maps
+a platform-shaped payload into a `RawLead`.
+
+Today, every connector is a `SeedFileConnector`: `fetch_raw_leads` reads a
+checked-in JSON file (`backend/app/connectors/seed_data/`) shaped like
+that platform's actual payload (Meta's `field_data` array, Google's
+`userColumnData`, WhatsApp's `wa_id`/no-email shape) instead of calling a
+live API. `backend/app/connectors/ingestion_service.py` writes each lead
+through the same service-layer functions (`contact_service`,
+`deal_service`, dedupe included) a real HTTP request uses — connectors
+never get a shortcut write path. Idempotency is a Redis key per
+`(tenant_id, source, external_id)`, the same mechanism `API_CONVENTIONS.md`
+§7 specifies for real webhook redelivery.
+
+Swapping a source to the real Phase 2 integration means overriding that
+connector's `fetch_raw_leads` (a Graph API call, a Google Ads pull, a
+WhatsApp webhook handler) — `normalize()`'s contract and everything
+downstream stay the same.
+
+This only runs in local dev (`docker-entrypoint.sh`'s
+`ENVIRONMENT=development` gate, after tenant seeding) — never in a real
+deployment. See `keycloak/README.md` for why the dev seed users' Keycloak
+`id` is pinned rather than left to generate: it lets
+`backend/app/db/seed.py` pre-provision matching `users` rows (so seeded
+leads have a real counselor to round-robin-assign to before anyone has
+logged in) without creating a duplicate when that person logs in for
+real.
+
 ## 8. Redis usage
 
 Redis is required, used for:
