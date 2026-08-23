@@ -22,6 +22,8 @@ let backendServer: Server;
 let backendUrl: string;
 let lastBackendHeaders: Record<string, string | string[] | undefined> = {};
 let lastBackendUrl = "";
+let lastBackendMethod = "";
+let lastBackendBody = "";
 let privateKey: Awaited<ReturnType<typeof generateKeyPair>>["privateKey"];
 let kid: string;
 
@@ -55,8 +57,14 @@ beforeAll(async () => {
   backendServer = createServer((req, res) => {
     lastBackendHeaders = req.headers;
     lastBackendUrl = req.url ?? "";
-    res.setHeader("content-type", "application/json");
-    res.end(JSON.stringify({ data: { ok: true }, meta: { request_id: "stub" } }));
+    lastBackendMethod = req.method ?? "";
+    const chunks: Buffer[] = [];
+    req.on("data", (chunk: Buffer) => chunks.push(chunk));
+    req.on("end", () => {
+      lastBackendBody = Buffer.concat(chunks).toString("utf8");
+      res.setHeader("content-type", "application/json");
+      res.end(JSON.stringify({ data: { ok: true }, meta: { request_id: "stub" } }));
+    });
   });
   await new Promise<void>((resolve) => backendServer.listen(0, resolve));
   const backendPort = (backendServer.address() as AddressInfo).port;
@@ -76,6 +84,8 @@ afterAll(async () => {
 afterEach(() => {
   lastBackendHeaders = {};
   lastBackendUrl = "";
+  lastBackendMethod = "";
+  lastBackendBody = "";
 });
 
 const TENANT_A = "a1111111-1111-1111-1111-111111111111";
@@ -190,5 +200,26 @@ describe("requireAuth + proxy", () => {
     // If pathRewrite regresses, the backend receives "/me" instead of
     // "/api/v1/me" — this was a real bug caught during manual E2E testing.
     expect(lastBackendUrl).toBe("/api/v1/me");
+  });
+
+  it("proxies a POST body intact to a resource path (contacts, deals, ...)", async () => {
+    // Phase 0 only ever exercised GET /api/v1/me — no request body, no
+    // resource path beyond /me. Every Phase 1 endpoint (contacts, deals,
+    // tasks, documents) needs POST/PATCH with a JSON body to survive the
+    // proxy unmodified; there's no express.json() in app.ts, so the raw
+    // request stream should pass straight through http-proxy-middleware.
+    const token = await signToken(validClaims());
+    const { createApp } = await import("../app.js");
+    const payload = { full_name: "Asha Rao", email: "asha@example.test", lead_source: "web" };
+    const response = await request(createApp())
+      .post("/api/v1/contacts")
+      .set("Authorization", `Bearer ${token}`)
+      .send(payload);
+
+    expect(response.status).toBe(200);
+    expect(lastBackendMethod).toBe("POST");
+    expect(lastBackendUrl).toBe("/api/v1/contacts");
+    expect(JSON.parse(lastBackendBody)).toEqual(payload);
+    expect(lastBackendHeaders["content-type"]).toContain("application/json");
   });
 });
