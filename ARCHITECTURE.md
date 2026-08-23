@@ -90,6 +90,7 @@ Everything runs in Docker Compose as separate modules/services:
 | `redis` | `redis:7` | Cache, queues, idempotency keys |
 | `keycloak` | `quay.io/keycloak/keycloak` | Identity provider, OIDC |
 | `minio` (optional) | `minio/minio` | Local S3-compatible object storage for documents |
+| `mock-integrations` | Python (FastAPI) | Dev/test-only stand-in for the Meta Graph API, WhatsApp Cloud API, and Google Ads API — never deployed in production, same annotation as `minio` above. Part of the default stack (unlike `minio`'s opt-in `storage` profile): Phase 2's lead-capture pipelines can't be exercised locally at all without it. See §7a |
 
 Each service is its own Dockerfile/module so it can be built, tested, and
 shipped independently — the same images used in `docker compose up` locally
@@ -111,11 +112,12 @@ container:
 |---|---|
 | `web` | Static build served via S3 + CloudFront, or a Deployment behind the ingress if SSR is needed |
 | `bff` | Deployment + Service in EKS, behind ALB Ingress |
-| `backend` | Deployment + Service in EKS, behind ALB Ingress (internal, only reachable from `bff`) |
+| `backend` | Deployment + Service in EKS, behind ALB Ingress. `/api/v1/*` stays internal-only (reachable only from `bff`); `/webhooks/*` additionally needs a **public** ingress path — the same Docker image, just a second, differently-exposed route on the same ALB — since Meta/WhatsApp/Google call it directly and never go through the BFF (§7a, `PHASE_2_PLAN.md` §4.2) |
 | `db` | Amazon RDS for PostgreSQL (Multi-AZ) — not run in-cluster |
 | `redis` | Amazon ElastiCache for Redis — not run in-cluster |
 | `keycloak` | Deployment + Service in EKS (or AWS-managed alternative, e.g. Cognito, if the team later chooses to swap it — realm-based design keeps this optional) |
 | `minio` | Amazon S3 — not run in-cluster in production |
+| `mock-integrations` | **Not deployed** — production `backend` talks to the real Meta Graph API, WhatsApp Cloud API, and Google Ads API directly (`META_GRAPH_API_BASE_URL`/`WHATSAPP_API_BASE_URL`/`GOOGLE_ADS_API_BASE_URL` point at the real platforms, not at this service — same config-swap principle as `S3_ENDPOINT`/MinIO) |
 
 Practical implications for how the repo should be structured:
 
@@ -187,6 +189,38 @@ deployment. See `keycloak/README.md` for why the dev seed users' Keycloak
 leads have a real counselor to round-robin-assign to before anyone has
 logged in) without creating a duplicate when that person logs in for
 real.
+
+## 7b. Phase 2 lead-capture pipelines (Meta, Google, WhatsApp, web)
+
+`PHASE_2_PLAN.md` implements the real integrations §7a's connector
+interface anticipated: Meta Lead Ads and WhatsApp Cloud API are inbound
+webhooks (`POST /webhooks/meta`, `POST /webhooks/whatsapp`), Google Ads
+is an admin-triggered pull (`POST /api/v1/lead-source-connections/{id}/sync`
+— no background-job infra exists yet to poll it automatically, an
+explicit boundary), and the web form is a public capture endpoint
+(`POST /webhooks/web`). All four write through the exact same
+`contact_service`/`deal_service`/`activity_service` functions §7a's
+seed connectors already established.
+
+The `/webhooks/*` routes bypass the BFF entirely — Meta/WhatsApp/Google
+call `backend` directly, never through a browser session, so
+`CLAUDE.md` rule 4 (BFF owns the browser's auth session) doesn't apply
+to them. `tenant_id` for an inbound webhook is resolved via
+`lead_source_connections`, a table admins populate ahead of time
+through the normal Keycloak+BFF-authenticated `/api/v1` routes
+(`require_admin`-gated, `REQUIREMENTS.md` §1.2) — never trusted from the
+webhook payload itself (`CLAUDE.md` rule 7). This table is a second
+documented global RLS exemption alongside `tenants` — see
+`DATABASE_SCHEMA.md` §1.
+
+Every platform base URL (`META_GRAPH_API_BASE_URL`,
+`WHATSAPP_API_BASE_URL`, `GOOGLE_ADS_API_BASE_URL`) defaults to the
+local `mock-integrations` service (§5) and is swapped to the real
+platform via config only, the same principle as `S3_ENDPOINT`/MinIO —
+this is what let Phase 2 be built and fully tested before any real
+platform credentials existed. Per-tenant Meta/Google/WhatsApp tokens are
+encrypted at rest (`pgcrypto` `pgp_sym_encrypt`, keyed by
+`INTEGRATION_CREDENTIALS_KEY`).
 
 ## 8. Redis usage
 

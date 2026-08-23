@@ -16,6 +16,7 @@
 | `workflow_rules` | Automation rule definitions | `tenant_id` |
 | `workflow_runs` | Execution log of triggered workflows | `tenant_id`, high write volume |
 | `payments` | Fee/EMI records | `tenant_id`, `contact_id` |
+| `lead_source_connections` | Per-tenant Meta/Google/WhatsApp/web connection credentials | `tenant_id`, but **no RLS** — a second documented global exemption alongside `tenants`: a webhook has to look up `external_account_id` to *discover* `tenant_id` before `app.tenant_id` can be set, so a policy keyed on that session variable can't gate this table. Every query against it filters `tenant_id` explicitly in application code instead — see `PHASE_2_PLAN.md` §3 |
 | `sla_policies` | Tenant-configured SLA targets per stage/task type | `tenant_id` — see `REQUIREMENTS.md` Section 3 |
 | `sla_states` | Computed on_track/at_risk/breached state per tracked item | `tenant_id`, high write volume |
 | `escalations` | Escalation records with lifecycle and resolution notes | `tenant_id` — see `REQUIREMENTS.md` Section 4 |
