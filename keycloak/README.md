@@ -8,14 +8,23 @@ in the admin console; edit this file and restart the service instead.
 
 Two tenants, one counselor user each. The `tenant_id` custom user attribute
 below **must exactly match** the `tenants.id` row the Postgres seed script
-(`db/seed.sql`) inserts for the same tenant — Keycloak and Postgres don't
-share a database, so these UUIDs are fixed/hardcoded on both sides rather
-than generated, purely so local dev has a stable pairing.
+(`backend/app/db/seed.py`) inserts for the same tenant — Keycloak and
+Postgres don't share a database, so these UUIDs are fixed/hardcoded on both
+sides rather than generated, purely so local dev has a stable pairing.
 
-| Tenant | `tenants.id` / Keycloak `tenant_id` attribute | Username | Password |
-|---|---|---|---|
-| Tenant A Academy | `a1111111-1111-1111-1111-111111111111` | `counselor.a` | `password` |
-| Tenant B Academy | `b2222222-2222-2222-2222-222222222222` | `counselor.b` | `password` |
+Each user's `id` is also pinned (rather than left for Keycloak to generate
+on import) for the same reason, one level deeper: it's what Keycloak issues
+as the `sub` claim (see the `sub-explicit` mapper below), and
+`backend/app/db/seed.py` pre-provisions a matching `users` row keyed on
+that exact value before anyone has ever logged in — so seed data (see
+`backend/app/connectors/`) has a real owner to assign to from the first
+`docker compose up`, and the row that person later gets on real login is
+the *same* row, not a duplicate.
+
+| Tenant | `tenants.id` / Keycloak `tenant_id` attribute | Username | Password | Keycloak/user `id` (→ `sub`) |
+|---|---|---|---|---|
+| Tenant A Academy | `a1111111-1111-1111-1111-111111111111` | `counselor.a` | `password` | `ca111111-1111-1111-1111-111111111111` |
+| Tenant B Academy | `b2222222-2222-2222-2222-222222222222` | `counselor.b` | `password` | `cb222222-2222-2222-2222-222222222222` |
 
 ## Token claims
 
