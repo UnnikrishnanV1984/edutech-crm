@@ -6,9 +6,9 @@
 |---|---|---|
 | `tenants` | One row per client | No `tenant_id` column (this table is global) |
 | `users` | Platform users (counselors, managers, admins) | `tenant_id`, role |
-| `contacts` | Leads/students | `tenant_id`, `stage`, `lead_source`, `owner_id` |
-| `pipeline_stages` | Configurable per-tenant pipeline stages | `tenant_id`, ordering |
-| `deals` | Optional — if a contact can have multiple concurrent applications/courses | `tenant_id`, `contact_id`, `course_id` |
+| `contacts` | Leads/students | `tenant_id`, `lead_source`, `owner_id` — **not** `stage`: a contact can hold multiple concurrent `deals`, each with its own stage, so stage lives on `deals` (resolved in Phase 1 — see `DATABASE_SCHEMA.md` §2's `deals` row and `PHASE_1_PLAN.md` §2) |
+| `pipeline_stages` | Configurable per-tenant pipeline stages | `tenant_id`, `sort_order`, `is_won`/`is_lost` (not the tenant-editable name) is what later phases read |
+| `deals` | One row per application — a contact can have several concurrent (resolved in Phase 1, was "optional") | `tenant_id`, `contact_id`, `course_id`, `stage_id` |
 | `courses` | Program/course catalog | `tenant_id` |
 | `activities` | Calls, emails, WhatsApp messages, stage changes | `tenant_id`, high write volume — hash-partitioned |
 | `tasks` | Follow-ups, reminders | `tenant_id`, `assignee_id`, `due_at` |
