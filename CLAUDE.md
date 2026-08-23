@@ -25,9 +25,14 @@ deployable to a client VPC using the same Docker images.
     /schemas      Pydantic schemas
     /services     business logic
     /workers      Celery tasks
-/db               SQL migrations (Alembic), seed scripts
+    /deps         FastAPI dependencies (tenant-context resolution, etc.)
+    /db           session/engine, declarative base, dev-only seed script
+  /alembic        migrations — colocated with backend, not a separate
+                  top-level /db, since env.py needs direct Python import
+                  access to app.models for autogenerate support
 /keycloak         realm-export.json (auto-imported on container start)
 /deploy/helm       Helm charts — one per deployable module (web, bff, backend, keycloak)
+/tests             cross-service integration tests (tenant isolation E2E)
 /docker-compose.yml
 ```
 
@@ -71,28 +76,36 @@ hostname.
 
 ## Commands
 
-Fill these in as the scaffolding is created; keep this section current.
-
 ```
 # Local dev (all services: web, bff, backend, db, redis, keycloak)
+cp .env.example .env
 docker compose up
 
 # Rebuild a single module after a Dockerfile change
 docker compose up --build bff
 
+# Reset to a clean state (drops volumes — db and keycloak realm data)
+docker compose down -v && docker compose up
+
+# Optional local object storage (MinIO), off by default
+docker compose --profile storage up
+
 # Keycloak realm/client config is auto-imported from /keycloak/realm-export.json
-# on container start — edit that file and restart the keycloak service to
-# change realm/client settings rather than using the admin console by hand.
+# on container start — edit that file (and see keycloak/README.md first,
+# especially its note on the `sub` claim) and restart the keycloak service
+# to change realm/client settings, rather than using the admin console.
 
 # Frontend
 cd frontend && npm run dev
 cd frontend && npm run lint
-cd frontend && npm run test
+cd frontend && npm run build
+cd frontend && npm test
 
 # BFF
 cd bff && npm run dev
 cd bff && npm run lint
-cd bff && npm run test
+cd bff && npm run build
+cd bff && npm test
 
 # Backend
 # --loop none is required on Windows: psycopg3's async mode cannot run
@@ -102,6 +115,16 @@ cd backend && uvicorn app.main:app --reload --loop none
 cd backend && pytest
 cd backend && ruff check .
 cd backend && alembic upgrade head
+cd backend && alembic revision -m "description"
+
+# Cross-service tenant-isolation E2E test — requires `docker compose up`
+# already running; skips cleanly (not fails) otherwise.
+pip install -r tests/requirements.txt
+pytest tests/test_tenant_isolation.py -v
+
+# Helm charts (skeletons — not yet deployed to a real cluster)
+helm lint deploy/helm/<backend|bff|web|keycloak>
+helm template test deploy/helm/<chart> --set image.repository=<repo> --set image.tag=<tag>
 ```
 
 ## Conventions

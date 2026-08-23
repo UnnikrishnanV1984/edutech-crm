@@ -16,8 +16,9 @@ docker compose up
 This brings up `web`, `bff`, `backend`, `db`, `redis`, and `keycloak`. The
 Keycloak realm (client, roles, `tenant_id` claim mapper, two seed tenants) is
 auto-imported from `keycloak/realm-export.json` — no manual console setup.
-Database migrations and tenant/user seed data run automatically on `backend`
-container start.
+Database migrations and the tenant seed data run automatically on `backend`
+container start; each seed user's `users` row is created on their first
+login (JIT-provisioned from the token, not pre-seeded).
 
 Once healthy:
 
