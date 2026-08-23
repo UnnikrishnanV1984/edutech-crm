@@ -12,6 +12,8 @@ from app.api import (
     courses,
     deals,
     documents,
+    escalations,
+    follow_up_flags,
     health,
     lead_source_connections,
     me,
@@ -79,6 +81,8 @@ def create_app() -> FastAPI:
     app.include_router(users.router)
     app.include_router(lead_source_connections.router)
     app.include_router(sla_policies.router)
+    app.include_router(escalations.router)
+    app.include_router(follow_up_flags.router)
 
     # Public — bypass the BFF entirely, PHASE_2_PLAN.md §4.2.
     app.include_router(meta_webhooks.router)
