@@ -118,6 +118,38 @@
       "attributes": {
         "tenant_id": ["b2222222-2222-2222-2222-222222222222"]
       }
+    },
+    {
+      "id": "da111111-1111-1111-1111-111111111111",
+      "username": "admin.a",
+      "email": "admin.a@example.test",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "Deepa",
+      "lastName": "Nair",
+      "credentials": [
+        { "type": "password", "value": "password", "temporary": false }
+      ],
+      "realmRoles": ["admin"],
+      "attributes": {
+        "tenant_id": ["a1111111-1111-1111-1111-111111111111"]
+      }
+    },
+    {
+      "id": "db222222-2222-2222-2222-222222222222",
+      "username": "admin.b",
+      "email": "admin.b@example.test",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "Faisal",
+      "lastName": "Ahmed",
+      "credentials": [
+        { "type": "password", "value": "password", "temporary": false }
+      ],
+      "realmRoles": ["admin"],
+      "attributes": {
+        "tenant_id": ["b2222222-2222-2222-2222-222222222222"]
+      }
     }
   ]
 }

@@ -6,8 +6,13 @@ in the admin console; edit this file and restart the service instead.
 
 ## Local dev seed identities
 
-Two tenants, one counselor user each. The `tenant_id` custom user attribute
-below **must exactly match** the `tenants.id` row the Postgres seed script
+Two tenants, one counselor and one admin user each — the admin identities
+were added in Phase 2 so `POST/PATCH /api/v1/lead-source-connections*`
+(admin-only, `PHASE_2_PLAN.md` §4.1) has a real dev login to exercise from
+the frontend Integrations screen and from `tests/test_lead_source_connections_e2e.py`,
+without which those routes would be unreachable outside a raw curl call
+with hand-set headers. The `tenant_id` custom user attribute below **must
+exactly match** the `tenants.id` row the Postgres seed script
 (`backend/app/db/seed.py`) inserts for the same tenant — Keycloak and
 Postgres don't share a database, so these UUIDs are fixed/hardcoded on both
 sides rather than generated, purely so local dev has a stable pairing.
@@ -21,10 +26,12 @@ that exact value before anyone has ever logged in — so seed data (see
 `docker compose up`, and the row that person later gets on real login is
 the *same* row, not a duplicate.
 
-| Tenant | `tenants.id` / Keycloak `tenant_id` attribute | Username | Password | Keycloak/user `id` (→ `sub`) |
-|---|---|---|---|---|
-| Tenant A Academy | `a1111111-1111-1111-1111-111111111111` | `counselor.a` | `password` | `ca111111-1111-1111-1111-111111111111` |
-| Tenant B Academy | `b2222222-2222-2222-2222-222222222222` | `counselor.b` | `password` | `cb222222-2222-2222-2222-222222222222` |
+| Tenant | `tenants.id` / Keycloak `tenant_id` attribute | Username | Password | Role | Keycloak/user `id` (→ `sub`) |
+|---|---|---|---|---|---|
+| Tenant A Academy | `a1111111-1111-1111-1111-111111111111` | `counselor.a` | `password` | counselor | `ca111111-1111-1111-1111-111111111111` |
+| Tenant B Academy | `b2222222-2222-2222-2222-222222222222` | `counselor.b` | `password` | counselor | `cb222222-2222-2222-2222-222222222222` |
+| Tenant A Academy | `a1111111-1111-1111-1111-111111111111` | `admin.a` | `password` | admin | `da111111-1111-1111-1111-111111111111` |
+| Tenant B Academy | `b2222222-2222-2222-2222-222222222222` | `admin.b` | `password` | admin | `db222222-2222-2222-2222-222222222222` |
 
 ## Token claims
 
