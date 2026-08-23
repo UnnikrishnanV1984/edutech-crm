@@ -3,6 +3,7 @@ from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config, pool
 
+import app.models  # noqa: F401 — populates Base.metadata for autogenerate
 from alembic import context
 from app.db.base import Base
 
