@@ -7,7 +7,18 @@ from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.api import contacts, courses, deals, documents, health, me, pipeline_stages, tasks, users
+from app.api import (
+    contacts,
+    courses,
+    deals,
+    documents,
+    health,
+    lead_source_connections,
+    me,
+    pipeline_stages,
+    tasks,
+    users,
+)
 from app.core.config import get_settings
 from app.core.errors import (
     ApiError,
@@ -19,6 +30,9 @@ from app.core.errors import (
 from app.core.logging import configure_logging
 from app.core.middleware import RequestContextMiddleware
 from app.db.session import get_engine
+from app.webhooks import meta as meta_webhooks
+from app.webhooks import web as web_webhooks
+from app.webhooks import whatsapp as whatsapp_webhooks
 
 if sys.platform == "win32":
     # psycopg3's async mode cannot run under ProactorEventLoop, Windows's
@@ -62,6 +76,12 @@ def create_app() -> FastAPI:
     app.include_router(tasks.router)
     app.include_router(documents.router)
     app.include_router(users.router)
+    app.include_router(lead_source_connections.router)
+
+    # Public — bypass the BFF entirely, PHASE_2_PLAN.md §4.2.
+    app.include_router(meta_webhooks.router)
+    app.include_router(whatsapp_webhooks.router)
+    app.include_router(web_webhooks.router)
 
     return app
 
