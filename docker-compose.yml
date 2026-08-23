@@ -42,5 +42,64 @@ services:
       retries: 30
       start_period: 30s
 
+  backend:
+    build: ./backend
+    env_file: .env
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/ready')"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 15s
+
+  bff:
+    build: ./bff
+    env_file: .env
+    ports:
+      - "${BFF_PORT:-4000}:4000"
+    depends_on:
+      backend:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:4000/healthz', r => process.exit(r.statusCode===200?0:1)).on('error', () => process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  web:
+    build:
+      context: ./frontend
+      target: dev
+    env_file: .env
+    ports:
+      - "${WEB_PORT:-5173}:5173"
+    depends_on:
+      bff:
+        condition: service_healthy
+
+  minio:
+    image: minio/minio
+    profiles: ["storage"]
+    command: server /data --console-address ":9090"
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY}
+    ports:
+      - "9000:9000"
+      - "9090:9090"
+    volumes:
+      - minio-data:/data
+
 volumes:
   db-data:
+  minio-data:
