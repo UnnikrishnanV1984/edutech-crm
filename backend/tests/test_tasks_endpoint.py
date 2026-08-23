@@ -148,3 +148,40 @@ def test_list_tasks_filters_by_status(scenario):
         ).json()["data"]
 
     assert [t["id"] for t in open_tasks] == [t1["id"]]
+
+
+def test_assigning_to_a_different_tenants_user_is_rejected(scenario):
+    """PHASE_1_PLAN.md §8 criterion 6 — a real user id, just not one that
+    exists in *this* tenant. Composite FK (assignee_id, tenant_id) already
+    proved this at the raw-SQL level when the tasks migration was built;
+    this is the same check at the API layer."""
+    other_tenant_id = uuid.uuid4()
+    with psycopg.connect(MIGRATE_URL, autocommit=True) as conn, conn.cursor() as cur:
+        cur.execute(
+            "INSERT INTO tenants (id, slug, name) VALUES (%s, %s, %s)",
+            (other_tenant_id, f"t-{other_tenant_id}", "Other Tenant"),
+        )
+    try:
+        with TestClient(app) as client:
+            # JIT-provisions a real users row in the other tenant.
+            other_user = client.get(
+                "/api/v1/me", headers=_headers(other_tenant_id, "sub-other-tenant-user")
+            ).json()["data"]["user"]
+
+            response = client.post(
+                "/api/v1/tasks",
+                json={
+                    "contact_id": scenario["contact_id"],
+                    "title": "Cross-tenant assignee",
+                    "assignee_id": other_user["id"],
+                },
+                headers=_headers(scenario["tenant_id"]),
+            )
+        assert response.status_code == 400
+        assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+    finally:
+        with psycopg.connect(MIGRATE_URL, autocommit=True) as conn, conn.cursor() as cur:
+            cur.execute("SELECT set_config('app.tenant_id', %s, false)", (str(other_tenant_id),))
+            cur.execute("DELETE FROM users WHERE tenant_id = %s", (other_tenant_id,))
+            cur.execute("RESET app.tenant_id")
+            cur.execute("DELETE FROM tenants WHERE id = %s", (other_tenant_id,))

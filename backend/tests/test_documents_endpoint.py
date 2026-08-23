@@ -178,3 +178,44 @@ def test_list_documents_for_contact(scenario):
     assert listed.status_code == 200
     assert len(listed.json()["data"]) == 1
     assert listed.json()["data"][0]["filename"] == "notes.txt"
+
+
+def test_other_tenant_cannot_get_download_url_for_this_document(scenario):
+    """PHASE_1_PLAN.md §8 criterion 8 — a tenant-B request for tenant-A's
+    document id gets 404, never a valid presigned URL."""
+    other_tenant_id = uuid.uuid4()
+    with psycopg.connect(MIGRATE_URL, autocommit=True) as conn, conn.cursor() as cur:
+        cur.execute(
+            "INSERT INTO tenants (id, slug, name) VALUES (%s, %s, %s)",
+            (other_tenant_id, f"t-{other_tenant_id}", "Other Tenant"),
+        )
+    try:
+        with TestClient(app) as client:
+            upload_resp = client.post(
+                f"/api/v1/contacts/{scenario['contact_id']}/documents/upload-url",
+                json={"filename": "secret.pdf", "content_type": "application/pdf"},
+                headers=_headers(scenario["tenant_id"]),
+            ).json()["data"]
+            document = client.post(
+                f"/api/v1/contacts/{scenario['contact_id']}/documents",
+                json={
+                    "filename": "secret.pdf",
+                    "content_type": "application/pdf",
+                    "size_bytes": 5,
+                    "s3_key": upload_resp["s3_key"],
+                },
+                headers=_headers(scenario["tenant_id"]),
+            ).json()["data"]
+
+            response = client.get(
+                f"/api/v1/documents/{document['id']}/download-url",
+                headers=_headers(other_tenant_id, "sub-other-tenant-doc-test"),
+            )
+        assert response.status_code == 404
+        assert "download_url" not in response.json().get("data", {})
+    finally:
+        with psycopg.connect(MIGRATE_URL, autocommit=True) as conn, conn.cursor() as cur:
+            cur.execute("SELECT set_config('app.tenant_id', %s, false)", (str(other_tenant_id),))
+            cur.execute("DELETE FROM users WHERE tenant_id = %s", (other_tenant_id,))
+            cur.execute("RESET app.tenant_id")
+            cur.execute("DELETE FROM tenants WHERE id = %s", (other_tenant_id,))
