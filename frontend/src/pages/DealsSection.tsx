@@ -66,7 +66,7 @@ export function DealsSection({ contactId }: DealsSectionProps) {
             >
               <span>{courseName(deal.course_id)}</span>
               {stageInfo && (
-                <Badge label={stageInfo.stage.name} color={stageColor(stageInfo.stage, stageInfo.index)} />
+                <Badge label={stageInfo.stage.name} tone={stageColor(stageInfo.stage, stageInfo.index)} />
               )}
             </li>
           );

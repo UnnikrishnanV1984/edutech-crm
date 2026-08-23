@@ -40,17 +40,18 @@ export function SlideOverPanel({ title, onClose, children }: SlideOverPanelProps
           width: 420,
           maxWidth: "100%",
           height: "100%",
-          background: "var(--surface)",
+          background: "var(--elevation-2)",
           borderLeft: "1px solid var(--border)",
-          padding: 24,
+          boxShadow: "var(--shadow-md)",
+          padding: "var(--space-5)",
           overflowY: "auto",
           display: "flex",
           flexDirection: "column",
-          gap: 16,
+          gap: "var(--space-4)",
         }}
       >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <h1 style={{ margin: 0, fontSize: 18 }}>{title}</h1>
+          <h1 style={{ margin: 0, fontSize: "var(--text-xl)", lineHeight: "var(--line-xl)" }}>{title}</h1>
           <button type="button" onClick={onClose} aria-label="Close" style={{ border: "none" }}>
             ✕
           </button>

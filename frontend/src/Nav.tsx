@@ -4,14 +4,20 @@ import { NavLink } from "react-router-dom";
 import { listTasks } from "./api/tasks";
 import { useAuth } from "./auth/context";
 import { Avatar } from "./components/Avatar";
+import { Badge } from "./components/Badge";
 import { useMe } from "./useMe";
 
+// Active tab reads as a thin accent underline, not a filled pill — the one
+// saturated color in the nav stays a quiet line, matching
+// DESIGN_SYSTEM_REFRESH.md §10's "accent stands out because everything
+// else is quiet" principle.
 const linkStyle = ({ isActive }: { isActive: boolean }): React.CSSProperties => ({
-  padding: "6px 10px",
-  borderRadius: "var(--radius)",
+  display: "inline-flex",
+  alignItems: "center",
+  padding: "6px 2px",
   color: isActive ? "var(--text-h)" : "var(--text)",
-  background: isActive ? "var(--surface-hover)" : "transparent",
-  fontWeight: isActive ? 600 : 400,
+  borderBottom: isActive ? "2px solid var(--accent)" : "2px solid transparent",
+  fontWeight: isActive ? "var(--weight-semibold)" : "var(--weight-normal)",
   textDecoration: "none",
 });
 
@@ -53,17 +59,8 @@ export function Nav() {
         <NavLink to="/tasks" style={linkStyle}>
           Tasks
           {openTaskCount > 0 && (
-            <span
-              style={{
-                marginLeft: 6,
-                background: "var(--accent)",
-                color: "var(--accent-fg)",
-                borderRadius: 999,
-                padding: "0 6px",
-                fontSize: 11,
-              }}
-            >
-              {openTaskCount}
+            <span style={{ marginLeft: 6 }}>
+              <Badge variant="count" label={String(openTaskCount)} />
             </span>
           )}
         </NavLink>

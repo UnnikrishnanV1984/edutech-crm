@@ -174,7 +174,7 @@ export function ContactsListPage() {
                   <td style={{ padding: 8 }}>
                     <Badge
                       label={leadSourceLabel(contact.lead_source)}
-                      color={leadSourceColor(contact.lead_source)}
+                      tone={leadSourceColor(contact.lead_source)}
                     />
                   </td>
                   <td style={{ padding: 8 }}>

@@ -38,15 +38,16 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             key={toast.id}
             role="alert"
             style={{
-              background: "var(--text-h)",
-              color: "var(--bg)",
-              padding: "10px 16px",
-              borderRadius: "var(--radius)",
+              background: "var(--elevation-2)",
+              color: "var(--text-h)",
+              border: "1px solid var(--border)",
+              padding: "var(--space-3) var(--space-4)",
+              borderRadius: "var(--radius-lg)",
               display: "flex",
               alignItems: "center",
-              gap: 12,
-              fontSize: 14,
-              boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
+              gap: "var(--space-3)",
+              fontSize: "var(--text-base)",
+              boxShadow: "var(--shadow-md)",
             }}
           >
             <span>{toast.message}</span>

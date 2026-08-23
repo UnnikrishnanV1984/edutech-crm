@@ -79,7 +79,7 @@ export function ContactDetailPage() {
         <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 4 }}>
           <Badge
             label={leadSourceLabel(contact.lead_source)}
-            color={leadSourceColor(contact.lead_source)}
+            tone={leadSourceColor(contact.lead_source)}
           />
           <span style={{ color: "var(--text-muted)", fontSize: 13 }}>
             Owner: {userDisplayName(users, contact.owner_id)}

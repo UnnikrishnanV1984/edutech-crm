@@ -6,12 +6,29 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant;
 }
 
-const variantStyles: Record<Variant, React.CSSProperties> = {
-  primary: { background: "var(--accent)", color: "var(--accent-fg)", borderColor: "var(--accent)" },
-  secondary: { background: "transparent", color: "var(--text-h)" },
-  text: { background: "transparent", color: "var(--accent)", border: "none", padding: "4px 6px" },
+const variantClass: Record<Variant, string> = {
+  primary: "btn-primary",
+  secondary: "btn-secondary",
+  text: "btn-text",
 };
 
-export function Button({ variant = "secondary", style, ...props }: ButtonProps) {
-  return <button {...props} style={{ ...variantStyles[variant], ...style }} />;
+const variantStyles: Record<Variant, React.CSSProperties> = {
+  primary: { background: "var(--accent)", color: "var(--accent-fg)", border: "1px solid var(--accent)" },
+  secondary: { background: "transparent", color: "var(--text-h)" },
+  text: {
+    background: "transparent",
+    color: "var(--accent)",
+    border: "none",
+    padding: "var(--space-1) 6px",
+  },
+};
+
+export function Button({ variant = "secondary", className, style, ...props }: ButtonProps) {
+  return (
+    <button
+      {...props}
+      className={[variantClass[variant], className].filter(Boolean).join(" ")}
+      style={{ ...variantStyles[variant], ...style }}
+    />
+  );
 }
