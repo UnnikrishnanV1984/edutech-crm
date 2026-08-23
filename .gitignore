@@ -1,0 +1,41 @@
+# Env
+.env
+.env.local
+*.env.local
+
+# Node
+node_modules/
+dist/
+build/
+coverage/
+.npm/
+*.tsbuildinfo
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# Docker / volumes
+docker/volumes/
+
+# Helm
+deploy/helm/**/charts/
+deploy/helm/**/*.tgz
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Keycloak runtime data (not the checked-in realm-export.json)
+keycloak/data/
