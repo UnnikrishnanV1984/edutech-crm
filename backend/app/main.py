@@ -16,6 +16,7 @@ from app.api import (
     lead_source_connections,
     me,
     pipeline_stages,
+    sla_policies,
     tasks,
     users,
 )
@@ -77,6 +78,7 @@ def create_app() -> FastAPI:
     app.include_router(documents.router)
     app.include_router(users.router)
     app.include_router(lead_source_connections.router)
+    app.include_router(sla_policies.router)
 
     # Public — bypass the BFF entirely, PHASE_2_PLAN.md §4.2.
     app.include_router(meta_webhooks.router)
