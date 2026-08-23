@@ -1,0 +1,107 @@
+{
+  "realm": "edutech-crm",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "accessTokenLifespan": 900,
+  "ssoSessionIdleTimeout": 1800,
+  "roles": {
+    "realm": [
+      { "name": "admin", "description": "Tenant administrator" },
+      { "name": "manager", "description": "Admissions manager" },
+      { "name": "counselor", "description": "Admissions counselor" }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "web",
+      "name": "EdTech CRM web app",
+      "enabled": true,
+      "publicClient": true,
+      "protocol": "openid-connect",
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "http://localhost:5173/*"
+      ],
+      "webOrigins": [
+        "http://localhost:5173"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      },
+      "defaultClientScopes": [
+        "web-origins",
+        "profile",
+        "roles",
+        "email"
+      ],
+      "optionalClientScopes": [
+        "offline_access"
+      ],
+      "protocolMappers": [
+        {
+          "name": "tenant_id",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "tenant_id",
+            "claim.name": "tenant_id",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        },
+        {
+          "name": "web-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "web",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "counselor.a",
+      "email": "counselor.a@example.test",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "Asha",
+      "lastName": "Rao",
+      "credentials": [
+        { "type": "password", "value": "password", "temporary": false }
+      ],
+      "realmRoles": ["counselor"],
+      "attributes": {
+        "tenant_id": ["a1111111-1111-1111-1111-111111111111"]
+      }
+    },
+    {
+      "username": "counselor.b",
+      "email": "counselor.b@example.test",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "Bilal",
+      "lastName": "Khan",
+      "credentials": [
+        { "type": "password", "value": "password", "temporary": false }
+      ],
+      "realmRoles": ["counselor"],
+      "attributes": {
+        "tenant_id": ["b2222222-2222-2222-2222-222222222222"]
+      }
+    }
+  ]
+}
