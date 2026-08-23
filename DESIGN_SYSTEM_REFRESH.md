@@ -309,6 +309,62 @@ top-border strip: same hue `fg`, 3px.
 actually separates the panel from the white page behind it — don't omit
 it there, it's load-bearing in light mode specifically.
 
+## 11. Theme picker (Light / System / Dark)
+
+New scope, added after the initial refresh shipped — until now, light
+vs. dark was decided entirely by the OS/browser's
+`prefers-color-scheme`, with no in-app control. This section adds an
+explicit override, without dropping the "respects the OS" default
+anyone hasn't touched the control gets.
+
+**Mechanism** (for `feature-builder`, not a visual decision but needed
+to make the visual part possible): a `data-theme` attribute on
+`<html>`, three states:
+- Absent (default) → follows `prefers-color-scheme`, exactly today's
+  behavior.
+- `data-theme="light"` → forces light, even if the OS is dark.
+- `data-theme="dark"` → forces dark, even if the OS is light.
+
+`index.css` restructures to the standard three-state pattern — light
+values stay the bare `:root` default; the existing
+`@media (prefers-color-scheme: dark)` block's selector becomes
+`:root:not([data-theme="light"])` (so an explicit light choice beats a
+dark OS); and the same dark values are duplicated under a new
+`:root[data-theme="dark"]` rule (so an explicit dark choice wins
+regardless of OS — a media query alone can never override the OS
+setting, only an attribute selector can). Persisted to
+`localStorage` (`theme-preference`: `"light" | "dark" | "system"`,
+default `"system"`) and applied to `document.documentElement` on load,
+before first paint if feasible, to avoid a flash of the wrong theme.
+
+**Control placement**: Nav bar's right-side cluster (tenant name /
+avatar / logout), positioned *before* the tenant name — a settings-type
+control belongs with the account cluster, not the primary nav tabs on
+the left. Low-frequency interaction (set once, rarely revisited), so it
+doesn't need permanent multi-button real estate: a single `Button
+variant="text"` showing the current selection as a short label
+("Light" / "System" / "Dark") opens a small popover on click.
+
+**Popover**: same treatment as every other popover in this system
+(§10's `SlideOverPanel`/confirm-drop pattern) — `bg: --elevation-2`,
+`--radius-lg`, `--shadow-md`, `1px solid --border` (load-bearing in
+light mode). Three rows, "Light" / "System" / "Dark", each plain text
+(no new iconography — this app has deliberately stayed icon-free per
+the Deferred list below, and three text rows are unambiguous enough
+that adding sun/monitor/moon glyphs would be decoration, not
+information). The current selection: `color: --text-h` +
+`font-weight: --weight-semibold`, matching the same
+selected-state treatment Nav's own tabs already use (§10) rather than
+inventing a new indicator convention — no checkmark glyph needed since
+weight+color alone is enough for three plain-text rows in a small
+popover. Closes on selection, click-outside, or Esc — identical
+interaction contract to `SlideOverPanel`.
+
+**States**: only one — the popover is either open or closed; there's no
+loading/error state since this never touches the network. No
+`ux-designer` input needed for this one — three options, no branching,
+no interruption to design around.
+
 ---
 
 ## Deferred / out of scope
@@ -316,7 +372,9 @@ it there, it's load-bearing in light mode specifically.
 Same as `PHASE_1_UI_DESIGN.md`'s own deferred list, unchanged: no
 animation beyond CSS transitions, no print/export layout. Also deferred
 here: a dedicated illustration/icon set (current app has none; adding
-one is a bigger scope than "refresh the palette" and wasn't asked for).
+one is a bigger scope than "refresh the palette" and wasn't asked for;
+§11's theme picker deliberately stays consistent with this and uses
+text labels, not icons).
 
 Nothing kicked back to `ux-designer` — this is a pure token/visual pass,
 no flow decisions were touched or needed.
