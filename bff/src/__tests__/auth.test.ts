@@ -222,4 +222,19 @@ describe("requireAuth + proxy", () => {
     expect(JSON.parse(lastBackendBody)).toEqual(payload);
     expect(lastBackendHeaders["content-type"]).toContain("application/json");
   });
+
+  it("proxies a PATCH body intact (used by the deal stage-transition endpoint)", async () => {
+    const token = await signToken(validClaims());
+    const { createApp } = await import("../app.js");
+    const payload = { stage_id: "33333333-0000-0000-0000-000000000001" };
+    const response = await request(createApp())
+      .patch("/api/v1/deals/44444444-0000-0000-0000-000000000001")
+      .set("Authorization", `Bearer ${token}`)
+      .send(payload);
+
+    expect(response.status).toBe(200);
+    expect(lastBackendMethod).toBe("PATCH");
+    expect(lastBackendUrl).toBe("/api/v1/deals/44444444-0000-0000-0000-000000000001");
+    expect(JSON.parse(lastBackendBody)).toEqual(payload);
+  });
 });
