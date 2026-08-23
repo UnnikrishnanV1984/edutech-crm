@@ -11,22 +11,34 @@ from app.core.logging import tenant_id_ctx, user_id_ctx
 from app.db.session import get_sessionmaker
 from app.models.tenant import Tenant
 
+VALID_ROLES = ("admin", "manager", "counselor")
+
 
 @dataclass
 class TenantContext:
     tenant: Tenant
     user_id: str
+    user_email: str
+    user_full_name: str | None
+    user_role: str
     db: AsyncSession
 
 
 async def get_tenant_context(
     x_tenant_id: str | None = Header(default=None, alias="X-Tenant-Id"),
     x_user_id: str | None = Header(default=None, alias="X-User-Id"),
+    x_user_email: str | None = Header(default=None, alias="X-User-Email"),
+    x_user_name: str | None = Header(default=None, alias="X-User-Name"),
+    x_user_role: str | None = Header(default=None, alias="X-User-Role"),
 ) -> AsyncGenerator[TenantContext, None]:
     """Required by every tenant-scoped route (CLAUDE.md rule 3). Trusts
-    X-Tenant-Id / X-User-Id only because the BFF has already validated them
-    against Keycloak and stripped any client-supplied copies (CLAUDE.md
-    rule 7) — FastAPI does not re-validate a token here, it trusts the BFF.
+    these headers only because the BFF has already validated the caller's
+    token against Keycloak and stripped any client-supplied copies
+    (CLAUDE.md rule 7) — FastAPI does not re-validate a token here, it
+    trusts the BFF. X-User-Email/-Name/-Role extend the header set beyond
+    ARCHITECTURE.md's original three (X-Tenant-Id/X-User-Id/X-Request-Id) —
+    see API_CONVENTIONS.md §1 and DEVELOPMENT_PLAN.md §4.4 for why the JIT
+    user upsert needs them.
 
     /health and /ready are the only routes that don't depend on this.
     """
@@ -39,6 +51,12 @@ async def get_tenant_context(
 
     if not x_user_id:
         raise ApiError(401, UNAUTHORIZED, "Missing X-User-Id")
+    if not x_user_email:
+        raise ApiError(401, UNAUTHORIZED, "Missing X-User-Email")
+    if not x_user_role:
+        raise ApiError(401, UNAUTHORIZED, "Missing X-User-Role")
+    if x_user_role not in VALID_ROLES:
+        raise ApiError(401, UNAUTHORIZED, "Unrecognized X-User-Role")
 
     session = get_sessionmaker()()
     try:
@@ -65,7 +83,14 @@ async def get_tenant_context(
             tenant_token = tenant_id_ctx.set(str(tenant_uuid))
             user_token = user_id_ctx.set(x_user_id)
             try:
-                yield TenantContext(tenant=tenant, user_id=x_user_id, db=session)
+                yield TenantContext(
+                    tenant=tenant,
+                    user_id=x_user_id,
+                    user_email=x_user_email,
+                    user_full_name=x_user_name,
+                    user_role=x_user_role,
+                    db=session,
+                )
             finally:
                 tenant_id_ctx.reset(tenant_token)
                 user_id_ctx.reset(user_token)

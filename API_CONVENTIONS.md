@@ -13,11 +13,19 @@ unless noted otherwise.
   validates it against Keycloak's JWKS endpoint (not a local secret), then
   forwards to FastAPI:
   - `X-Tenant-Id` — resolved tenant UUID (from the validated token)
-  - `X-User-Id` — acting user UUID
+  - `X-User-Id` — acting user UUID (the Keycloak `sub` claim)
   - `X-Request-Id` — generated per request, for tracing across logs
+  - `X-User-Email` — the token's `email` claim
+  - `X-User-Name` — the token's `name` claim, if present (optional)
+  - `X-User-Role` — the token's realm role claim, one of `admin`,
+    `manager`, `counselor`
 - FastAPI never talks to Keycloak directly — it trusts the BFF's forwarded,
-  already-validated headers, and rejects any request missing `X-Tenant-Id`
-  with `401` before touching the database.
+  already-validated headers, and rejects any request missing `X-Tenant-Id`,
+  `X-User-Id`, `X-User-Email`, or `X-User-Role` (or carrying an unrecognized
+  `X-User-Role`) with `401` before touching the database.
+- The BFF strips any client-supplied copies of these six headers from the
+  inbound request before setting its own validated versions — never forward
+  a browser-set value for any of them.
 
 ## 2. URL structure
 

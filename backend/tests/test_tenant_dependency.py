@@ -33,3 +33,36 @@ async def test_missing_user_id_raises_401():
     with pytest.raises(ApiError) as exc_info:
         await _first(gen)
     assert exc_info.value.status_code == 401
+
+
+async def test_missing_user_email_raises_401():
+    gen = get_tenant_context(
+        x_tenant_id=str(uuid.uuid4()), x_user_id="user-1", x_user_email=None
+    )
+    with pytest.raises(ApiError) as exc_info:
+        await _first(gen)
+    assert exc_info.value.status_code == 401
+
+
+async def test_missing_user_role_raises_401():
+    gen = get_tenant_context(
+        x_tenant_id=str(uuid.uuid4()),
+        x_user_id="user-1",
+        x_user_email="a@example.test",
+        x_user_role=None,
+    )
+    with pytest.raises(ApiError) as exc_info:
+        await _first(gen)
+    assert exc_info.value.status_code == 401
+
+
+async def test_unrecognized_user_role_raises_401():
+    gen = get_tenant_context(
+        x_tenant_id=str(uuid.uuid4()),
+        x_user_id="user-1",
+        x_user_email="a@example.test",
+        x_user_role="superadmin",
+    )
+    with pytest.raises(ApiError) as exc_info:
+        await _first(gen)
+    assert exc_info.value.status_code == 401
