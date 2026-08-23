@@ -13,6 +13,12 @@ class Settings(BaseSettings):
     database_app_url: str
     redis_url: str
 
+    # S3/MinIO — presigned URLs only, the backend never proxies file bytes.
+    s3_endpoint: str
+    s3_bucket: str
+    s3_access_key: str
+    s3_secret_key: str
+
 
 @lru_cache
 def get_settings() -> Settings:
