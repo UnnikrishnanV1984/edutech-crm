@@ -10,6 +10,8 @@ from app.core.errors import UNAUTHORIZED, ApiError
 from app.core.logging import tenant_id_ctx, user_id_ctx
 from app.db.session import get_sessionmaker
 from app.models.tenant import Tenant
+from app.models.user import User
+from app.services.user_service import upsert_user
 
 VALID_ROLES = ("admin", "manager", "counselor")
 
@@ -22,6 +24,11 @@ class TenantContext:
     user_full_name: str | None
     user_role: str
     db: AsyncSession
+    user: User
+    """The resolved internal users row (JIT-provisioned if this is the
+    caller's first request) — use user.id, not user_id, for any FK
+    referencing users.id (owner_id, assignee_id, etc.). user_id above is
+    the Keycloak sub, a different UUID space entirely."""
 
 
 async def get_tenant_context(
@@ -80,6 +87,20 @@ async def get_tenant_context(
                 {"tenant_id": str(tenant_uuid)},
             )
 
+            # JIT-provisions/refreshes the internal users row for every
+            # authenticated request, not just /api/v1/me — endpoints that
+            # need "the acting user" as a foreign key (owner_id,
+            # assignee_id, ...) need users.id, which lives in a different
+            # UUID space than the Keycloak sub above.
+            user = await upsert_user(
+                db=session,
+                tenant_id=tenant_uuid,
+                keycloak_sub=x_user_id,
+                email=x_user_email,
+                full_name=x_user_name,
+                role=x_user_role,
+            )
+
             tenant_token = tenant_id_ctx.set(str(tenant_uuid))
             user_token = user_id_ctx.set(x_user_id)
             try:
@@ -90,6 +111,7 @@ async def get_tenant_context(
                     user_full_name=x_user_name,
                     user_role=x_user_role,
                     db=session,
+                    user=user,
                 )
             finally:
                 tenant_id_ctx.reset(tenant_token)
