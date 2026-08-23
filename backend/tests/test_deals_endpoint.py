@@ -62,6 +62,7 @@ def scenario():
 
     with psycopg.connect(MIGRATE_URL, autocommit=True) as conn, conn.cursor() as cur:
         cur.execute("SELECT set_config('app.tenant_id', %s, false)", (str(tenant_id),))
+        cur.execute("DELETE FROM activities WHERE tenant_id = %s", (tenant_id,))
         cur.execute("DELETE FROM deals WHERE tenant_id = %s", (tenant_id,))
         cur.execute("DELETE FROM contacts WHERE tenant_id = %s", (tenant_id,))
         cur.execute("DELETE FROM courses WHERE tenant_id = %s", (tenant_id,))

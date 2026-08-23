@@ -7,6 +7,7 @@ from app.core.envelope import collection_envelope, data_envelope
 from app.core.errors import NOT_FOUND, VALIDATION_ERROR, ApiError
 from app.deps.tenant import TenantContext, get_tenant_context
 from app.schemas.deal import DealCreate, DealOut, DealUpdate
+from app.services.activity_service import log_deal_stage_changed
 from app.services.contact_service import get_contact
 from app.services.deal_service import create_deal, get_deal, list_deals, update_deal
 
@@ -82,15 +83,24 @@ async def patch_deal(
         raise ApiError(404, NOT_FOUND, "Deal not found")
 
     try:
-        deal, _old_stage_id = await update_deal(context.db, deal, body)
+        deal, old_stage_id = await update_deal(context.db, deal, body)
     except IntegrityError as exc:
         await context.db.rollback()
         raise ApiError(
             400, VALIDATION_ERROR, "course_id, stage_id, or owner_id does not exist"
         ) from exc
 
-    # _old_stage_id will drive the activities write once that table
-    # exists (PHASE_1_PLAN.md §7 step 9) — not yet in this commit.
+    if old_stage_id is not None:
+        await log_deal_stage_changed(
+            context.db,
+            context.tenant.id,
+            deal.contact_id,
+            deal.id,
+            actor_id=context.user.id,
+            old_stage_id=old_stage_id,
+            new_stage_id=deal.stage_id,
+        )
+
     return data_envelope(
         DealOut.model_validate(deal).model_dump(mode="json"), request.state.request_id
     )

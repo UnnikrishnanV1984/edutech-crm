@@ -5,7 +5,9 @@ from fastapi import APIRouter, Depends, Query, Request
 from app.core.envelope import collection_envelope, data_envelope
 from app.core.errors import NOT_FOUND, ApiError
 from app.deps.tenant import TenantContext, get_tenant_context
+from app.schemas.activity import ActivityOut
 from app.schemas.contact import ContactCreate, ContactOut, ContactUpdate
+from app.services.activity_service import list_activities_for_contact
 from app.services.contact_service import (
     create_contact,
     get_contact,
@@ -83,3 +85,17 @@ async def patch_contact(
     return data_envelope(
         ContactOut.model_validate(contact).model_dump(mode="json"), request.state.request_id
     )
+
+
+@router.get("/{contact_id}/activities")
+async def get_contact_activities(
+    request: Request,
+    contact_id: uuid.UUID,
+    context: TenantContext = Depends(get_tenant_context),
+) -> dict:
+    contact = await get_contact(context.db, context.tenant.id, contact_id)
+    if contact is None:
+        raise ApiError(404, NOT_FOUND, "Contact not found")
+    activities = await list_activities_for_contact(context.db, context.tenant.id, contact_id)
+    items = [ActivityOut.model_validate(a).model_dump(mode="json") for a in activities]
+    return data_envelope(items, request.state.request_id)
