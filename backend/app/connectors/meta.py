@@ -20,7 +20,7 @@ class MetaConnector(SeedFileConnector):
             full_name=fields["full_name"],
             email=fields.get("email"),
             phone=fields.get("phone_number"),
-            course_code=fields["course_interest"],
+            course_code=fields.get("course_interest"),
             occurred_at=datetime.fromisoformat(record["created_time"]),
             raw=record,
         )

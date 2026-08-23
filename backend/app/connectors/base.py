@@ -25,7 +25,11 @@ class RawLead:
     full_name: str
     email: str | None
     phone: str | None
-    course_code: str
+    course_code: str | None
+    """None when the source payload carries no course-interest field —
+    app/services/lead_ingestion_service.py still creates the contact in
+    that case, just without a deal (PHASE_2_PLAN.md acceptance
+    criterion 10)."""
     occurred_at: datetime
     raw: dict[str, Any]
 

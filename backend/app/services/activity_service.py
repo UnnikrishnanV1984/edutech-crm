@@ -33,16 +33,18 @@ async def log_lead_captured(
     db: AsyncSession,
     tenant_id: uuid.UUID,
     contact_id: uuid.UUID,
-    deal_id: uuid.UUID,
+    deal_id: uuid.UUID | None,
     actor_id: uuid.UUID,
     source: str,
     external_id: str,
 ) -> Activity:
-    """One per lead ingested by app/connectors/ — actor_id is the
-    round-robin-assigned owner of the resulting deal, standing in for
-    "on behalf of" until a real system-actor concept exists (see the
-    architect note in SEED_CONNECTORS_PLAN.md for why that wasn't added
-    now)."""
+    """One per lead ingested by app/connectors/ or app/webhooks/ —
+    actor_id is the round-robin-assigned owner of the resulting contact,
+    standing in for "on behalf of" until a real system-actor concept
+    exists (see the architect note in SEED_CONNECTORS_PLAN.md for why
+    that wasn't added now). deal_id is None when the lead's course
+    couldn't be resolved to a deal (PHASE_2_PLAN.md acceptance
+    criterion 10) — the capture event is still logged."""
     activity = Activity(
         id=uuid.uuid4(),
         tenant_id=tenant_id,

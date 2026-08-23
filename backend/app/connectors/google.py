@@ -21,7 +21,7 @@ class GoogleConnector(SeedFileConnector):
             full_name=columns["FULL_NAME"],
             email=columns.get("EMAIL"),
             phone=columns.get("PHONE_NUMBER"),
-            course_code=columns["COURSE_CODE"],
+            course_code=columns.get("COURSE_CODE"),
             occurred_at=datetime.fromisoformat(record["createTime"]),
             raw=record,
         )

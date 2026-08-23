@@ -21,7 +21,7 @@ class WhatsAppConnector(SeedFileConnector):
             full_name=record["contact"]["profile"]["name"],
             email=None,
             phone=f"+{record['contact']['wa_id']}",
-            course_code=record["context"]["course_code"],
+            course_code=record.get("context", {}).get("course_code"),
             occurred_at=datetime.fromtimestamp(int(record["timestamp"]), tz=UTC),
             raw=record,
         )
