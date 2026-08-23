@@ -1,0 +1,50 @@
+# Same chart deploys both the pooled SaaS cluster and a single-tenant
+# client cluster (ARCHITECTURE.md §6/§7) — only these values differ
+# between deployments, never the chart templates or application code.
+#
+# ARCHITECTURE.md §6 notes the default production path is a static
+# build served via S3 + CloudFront rather than this Deployment — this
+# chart is the fallback for when the team decides SSR/dynamic serving
+# is needed, and is what docker-compose's `web` container maps to
+# locally. Nothing here assumes which path is actually used in prod.
+
+image:
+  repository: ""  # e.g. <account>.dkr.ecr.<region>.amazonaws.com/edutech-crm-web
+  tag: ""
+  pullPolicy: IfNotPresent
+
+replicaCount: 2
+
+containerPort: 80
+
+service:
+  type: ClusterIP
+  port: 80
+
+ingress:
+  enabled: true
+  className: alb
+  host: app.example.com
+  path: /
+  annotations: {}
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 200m
+    memory: 128Mi
+
+# The frontend has no server-side secrets — VITE_* values are public
+# and baked into the build at image-build time (see frontend/Dockerfile's
+# `production` target), not injected at runtime here.
+
+serviceAccount:
+  create: false
+  name: ""
+
+podAnnotations: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}

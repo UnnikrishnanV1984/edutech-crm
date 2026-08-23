@@ -1,0 +1,49 @@
+# Same chart deploys both the pooled SaaS cluster and a single-tenant
+# client cluster (ARCHITECTURE.md §6/§7) — only these values differ
+# between deployments, never the chart templates or application code.
+
+image:
+  repository: ""  # e.g. <account>.dkr.ecr.<region>.amazonaws.com/edutech-crm-backend
+  tag: ""          # set explicitly per deploy — never "latest" in production
+  pullPolicy: IfNotPresent
+
+replicaCount: 2
+
+containerPort: 8000
+
+service:
+  type: ClusterIP
+  port: 8000
+
+# Internal only — reachable from bff, never exposed via a public
+# ingress (ARCHITECTURE.md §6).
+ingress:
+  enabled: false
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+# Non-secret config, applied via envFrom a ConfigMap this chart creates.
+env:
+  ENVIRONMENT: production
+  LOG_LEVEL: info
+
+# Secret values (DB/Redis URLs, etc.) are never set here — this chart
+# only references an externally-managed Secret name (created via
+# AWS Secrets Manager + External Secrets, or manually per
+# CLAUDE.md/ARCHITECTURE.md §6). Set the real name per deploy.
+existingSecretName: "backend-secrets"
+
+serviceAccount:
+  create: false
+  name: ""
+
+podAnnotations: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}

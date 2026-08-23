@@ -1,0 +1,53 @@
+# Same chart deploys both the pooled SaaS cluster and a single-tenant
+# client cluster (ARCHITECTURE.md §6/§7) — only these values differ
+# between deployments, never the chart templates or application code.
+
+image:
+  repository: ""  # e.g. <account>.dkr.ecr.<region>.amazonaws.com/edutech-crm-bff
+  tag: ""
+  pullPolicy: IfNotPresent
+
+replicaCount: 2
+
+containerPort: 4000
+
+service:
+  type: ClusterIP
+  port: 4000
+
+# Public — the only backend service the browser talks to directly
+# (ARCHITECTURE.md §3/§6).
+ingress:
+  enabled: true
+  className: alb
+  host: api.example.com
+  path: /
+  annotations: {}
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 250m
+    memory: 256Mi
+
+env:
+  ENVIRONMENT: production
+  LOG_LEVEL: info
+  BACKEND_BASE_URL: "http://backend:8000"
+  KEYCLOAK_CLIENT_ID: web
+
+# Secret values (KEYCLOAK_ISSUER_URL/JWKS_URL if treated as sensitive,
+# Redis URL, etc.) — this chart only references an externally-managed
+# Secret name. Set the real name per deploy.
+existingSecretName: "bff-secrets"
+
+serviceAccount:
+  create: false
+  name: ""
+
+podAnnotations: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}

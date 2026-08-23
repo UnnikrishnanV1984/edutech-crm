@@ -1,0 +1,61 @@
+# Same chart deploys both the pooled SaaS cluster and a single-tenant
+# client cluster (ARCHITECTURE.md §6/§7) — only these values differ
+# between deployments, never the chart templates.
+#
+# Pinned, unlike docker-compose.yml's `latest` (which is fine for
+# throwaway local dev). Pin a real version for anything durable —
+# behavior has genuinely changed between versions here (see
+# keycloak/README.md's note on the `sub` claim), so floating tags are a
+# real production risk, not just a style preference.
+image:
+  repository: quay.io/keycloak/keycloak
+  tag: "26.0"
+  pullPolicy: IfNotPresent
+
+replicaCount: 1  # single-node skeleton; Phase 5 revisits HA/clustering
+
+containerPort: 8080
+
+service:
+  type: ClusterIP
+  port: 8080
+
+ingress:
+  enabled: true
+  className: alb
+  host: auth.example.com
+  path: /
+  annotations: {}
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+
+env:
+  KC_HEALTH_ENABLED: "true"
+
+# realm-export.json is NOT baked into this chart (Helm's .Files.Get
+# can't read outside the chart directory, and the canonical copy lives
+# at /keycloak/realm-export.json so both this chart and
+# docker-compose.yml reference the exact same file). In a real deploy,
+# create this ConfigMap out of band before `helm upgrade`, e.g.:
+#   kubectl create configmap keycloak-realm \
+#     --from-file=realm-export.json=keycloak/realm-export.json
+realmConfigMapName: "keycloak-realm"
+
+# KC_BOOTSTRAP_ADMIN_USERNAME/PASSWORD — externally managed, referenced
+# by name only, same pattern as backend/bff.
+existingSecretName: "keycloak-secrets"
+
+serviceAccount:
+  create: false
+  name: ""
+
+podAnnotations: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}

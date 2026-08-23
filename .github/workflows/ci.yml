@@ -145,6 +145,19 @@ jobs:
           target: ${{ matrix.target }}
           push: false
 
+  helm-charts:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        chart: [backend, bff, web, keycloak]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+      - name: helm lint
+        run: helm lint deploy/helm/${{ matrix.chart }}
+      - name: helm template
+        run: helm template test deploy/helm/${{ matrix.chart }} --set image.repository=example/${{ matrix.chart }} --set image.tag=v1
+
   compose-isolation:
     runs-on: ubuntu-latest
     needs: [backend, bff, frontend]
