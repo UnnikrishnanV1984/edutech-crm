@@ -1,0 +1,20 @@
+[
+  {
+    "message_id": "wamid.HBgMOTE5ODc2NTAwMDAxFQIAERgS",
+    "timestamp": "1768723200",
+    "contact": { "profile": { "name": "Arjun Mehta" }, "wa_id": "919876500001" },
+    "context": { "course_code": "MBA-FIN" }
+  },
+  {
+    "message_id": "wamid.HBgMOTE5ODc2NTAwMDAyFQIAERgS",
+    "timestamp": "1768809600",
+    "contact": { "profile": { "name": "Divya Rao" }, "wa_id": "919876500002" },
+    "context": { "course_code": "DS-202" }
+  },
+  {
+    "message_id": "wamid.HBgMOTE5ODc2NTAwMDAzFQIAERgS",
+    "timestamp": "1768896000",
+    "contact": { "profile": { "name": "Farhan Sheikh" }, "wa_id": "919876500003" },
+    "context": { "course_code": "WEB-BOOT" }
+  }
+]

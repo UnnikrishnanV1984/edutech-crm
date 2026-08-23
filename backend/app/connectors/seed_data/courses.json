@@ -1,0 +1,6 @@
+[
+  { "name": "MBA in Finance", "code": "MBA-FIN" },
+  { "name": "Certificate in Data Science", "code": "DS-202" },
+  { "name": "Diploma in Computer Science", "code": "CS-101" },
+  { "name": "Full-Stack Web Development Bootcamp", "code": "WEB-BOOT" }
+]

@@ -1,0 +1,38 @@
+[
+  {
+    "leadId": "gid-2026-000001",
+    "campaignId": "cmp-9001",
+    "gclId": "Cj0KCQjw000001",
+    "createTime": "2026-01-15T08:00:00Z",
+    "userColumnData": [
+      { "columnId": "FULL_NAME", "stringValue": "Rahul Verma" },
+      { "columnId": "EMAIL", "stringValue": "rahul.verma@example.test" },
+      { "columnId": "PHONE_NUMBER", "stringValue": "+91-9123456780" },
+      { "columnId": "COURSE_CODE", "stringValue": "CS-101" }
+    ]
+  },
+  {
+    "leadId": "gid-2026-000002",
+    "campaignId": "cmp-9001",
+    "gclId": "Cj0KCQjw000002",
+    "createTime": "2026-01-16T08:30:00Z",
+    "userColumnData": [
+      { "columnId": "FULL_NAME", "stringValue": "Sneha Joshi" },
+      { "columnId": "EMAIL", "stringValue": "sneha.joshi@example.test" },
+      { "columnId": "PHONE_NUMBER", "stringValue": "+91-9123456781" },
+      { "columnId": "COURSE_CODE", "stringValue": "WEB-BOOT" }
+    ]
+  },
+  {
+    "leadId": "gid-2026-000003",
+    "campaignId": "cmp-9002",
+    "gclId": "Cj0KCQjw000003",
+    "createTime": "2026-01-17T10:15:00Z",
+    "userColumnData": [
+      { "columnId": "FULL_NAME", "stringValue": "Aditya Nair" },
+      { "columnId": "EMAIL", "stringValue": "aditya.nair@example.test" },
+      { "columnId": "PHONE_NUMBER", "stringValue": "+91-9123456782" },
+      { "columnId": "COURSE_CODE", "stringValue": "MBA-FIN" }
+    ]
+  }
+]
