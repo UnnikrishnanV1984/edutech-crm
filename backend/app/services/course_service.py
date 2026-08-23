@@ -15,6 +15,13 @@ async def create_course(db: AsyncSession, tenant_id: uuid.UUID, data: CourseCrea
     return course
 
 
+async def get_course_by_code(db: AsyncSession, tenant_id: uuid.UUID, code: str) -> Course | None:
+    result = await db.execute(
+        select(Course).where(Course.tenant_id == tenant_id, Course.code == code)
+    )
+    return result.scalar_one_or_none()
+
+
 async def list_courses(db: AsyncSession, tenant_id: uuid.UUID) -> list[Course]:
     result = await db.execute(
         select(Course)

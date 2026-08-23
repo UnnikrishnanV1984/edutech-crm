@@ -29,6 +29,34 @@ async def log_deal_stage_changed(
     return activity
 
 
+async def log_lead_captured(
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+    contact_id: uuid.UUID,
+    deal_id: uuid.UUID,
+    actor_id: uuid.UUID,
+    source: str,
+    external_id: str,
+) -> Activity:
+    """One per lead ingested by app/connectors/ — actor_id is the
+    round-robin-assigned owner of the resulting deal, standing in for
+    "on behalf of" until a real system-actor concept exists (see the
+    architect note in SEED_CONNECTORS_PLAN.md for why that wasn't added
+    now)."""
+    activity = Activity(
+        id=uuid.uuid4(),
+        tenant_id=tenant_id,
+        contact_id=contact_id,
+        deal_id=deal_id,
+        type="lead_captured",
+        actor_id=actor_id,
+        payload={"source": source, "external_id": external_id},
+    )
+    db.add(activity)
+    await db.flush()
+    return activity
+
+
 async def list_activities_for_contact(
     db: AsyncSession, tenant_id: uuid.UUID, contact_id: uuid.UUID
 ) -> list[Activity]:

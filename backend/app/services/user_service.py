@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import func
+from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -41,3 +41,15 @@ async def upsert_user(
     ).returning(User)
     result = await db.execute(stmt)
     return result.scalar_one()
+
+
+async def list_counselor_ids(db: AsyncSession, tenant_id: uuid.UUID) -> list[uuid.UUID]:
+    """Ordered by created_at then id for a deterministic round-robin —
+    used by app/connectors/ingestion_service.py to assign an owner to
+    each seeded lead, since there's no acting HTTP user to default to."""
+    result = await db.execute(
+        select(User.id)
+        .where(User.tenant_id == tenant_id, User.role == "counselor", User.status == "active")
+        .order_by(User.created_at, User.id)
+    )
+    return list(result.scalars().all())
