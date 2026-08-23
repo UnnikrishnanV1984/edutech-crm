@@ -5,6 +5,7 @@ import { listTasks } from "./api/tasks";
 import { useAuth } from "./auth/context";
 import { Avatar } from "./components/Avatar";
 import { Badge } from "./components/Badge";
+import { ThemeToggle } from "./components/ThemeToggle";
 import { useMe } from "./useMe";
 
 // Active tab reads as a thin accent underline, not a filled pill — the one
@@ -67,6 +68,7 @@ export function Nav() {
       </div>
       {me && (
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <ThemeToggle />
           <span style={{ color: "var(--text-muted)", fontSize: 13 }}>{me.tenant.name}</span>
           <Avatar name={me.user.full_name ?? me.user.email} />
           <button type="button" onClick={logout} style={{ border: "none" }}>
