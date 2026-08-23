@@ -71,8 +71,19 @@
   -webkit-font-smoothing: antialiased;
 }
 
+/* Theme picker (DESIGN_SYSTEM_REFRESH.md §11): `data-theme` on <html>,
+   set by frontend/src/theme.ts from the user's Light/System/Dark choice.
+   No attribute = "system" = follow the OS via prefers-color-scheme,
+   exactly today's behavior. An explicit choice must win over the OS
+   either direction, which a media query alone can never do — only an
+   attribute selector can force dark on a light OS. So the same dark
+   values necessarily appear twice below: once guarded by
+   `:not([data-theme="light"])` inside the media query (system-dark,
+   unless the user explicitly chose light), and once unconditionally
+   under `:root[data-theme="dark"]` (explicit dark, regardless of OS).
+   Keep both blocks identical — nothing else enforces that. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     /* Neutral scale (dark) — true-grey base in the #0E-#1A range, not
        pure black; each elevation step lighter than the last. */
     --bg: #121319;
@@ -100,6 +111,36 @@
     --warning: #f0b84e;
     --warning-bg: #3a2c10;
   }
+}
+
+:root[data-theme="dark"] {
+  /* Identical to the block above — an explicit dark choice must apply
+     even when the OS itself is light, which the media query above
+     cannot express. */
+  --bg: #121319;
+  --surface: #191a22;
+  --surface-hover: #21222c;
+  --border: #2b2c38;
+  --text-muted: #8d8fa3;
+  --text: #c7c8d6;
+  --text-h: #f5f5f9;
+
+  --elevation-2: #21222c;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.45);
+
+  --accent: #b8a6ff;
+  --accent-hover: #a58cf7;
+  --accent-fg: #1a1130;
+  --accent-subtle: #2a2340;
+  --danger: #f27a8a;
+  --danger-bg: #3a1e24;
+  --success: #6ee7b0;
+  --success-bg: #163829;
+  --warning: #f0b84e;
+  --warning-bg: #3a2c10;
 }
 
 * {
@@ -151,6 +192,10 @@ button:disabled {
 
 .btn-text:not(:disabled):hover {
   text-decoration: underline;
+}
+
+.theme-menu-item:hover {
+  background: var(--surface-hover);
 }
 
 input,

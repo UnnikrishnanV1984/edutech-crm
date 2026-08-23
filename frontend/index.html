@@ -2,6 +2,19 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <script>
+      // Applies the stored theme choice before first paint, so there's no
+      // flash of the wrong theme while React boots. Same storage key and
+      // attribute src/theme.ts uses — keep them in sync if either changes.
+      (function () {
+        try {
+          var pref = localStorage.getItem("theme-preference");
+          if (pref === "light" || pref === "dark") {
+            document.documentElement.dataset.theme = pref;
+          }
+        } catch (e) {}
+      })();
+    </script>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>EdTech CRM</title>
