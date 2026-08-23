@@ -1,5 +1,7 @@
+import cors from "cors";
 import express, { type Express } from "express";
 
+import { config } from "./config/index.js";
 import { requireAuth } from "./middleware/auth.js";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
 import { requestContext } from "./middleware/requestContext.js";
@@ -13,6 +15,9 @@ export function createApp(): Express {
 
   // Must run before anything else — see stripForwardedHeaders.ts.
   app.use(stripForwardedHeaders);
+  // The SPA sends `Authorization: Bearer <token>` (no cookies — CLAUDE.md
+  // rule 4), so this only needs to allow that header, not credentials.
+  app.use(cors({ origin: config.corsOrigin, allowedHeaders: ["Authorization", "Content-Type"] }));
   app.use(requestContext);
 
   app.use(healthRouter);

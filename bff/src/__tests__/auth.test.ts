@@ -74,6 +74,7 @@ beforeAll(async () => {
   process.env.KEYCLOAK_JWKS_URL = jwksUrl;
   process.env.KEYCLOAK_CLIENT_ID = CLIENT_ID;
   process.env.BACKEND_BASE_URL = backendUrl;
+  process.env.CORS_ORIGIN = "http://localhost:5173";
 });
 
 afterAll(async () => {
@@ -191,6 +192,31 @@ describe("requireAuth + proxy", () => {
     // The forged values must never reach the backend — only the token's.
     expect(lastBackendHeaders["x-tenant-id"]).toBe(TENANT_A);
     expect(lastBackendHeaders["x-user-role"]).toBe("counselor");
+  });
+
+  it("answers a CORS preflight for the SPA origin without requiring auth", async () => {
+    const { createApp } = await import("../app.js");
+    const response = await request(createApp())
+      .options("/api/v1/contacts")
+      .set("Origin", "http://localhost:5173")
+      .set("Access-Control-Request-Method", "POST")
+      .set("Access-Control-Request-Headers", "authorization,content-type");
+
+    expect(response.status).toBe(204);
+    expect(response.headers["access-control-allow-origin"]).toBe("http://localhost:5173");
+    expect(response.headers["access-control-allow-headers"]).toContain("Authorization");
+  });
+
+  it("sets Access-Control-Allow-Origin on the actual proxied response", async () => {
+    const token = await signToken(validClaims());
+    const { createApp } = await import("../app.js");
+    const response = await request(createApp())
+      .get("/api/v1/me")
+      .set("Origin", "http://localhost:5173")
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(response.status).toBe(200);
+    expect(response.headers["access-control-allow-origin"]).toBe("http://localhost:5173");
   });
 
   it("forwards the correct path to the backend (/api/v1 prefix preserved)", async () => {
