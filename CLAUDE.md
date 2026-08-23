@@ -95,7 +95,10 @@ cd bff && npm run lint
 cd bff && npm run test
 
 # Backend
-cd backend && uvicorn app.main:app --reload
+# --loop none is required on Windows: psycopg3's async mode cannot run
+# under uvicorn's default ProactorEventLoop on that platform. Not needed
+# in the Linux containers used by docker-compose/production.
+cd backend && uvicorn app.main:app --reload --loop none
 cd backend && pytest
 cd backend && ruff check .
 cd backend && alembic upgrade head
