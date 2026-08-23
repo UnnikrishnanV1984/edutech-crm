@@ -1,0 +1,26 @@
+[
+  {
+    "leadId": "mgid-2026-000001",
+    "campaignId": "cmp-mock-9001",
+    "gclId": "Cj0KCQjwMock000001",
+    "createTime": "2026-02-01T08:00:00Z",
+    "userColumnData": [
+      { "columnId": "FULL_NAME", "stringValue": "Kavya Menon" },
+      { "columnId": "EMAIL", "stringValue": "kavya.menon@example.test" },
+      { "columnId": "PHONE_NUMBER", "stringValue": "+91-9123499001" },
+      { "columnId": "COURSE_CODE", "stringValue": "DS-202" }
+    ]
+  },
+  {
+    "leadId": "mgid-2026-000002",
+    "campaignId": "cmp-mock-9001",
+    "gclId": "Cj0KCQjwMock000002",
+    "createTime": "2026-02-02T08:30:00Z",
+    "userColumnData": [
+      { "columnId": "FULL_NAME", "stringValue": "Siddharth Rao" },
+      { "columnId": "EMAIL", "stringValue": "siddharth.rao@example.test" },
+      { "columnId": "PHONE_NUMBER", "stringValue": "+91-9123499002" },
+      { "columnId": "COURSE_CODE", "stringValue": "WEB-BOOT" }
+    ]
+  }
+]
