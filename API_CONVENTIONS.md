@@ -61,6 +61,22 @@ Collections:
 }
 ```
 
+`/api/v1/reports/*` (`PHASE_4_PLAN.md`) carries one additional documented
+`meta` field instead of pagination — these are single aggregate shapes,
+not paginated collections:
+
+```json
+{
+  "data": { },
+  "meta": { "request_id": "...", "cached_at": "2026-08-24T10:00:00Z" }
+}
+```
+
+`cached_at` is when the value was computed, not necessarily "now" — these
+endpoints are cache-aside with a short (60s) TTL, not live on every
+request (`PHASE_4_PLAN.md` §6), so the frontend shows "as of HH:MM" rather
+than implying live data.
+
 ## 4. Error format
 
 ```json
