@@ -57,7 +57,7 @@ async def patch_connection(
     connection = await connections.get_connection(context.db, context.tenant.id, connection_id)
     if connection is None:
         raise ApiError(404, NOT_FOUND, "Connection not found")
-    connection = await connections.update_status(context.db, connection, body.status)
+    connection = await connections.update_connection(context.db, connection, body)
     return data_envelope(_out(connection), request.state.request_id)
 
 

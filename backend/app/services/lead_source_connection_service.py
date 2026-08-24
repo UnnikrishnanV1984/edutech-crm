@@ -15,7 +15,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.crypto import encrypt_token
 from app.models.lead_source_connection import LeadSourceConnection
-from app.schemas.lead_source_connection import LeadSourceConnectionCreate
+from app.schemas.lead_source_connection import (
+    LeadSourceConnectionCreate,
+    LeadSourceConnectionUpdate,
+)
 
 
 async def create_connection(
@@ -73,10 +76,11 @@ async def get_connection(
     return result.scalar_one_or_none()
 
 
-async def update_status(
-    db: AsyncSession, connection: LeadSourceConnection, status: str
+async def update_connection(
+    db: AsyncSession, connection: LeadSourceConnection, data: LeadSourceConnectionUpdate
 ) -> LeadSourceConnection:
-    connection.status = status
+    for field, value in data.model_dump(exclude_unset=True).items():
+        setattr(connection, field, value)
     await db.flush()
     await db.refresh(connection)
     return connection

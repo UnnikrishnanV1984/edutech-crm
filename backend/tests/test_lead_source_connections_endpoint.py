@@ -209,6 +209,56 @@ def test_connections_are_tenant_scoped(tenant):
         _cleanup(other_tenant_id)
 
 
+def test_conversion_target_id_persists_and_round_trips(tenant):
+    """ARCHITECTURE.md §7d — conversion_target_id rides through the same
+    PATCH route as status, independently settable without also
+    resupplying status."""
+    with TestClient(app) as client:
+        created = client.post(
+            "/api/v1/lead-source-connections",
+            json={
+                "source": "meta",
+                "external_account_id": f"page-{uuid.uuid4()}",
+                "access_token": "t",
+            },
+            headers=_headers(tenant),
+        )
+        connection_id = created.json()["data"]["id"]
+        assert created.json()["data"]["conversion_target_id"] is None
+
+        patched = client.patch(
+            f"/api/v1/lead-source-connections/{connection_id}",
+            json={"conversion_target_id": "pixel-123"},
+            headers=_headers(tenant),
+        )
+    assert patched.status_code == 200
+    body = patched.json()["data"]
+    assert body["conversion_target_id"] == "pixel-123"
+    assert body["status"] == "active"  # untouched by a status-less patch
+
+
+def test_conversion_target_id_rejects_blank(tenant):
+    with TestClient(app) as client:
+        created = client.post(
+            "/api/v1/lead-source-connections",
+            json={
+                "source": "meta",
+                "external_account_id": f"page-{uuid.uuid4()}",
+                "access_token": "t",
+            },
+            headers=_headers(tenant),
+        )
+        connection_id = created.json()["data"]["id"]
+
+        response = client.patch(
+            f"/api/v1/lead-source-connections/{connection_id}",
+            json={"conversion_target_id": "   "},
+            headers=_headers(tenant),
+        )
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+
+
 def test_sync_rejects_non_google_source(tenant):
     with TestClient(app) as client:
         created = client.post(

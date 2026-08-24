@@ -29,12 +29,22 @@ class LeadSourceConnectionCreate(BaseModel):
 
 
 class LeadSourceConnectionUpdate(BaseModel):
-    status: str
+    status: str | None = None
+    # The Meta Pixel/Dataset ID or Google conversion action resource name
+    # — an identifier, not a credential, so it's plain text (unlike
+    # access_token/refresh_token, which are never accepted or returned
+    # through this API at all — PHASE_2_PLAN.md §4.1). Only meaningful
+    # for meta/google connections; not validated against source here
+    # since this model doesn't have the connection's source available to
+    # check against (ARCHITECTURE.md §7d).
+    conversion_target_id: str | None = None
 
     @model_validator(mode="after")
     def _check_status(self) -> "LeadSourceConnectionUpdate":
-        if self.status not in STATUSES:
+        if self.status is not None and self.status not in STATUSES:
             raise ValueError(f"status must be one of {STATUSES}")
+        if self.conversion_target_id is not None and not self.conversion_target_id.strip():
+            raise ValueError("conversion_target_id must not be blank")
         return self
 
 
@@ -50,5 +60,6 @@ class LeadSourceConnectionOut(BaseModel):
     status: str
     token_expires_at: datetime | None
     last_synced_at: datetime | None
+    conversion_target_id: str | None
     created_at: datetime
     updated_at: datetime
