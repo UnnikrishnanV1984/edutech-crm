@@ -194,7 +194,7 @@ button:disabled {
   text-decoration: underline;
 }
 
-.theme-menu-item:hover {
+.theme-segment:hover {
   background: var(--surface-hover);
 }
 

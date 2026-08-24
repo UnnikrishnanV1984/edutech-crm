@@ -1,106 +1,80 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 
 import { getThemePreference, setThemePreference, type ThemePreference } from "../theme";
-import { Button } from "./Button";
 
-const OPTIONS: { value: ThemePreference; label: string }[] = [
-  { value: "light", label: "Light" },
-  { value: "system", label: "System" },
-  { value: "dark", label: "Dark" },
+// Plain Unicode glyphs (Miscellaneous Symbols block), not an emoji or an
+// SVG icon library — this app has neither dependency, and these render
+// as flat monochrome dingbats in system UI fonts rather than colorful
+// emoji, which fits an internal admissions tool better than a bright
+// icon set would.
+const OPTIONS: { value: ThemePreference; glyph: string; label: string }[] = [
+  { value: "light", glyph: "☀", label: "Light" }, // ☀
+  { value: "system", glyph: "◐", label: "System" }, // ◐
+  { value: "dark", glyph: "☾", label: "Dark" }, // ☾
 ];
 
-const LABELS: Record<ThemePreference, string> = {
-  light: "Light",
-  system: "System",
-  dark: "Dark",
-};
-
-/** Nav's account-cluster theme picker (DESIGN_SYSTEM_REFRESH.md §11) —
- * text-only, no icons, matching the rest of this app's icon-free
- * convention. Esc/click-outside close behavior mirrors SlideOverPanel's,
- * just via a ref instead of a full-screen overlay (this is a small
- * anchored popover, not a page-level panel). */
+/** Sidebar-footer segmented control (superseding DESIGN_SYSTEM_REFRESH.md
+ * §11's original "no icons, dropdown" spec — that was written for a Nav
+ * dropdown that no longer exists; a popover opening downward from the
+ * sidebar footer renders off-screen below the viewport, and three
+ * always-visible icons avoid the overflow risk entirely rather than
+ * repositioning a popover that shouldn't exist here). The selected
+ * option stays visually raised/tinted, not just on :hover — hover is a
+ * separate, lighter state on the other two. */
 export function ThemeToggle() {
   const [preference, setPreference] = useState<ThemePreference>(() => getThemePreference());
-  const [open, setOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") setOpen(false);
-    }
-    function onPointerDown(event: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener("keydown", onKeyDown);
-    document.addEventListener("mousedown", onPointerDown);
-    return () => {
-      document.removeEventListener("keydown", onKeyDown);
-      document.removeEventListener("mousedown", onPointerDown);
-    };
-  }, [open]);
 
   function choose(value: ThemePreference) {
     setThemePreference(value);
     setPreference(value);
-    setOpen(false);
   }
 
   return (
-    <div ref={containerRef} style={{ position: "relative" }}>
-      <Button variant="text" onClick={() => setOpen((v) => !v)} aria-haspopup="true" aria-expanded={open}>
-        {LABELS[preference]}
-      </Button>
-      {open && (
-        <div
-          role="menu"
-          aria-label="Theme"
-          style={{
-            position: "absolute",
-            top: "100%",
-            right: 0,
-            marginTop: "var(--space-1)",
-            background: "var(--elevation-2)",
-            border: "1px solid var(--border)",
-            borderRadius: "var(--radius-lg)",
-            boxShadow: "var(--shadow-md)",
-            padding: "var(--space-1)",
-            minWidth: 120,
-            zIndex: 10,
-          }}
-        >
-          {OPTIONS.map((option) => {
-            const selected = option.value === preference;
-            return (
-              <button
-                key={option.value}
-                type="button"
-                role="menuitemradio"
-                aria-checked={selected}
-                onClick={() => choose(option.value)}
-                className="theme-menu-item"
-                style={{
-                  display: "block",
-                  width: "100%",
-                  textAlign: "left",
-                  border: "none",
-                  background: "transparent",
-                  padding: "var(--space-2) var(--space-3)",
-                  borderRadius: "var(--radius-sm)",
-                  color: selected ? "var(--text-h)" : "var(--text)",
-                  fontWeight: selected ? "var(--weight-semibold)" : "var(--weight-normal)",
-                }}
-              >
-                {option.label}
-              </button>
-            );
-          })}
-        </div>
-      )}
+    <div
+      role="radiogroup"
+      aria-label="Theme"
+      style={{
+        display: "inline-flex",
+        gap: 2,
+        padding: 2,
+        background: "var(--surface)",
+        border: "1px solid var(--border)",
+        borderRadius: "var(--radius)",
+      }}
+    >
+      {OPTIONS.map((option) => {
+        const selected = option.value === preference;
+        return (
+          <button
+            key={option.value}
+            type="button"
+            role="radio"
+            aria-checked={selected}
+            aria-label={option.label}
+            title={option.label}
+            onClick={() => choose(option.value)}
+            className="theme-segment"
+            style={{
+              width: 28,
+              height: 28,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              border: "none",
+              borderRadius: "calc(var(--radius) - 2px)",
+              background: selected ? "var(--elevation-2)" : "transparent",
+              boxShadow: selected ? "var(--shadow-sm)" : "none",
+              color: selected ? "var(--accent)" : "var(--text-muted)",
+              fontSize: 14,
+              lineHeight: 1,
+              padding: 0,
+              cursor: "pointer",
+            }}
+          >
+            <span aria-hidden="true">{option.glyph}</span>
+          </button>
+        );
+      })}
     </div>
   );
 }

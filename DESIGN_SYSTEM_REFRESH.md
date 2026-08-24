@@ -337,33 +337,38 @@ setting, only an attribute selector can). Persisted to
 default `"system"`) and applied to `document.documentElement` on load,
 before first paint if feasible, to avoid a flash of the wrong theme.
 
-**Control placement**: Nav bar's right-side cluster (tenant name /
-avatar / logout), positioned *before* the tenant name — a settings-type
-control belongs with the account cluster, not the primary nav tabs on
-the left. Low-frequency interaction (set once, rarely revisited), so it
-doesn't need permanent multi-button real estate: a single `Button
-variant="text"` showing the current selection as a short label
-("Light" / "System" / "Dark") opens a small popover on click.
+**Control placement** *(superseded — see below)*: originally the Nav
+bar's right-side cluster. The Nav bar itself was later replaced by a
+left-hand `Sidebar` (vertical nav, grouped links); the control now
+lives inline in the sidebar's footer block, next to the avatar/tenant
+name/logout row.
 
-**Popover**: same treatment as every other popover in this system
-(§10's `SlideOverPanel`/confirm-drop pattern) — `bg: --elevation-2`,
-`--radius-lg`, `--shadow-md`, `1px solid --border` (load-bearing in
-light mode). Three rows, "Light" / "System" / "Dark", each plain text
-(no new iconography — this app has deliberately stayed icon-free per
-the Deferred list below, and three text rows are unambiguous enough
-that adding sun/monitor/moon glyphs would be decoration, not
-information). The current selection: `color: --text-h` +
-`font-weight: --weight-semibold`, matching the same
-selected-state treatment Nav's own tabs already use (§10) rather than
-inventing a new indicator convention — no checkmark glyph needed since
-weight+color alone is enough for three plain-text rows in a small
-popover. Closes on selection, click-outside, or Esc — identical
-interaction contract to `SlideOverPanel`.
+**Current mechanism (post-sidebar-redesign, supersedes the two
+paragraphs below)**: the original popover-on-click design broke once
+the trigger moved into the sidebar footer — a `position: absolute; top:
+100%` popover opening downward from the bottom of a `100svh` sidebar
+renders below the visible viewport, making the control unreachable.
+Replaced with an always-visible three-icon segmented control (`role="radiogroup"`,
+each option `role="radio"`), no popover, no overflow risk. Icons are
+plain Unicode glyphs (☀ light / ◐ system / ☾ dark) — this app has no
+SVG icon library dependency, and these are flat monochrome dingfonts
+rather than color emoji. This explicitly supersedes the "no new
+iconography" call below: that reasoning applied to a *dropdown of text
+rows*, not an icon-only inline segmented control, where a text label
+next to each of three tiny buttons would be the one that reads as
+clutter. Selected state is persistent (`background:
+--elevation-2` + `--shadow-sm` + `color: --accent` on the active
+segment), not hover-only; unselected segments get a lighter
+`--surface-hover` on `:hover` only. `aria-label`/`title` carry the
+text name for accessibility since the visible content is icon-only.
 
-**States**: only one — the popover is either open or closed; there's no
-loading/error state since this never touches the network. No
-`ux-designer` input needed for this one — three options, no branching,
-no interruption to design around.
+**Popover** *(historical — removed)*: the original design used a
+`SlideOverPanel`-style popover (§10 pattern) with three plain-text
+rows. No longer applicable; see the segmented-control replacement
+above.
+
+**States**: only one — each segment is either selected or not; there's
+no loading/error state since this never touches the network.
 
 ---
 
@@ -372,9 +377,10 @@ no interruption to design around.
 Same as `PHASE_1_UI_DESIGN.md`'s own deferred list, unchanged: no
 animation beyond CSS transitions, no print/export layout. Also deferred
 here: a dedicated illustration/icon set (current app has none; adding
-one is a bigger scope than "refresh the palette" and wasn't asked for;
-§11's theme picker deliberately stays consistent with this and uses
-text labels, not icons).
+one is a bigger scope than "refresh the palette" and wasn't asked for).
+§11's theme picker is the one exception — it now uses three plain
+Unicode glyphs, not an SVG icon set, per an explicit later ask; see §11
+for why that's a narrower exception, not a reversal of this deferral.
 
 Nothing kicked back to `ux-designer` — this is a pure token/visual pass,
 no flow decisions were touched or needed.
