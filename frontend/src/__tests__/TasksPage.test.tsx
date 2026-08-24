@@ -5,13 +5,16 @@ import { listTasks, updateTask } from "../api/tasks";
 import { useAuth } from "../auth/context";
 import { TasksPage } from "../pages/TasksPage";
 import { useMe } from "../useMe";
+import { useUsers } from "../useUsers";
 
 vi.mock("../auth/context", () => ({ useAuth: vi.fn() }));
 vi.mock("../useMe", () => ({ useMe: vi.fn() }));
+vi.mock("../useUsers", () => ({ useUsers: vi.fn(), userDisplayName: vi.fn(() => "Someone") }));
 vi.mock("../api/tasks", () => ({ listTasks: vi.fn(), updateTask: vi.fn(), createTask: vi.fn() }));
 
 const mockedUseAuth = vi.mocked(useAuth);
 const mockedUseMe = vi.mocked(useMe);
+const mockedUseUsers = vi.mocked(useUsers);
 const mockedListTasks = vi.mocked(listTasks);
 const mockedUpdateTask = vi.mocked(updateTask);
 
@@ -33,15 +36,16 @@ afterEach(() => {
   vi.resetAllMocks();
 });
 
-function setup() {
+function setup(role: "counselor" | "manager" | "admin" = "counselor") {
   mockedUseAuth.mockReturnValue({ authenticated: true, token: "test-token", logout: vi.fn() });
   mockedUseMe.mockReturnValue({
     me: {
-      user: { id: "u1", email: "a@example.test", full_name: "Asha", role: "counselor", status: "active" },
+      user: { id: "u1", email: "a@example.test", full_name: "Asha", role, status: "active" },
       tenant: { id: "t1", slug: "tenant-a", name: "Tenant A" },
     },
     error: undefined,
   });
+  mockedUseUsers.mockReturnValue([]);
 }
 
 describe("TasksPage complete/undo", () => {
@@ -96,5 +100,51 @@ describe("TasksPage complete/undo", () => {
 
     await waitFor(() => expect(screen.getByText("Call back")).toBeInTheDocument());
     expect(screen.queryByText(/Completed/)).not.toBeInTheDocument();
+  });
+});
+
+describe("TasksPage owner filter", () => {
+  // ADMIN_UX_IMPROVEMENTS_PLAN.md Sec5/Sec8 — one control per role, not
+  // one control shown/hidden.
+  it("shows no Mine/Everyone control for a counselor", async () => {
+    setup("counselor");
+    mockedListTasks.mockResolvedValue({
+      data: [],
+      meta: { request_id: "r1", page: 1, page_size: 100, total: 0 },
+    });
+
+    render(<TasksPage />);
+    await waitFor(() => expect(mockedListTasks).toHaveBeenCalled());
+
+    expect(screen.queryByText("Mine")).not.toBeInTheDocument();
+    expect(screen.queryByText("Everyone")).not.toBeInTheDocument();
+    expect(screen.queryByText("My team")).not.toBeInTheDocument();
+  });
+
+  it("shows a Mine/My team toggle for a manager, never labeled Everyone", async () => {
+    setup("manager");
+    mockedListTasks.mockResolvedValue({
+      data: [],
+      meta: { request_id: "r1", page: 1, page_size: 100, total: 0 },
+    });
+
+    render(<TasksPage />);
+    await waitFor(() => expect(screen.getByText("Mine")).toBeInTheDocument());
+
+    expect(screen.queryByText("Everyone")).not.toBeInTheDocument();
+  });
+
+  it("shows a Mine button plus an owner dropdown for an admin", async () => {
+    setup("admin");
+    mockedListTasks.mockResolvedValue({
+      data: [],
+      meta: { request_id: "r1", page: 1, page_size: 100, total: 0 },
+    });
+
+    render(<TasksPage />);
+    await waitFor(() => expect(screen.getByText("Mine")).toBeInTheDocument());
+
+    expect(screen.getByLabelText("Filter by owner")).toBeInTheDocument();
+    expect(screen.getByText("Everyone")).toBeInTheDocument();
   });
 });

@@ -31,6 +31,7 @@ const TEAM: NavItem[] = [
 const ADMIN: NavItem[] = [
   { to: "/sla-policies", label: "SLA policies" },
   { to: "/integrations", label: "Integrations" },
+  { to: "/pipeline-config", label: "Config" },
 ];
 
 // Vertical nav's active state: a left accent stripe + tinted background,

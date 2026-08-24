@@ -8,6 +8,7 @@ import { DashboardPage } from "./pages/DashboardPage";
 import { EscalationsPage } from "./pages/EscalationsPage";
 import { FollowUpFlagsPage } from "./pages/FollowUpFlagsPage";
 import { IntegrationsPage } from "./pages/IntegrationsPage";
+import { PipelineConfigPage } from "./pages/PipelineConfigPage";
 import { PipelinePage } from "./pages/PipelinePage";
 import { SlaPoliciesPage } from "./pages/SlaPoliciesPage";
 import { TasksPage } from "./pages/TasksPage";
@@ -30,6 +31,7 @@ function AppRoutes() {
           <Route path="/escalations" element={<EscalationsPage />} />
           <Route path="/follow-ups" element={<FollowUpFlagsPage />} />
           <Route path="/sla-policies" element={<SlaPoliciesPage />} />
+          <Route path="/pipeline-config" element={<PipelineConfigPage />} />
           <Route path="/workflow-rules" element={<WorkflowRulesPage />} />
         </Routes>
       </main>
