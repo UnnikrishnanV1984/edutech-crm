@@ -65,6 +65,81 @@ async def raise_manual_escalation(
     return escalation
 
 
+async def create_sla_breach_escalation(
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+    sla_state_id: uuid.UUID,
+    deal_id: uuid.UUID | None,
+    task_id: uuid.UUID | None,
+    assigned_to: uuid.UUID,
+) -> Escalation:
+    """Called by app/workers/sla.py on a fresh breach transition — never
+    from an API route. No manager-existence check here (unlike the
+    manual-raise path): the caller (compute_sla_states) already resolved
+    assigned_to and logs+skips instead of calling this when there's no
+    manager to assign, per PHASE_3_PLAN.md §6."""
+    escalation = Escalation(
+        id=uuid.uuid4(),
+        tenant_id=tenant_id,
+        source="sla_breach",
+        deal_id=deal_id,
+        task_id=task_id,
+        sla_state_id=sla_state_id,
+        assigned_to=assigned_to,
+    )
+    db.add(escalation)
+    await db.flush()
+    return escalation
+
+
+async def create_workflow_failure_escalation(
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+    workflow_run_id: uuid.UUID,
+    deal_id: uuid.UUID | None,
+    task_id: uuid.UUID | None,
+    assigned_to: uuid.UUID,
+) -> Escalation:
+    """Called by app/workers/rules.py on final action-retry exhaustion
+    (source='workflow_failure') or a raise_escalation action succeeding
+    (source='rule_triggered', PHASE_3_PLAN.md §7.4) — the caller picks
+    which via the source param below, both share this shape."""
+    escalation = Escalation(
+        id=uuid.uuid4(),
+        tenant_id=tenant_id,
+        source="workflow_failure",
+        deal_id=deal_id,
+        task_id=task_id,
+        workflow_run_id=workflow_run_id,
+        assigned_to=assigned_to,
+    )
+    db.add(escalation)
+    await db.flush()
+    return escalation
+
+
+async def create_rule_triggered_escalation(
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+    workflow_run_id: uuid.UUID,
+    deal_id: uuid.UUID | None,
+    task_id: uuid.UUID | None,
+    assigned_to: uuid.UUID,
+) -> Escalation:
+    escalation = Escalation(
+        id=uuid.uuid4(),
+        tenant_id=tenant_id,
+        source="rule_triggered",
+        deal_id=deal_id,
+        task_id=task_id,
+        workflow_run_id=workflow_run_id,
+        assigned_to=assigned_to,
+    )
+    db.add(escalation)
+    await db.flush()
+    return escalation
+
+
 async def list_escalations(
     db: AsyncSession, tenant_id: uuid.UUID, assigned_to: uuid.UUID | None
 ) -> list[Escalation]:

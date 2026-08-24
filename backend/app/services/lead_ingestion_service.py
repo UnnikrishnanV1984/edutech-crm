@@ -30,6 +30,7 @@ from app.schemas.contact import ContactCreate
 from app.schemas.deal import DealCreate
 from app.services import activity_service, contact_service, course_service, deal_service
 from app.services.user_service import list_counselor_ids
+from app.workers.rules import evaluate_event_rules
 
 logger = get_logger(__name__)
 
@@ -122,6 +123,10 @@ async def ingest_lead(tenant_id: uuid.UUID, source: str, lead: RawLead) -> bool:
             )
 
         await redis.set(idempotency_key, "1", ex=IDEMPOTENCY_TTL_SECONDS)
+        # Enqueued after the transaction above has actually committed —
+        # unlike api/deals.py's stage-change enqueue, there's no race
+        # window here (PHASE_3_PLAN.md §7.1).
+        evaluate_event_rules.delay(str(tenant_id), "lead_created", "contact", str(contact.id))
         return True
     finally:
         await redis.aclose()

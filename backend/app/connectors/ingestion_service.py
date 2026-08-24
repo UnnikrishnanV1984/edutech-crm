@@ -27,6 +27,7 @@ from app.schemas.course import CourseCreate
 from app.schemas.deal import DealCreate
 from app.services import activity_service, contact_service, course_service, deal_service
 from app.services.user_service import list_counselor_ids
+from app.workers.rules import evaluate_event_rules
 
 logger = logging.getLogger(__name__)
 
@@ -116,6 +117,11 @@ async def _ingest_one_lead(
             source=source,
             external_id=lead.external_id,
         )
+    # After the transaction above has committed — PHASE_3_PLAN.md §7.1
+    # names this path explicitly alongside the real webhook ingestion,
+    # so dev-seeded leads exercise lead_created rules the same way a
+    # real one would.
+    evaluate_event_rules.delay(str(tenant_id), "lead_created", "contact", str(contact.id))
     return True
 
 

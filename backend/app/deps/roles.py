@@ -13,3 +13,14 @@ async def require_admin(context: TenantContext = Depends(get_tenant_context)) ->
     if context.user_role != "admin":
         raise ApiError(403, FORBIDDEN, "Admin role required")
     return context
+
+
+async def require_manager_or_admin(
+    context: TenantContext = Depends(get_tenant_context),
+) -> TenantContext:
+    """REQUIREMENTS.md §1.2 — several capabilities (workflow rule
+    proposals, follow-up flags) are Manager+Admin, with no Staff access
+    at all, unlike escalations where Staff can at least raise one."""
+    if context.user_role not in ("manager", "admin"):
+        raise ApiError(403, FORBIDDEN, "Manager or admin role required")
+    return context

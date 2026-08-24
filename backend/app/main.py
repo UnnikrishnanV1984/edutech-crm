@@ -21,6 +21,7 @@ from app.api import (
     sla_policies,
     tasks,
     users,
+    workflow_rules,
 )
 from app.core.config import get_settings
 from app.core.errors import (
@@ -83,6 +84,7 @@ def create_app() -> FastAPI:
     app.include_router(sla_policies.router)
     app.include_router(escalations.router)
     app.include_router(follow_up_flags.router)
+    app.include_router(workflow_rules.router)
 
     # Public — bypass the BFF entirely, PHASE_2_PLAN.md §4.2.
     app.include_router(meta_webhooks.router)

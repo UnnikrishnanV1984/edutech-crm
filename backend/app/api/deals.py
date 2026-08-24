@@ -12,6 +12,7 @@ from app.schemas.deal import DealCreate, DealOut, DealUpdate
 from app.services.activity_service import log_deal_stage_changed
 from app.services.contact_service import get_contact
 from app.services.deal_service import create_deal, get_deal, list_deals, update_deal
+from app.workers.rules import evaluate_event_rules
 
 router = APIRouter(tags=["deals"])
 
@@ -112,6 +113,15 @@ async def patch_deal(
             actor_id=context.user.id,
             old_stage_id=old_stage_id,
             new_stage_id=deal.stage_id,
+        )
+        # Enqueued before this route's own transaction commits (that
+        # happens in get_tenant_context's post-yield cleanup, after this
+        # function returns) — a genuinely small race window where a
+        # worker could query before the commit lands. Not solved by a
+        # transactional-outbox pattern in this pass; flagged rather than
+        # silently assumed safe. PHASE_3_PLAN.md §7.1.
+        evaluate_event_rules.delay(
+            str(context.tenant.id), "stage_changed", "deal", str(deal.id)
         )
 
     return data_envelope(

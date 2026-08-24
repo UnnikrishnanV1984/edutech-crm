@@ -61,6 +61,29 @@ services:
       retries: 20
       start_period: 15s
 
+  # Celery worker + beat — same backend image, different CMD, entrypoint
+  # bypassed so neither one re-runs docker-entrypoint.sh's migration/seed
+  # steps (backend already does that once; both wait on it being healthy
+  # first so the schema exists before either touches the DB).
+  # PHASE_3_PLAN.md §9 step 13 — first real Celery work in this repo.
+  worker:
+    build: ./backend
+    env_file: .env
+    entrypoint: []
+    command: ["celery", "-A", "app.workers.celery_app", "worker", "--loglevel=info"]
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  beat:
+    build: ./backend
+    env_file: .env
+    entrypoint: []
+    command: ["celery", "-A", "app.workers.celery_app", "beat", "--loglevel=info"]
+    depends_on:
+      backend:
+        condition: service_healthy
+
   # Dev/test-only stand-in for the Meta/Google/WhatsApp APIs — never
   # deployed in production (ARCHITECTURE.md §5/§6). Part of the default
   # stack, not an opt-in profile like minio: Phase 2's lead-capture
