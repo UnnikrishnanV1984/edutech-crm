@@ -116,6 +116,7 @@ async def mark_rework_requested(db: AsyncSession, invoice: Invoice) -> Invoice:
     if invoice.status in ("paid", "cancelled"):
         return invoice  # terminal — nothing to flip
     invoice.status = "rework_requested"
+    invoice.was_reworked = True
     await db.flush()
     await db.refresh(invoice)
     return invoice

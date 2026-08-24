@@ -6,6 +6,7 @@ isolation, and the sla_states read path Phase 3 never built.
 
 import os
 import uuid
+from decimal import Decimal
 
 import psycopg
 import pytest
@@ -112,10 +113,13 @@ def scenario():
             "sla_states",
             "sla_policies",
             "activities",
+            "payments",
+            "invoices",
             "deals",
             "contacts",
             "courses",
             "pipeline_stages",
+            "accounts",
             "users",
         )
         for table in tables:
@@ -256,3 +260,159 @@ def test_cache_keys_do_not_collide_across_tenants(scenario):
             cur.execute("DELETE FROM pipeline_stages WHERE tenant_id = %s", (other_tenant_id,))
             cur.execute("RESET app.tenant_id")
             cur.execute("DELETE FROM tenants WHERE id = %s", (other_tenant_id,))
+
+
+# PIPELINE_AND_REVENUE_PLAN.md §5.7 — funnel/forecast $ extensions and the
+# new /reports/invoices endpoint.
+
+
+def test_funnel_includes_deal_value(scenario):
+    with TestClient(app) as client:
+        client.patch(
+            f"/api/v1/deals/{scenario['deal_id']}",
+            json={"value": 500},
+            headers=scenario["admin_headers"],
+        )
+        response = client.get("/api/v1/reports/funnel", headers=scenario["admin_headers"])
+    inquiry_row = next(
+        r for r in response.json()["data"] if r["stage_id"] == scenario["inquiry_id"]
+    )
+    assert Decimal(inquiry_row["value"]) == Decimal("500.00")
+
+
+def test_funnel_value_is_zero_for_a_deal_created_without_one(scenario):
+    with TestClient(app) as client:
+        response = client.get("/api/v1/reports/funnel", headers=scenario["admin_headers"])
+    inquiry_row = next(
+        r for r in response.json()["data"] if r["stage_id"] == scenario["inquiry_id"]
+    )
+    assert Decimal(inquiry_row["value"]) == Decimal("0")
+
+
+def test_forecast_includes_expected_value(scenario):
+    with TestClient(app) as client:
+        client.patch(
+            f"/api/v1/deals/{scenario['deal_id']}",
+            json={"value": 1000, "stage_id": scenario["contacted_id"]},
+            headers=scenario["admin_headers"],
+        )
+        response = client.get("/api/v1/reports/forecast", headers=scenario["admin_headers"])
+    body = response.json()["data"]
+    contacted_row = next(
+        r for r in body["by_stage"] if r["stage_id"] == scenario["contacted_id"]
+    )
+    assert Decimal(contacted_row["value"]) == Decimal("1000.00")
+    assert Decimal(contacted_row["expected_value"]) == Decimal("400.00")  # 1000 * 40%
+    assert Decimal(body["expected_value"]) == Decimal("400.00")
+
+
+def test_invoice_summary_is_403_for_staff(scenario):
+    with TestClient(app) as client:
+        response = client.get("/api/v1/reports/invoices", headers=scenario["staff_headers"])
+    assert response.status_code == 403
+
+
+def test_invoice_summary_totals_invoiced_paid_and_outstanding(scenario):
+    with TestClient(app) as client:
+        invoice = client.post(
+            f"/api/v1/deals/{scenario['deal_id']}/invoices",
+            json={"invoice_number": "INV-TOTALS-1", "amount": "1000.00"},
+            headers=scenario["admin_headers"],
+        ).json()["data"]
+        client.patch(
+            f"/api/v1/invoices/{invoice['id']}",
+            json={"status": "sent"},
+            headers=scenario["admin_headers"],
+        )
+        client.post(
+            f"/api/v1/invoices/{invoice['id']}/payments",
+            json={"amount": "400.00", "method": "bank_transfer"},
+            headers=scenario["admin_headers"],
+        )
+        response = client.get("/api/v1/reports/invoices", headers=scenario["admin_headers"])
+    assert response.status_code == 200
+    body = response.json()["data"]
+    assert Decimal(body["invoiced_total"]) == Decimal("1000.00")
+    assert Decimal(body["paid_total"]) == Decimal("400.00")
+    assert Decimal(body["outstanding_total"]) == Decimal("600.00")
+
+
+def test_invoice_summary_rework_rate_counts_reworked_then_resent_invoice(scenario):
+    with TestClient(app) as client:
+        rework_stage = client.post(
+            "/api/v1/pipeline-stages",
+            json={"name": "Rework Test Stage", "is_rework_stage": True},
+            headers=scenario["admin_headers"],
+        ).json()["data"]
+
+        clean_invoice = client.post(
+            f"/api/v1/deals/{scenario['deal_id']}/invoices",
+            json={"invoice_number": "INV-REWORK-2", "amount": "100.00"},
+            headers=scenario["admin_headers"],
+        ).json()["data"]
+        client.patch(
+            f"/api/v1/invoices/{clean_invoice['id']}",
+            json={"status": "sent"},
+            headers=scenario["admin_headers"],
+        )
+        # Created after clean_invoice, so it's the deal's most recent open
+        # invoice — the one get_most_recent_open_invoice_for_deal (and thus
+        # the rework-stage hook) will pick up below.
+        reworked_invoice = client.post(
+            f"/api/v1/deals/{scenario['deal_id']}/invoices",
+            json={"invoice_number": "INV-REWORK-1", "amount": "100.00"},
+            headers=scenario["admin_headers"],
+        ).json()["data"]
+        client.patch(
+            f"/api/v1/invoices/{reworked_invoice['id']}",
+            json={"status": "sent"},
+            headers=scenario["admin_headers"],
+        )
+
+        # Entering the rework stage flips the deal's most recent open
+        # invoice (reworked_invoice) into rework_requested and sets
+        # was_reworked — then re-sending it (client-facing transition)
+        # must NOT clear that marker.
+        client.patch(
+            f"/api/v1/deals/{scenario['deal_id']}",
+            json={"stage_id": rework_stage["id"]},
+            headers=scenario["admin_headers"],
+        )
+        flipped = client.get(
+            f"/api/v1/invoices/{reworked_invoice['id']}", headers=scenario["admin_headers"]
+        ).json()["data"]
+        assert flipped["status"] == "rework_requested"
+        client.patch(
+            f"/api/v1/invoices/{reworked_invoice['id']}",
+            json={"status": "sent"},
+            headers=scenario["admin_headers"],
+        )
+
+        response = client.get("/api/v1/reports/invoices", headers=scenario["admin_headers"])
+    body = response.json()["data"]
+    assert body["invoice_rework_rate"] == 0.5  # 1 of 2 invoices was ever reworked
+
+
+def test_invoice_summary_avg_minutes_in_invoice_stage_for_deal_currently_there(scenario):
+    with TestClient(app) as client:
+        invoice_stage = client.post(
+            "/api/v1/pipeline-stages",
+            json={"name": "Invoice Test Stage", "is_invoice_stage": True},
+            headers=scenario["admin_headers"],
+        ).json()["data"]
+        client.patch(
+            f"/api/v1/deals/{scenario['deal_id']}",
+            json={"stage_id": invoice_stage["id"]},
+            headers=scenario["admin_headers"],
+        )
+        response = client.get("/api/v1/reports/invoices", headers=scenario["admin_headers"])
+    body = response.json()["data"]
+    assert body["avg_minutes_in_invoice_stage"] is not None
+    assert body["avg_minutes_in_invoice_stage"] >= 0
+
+
+def test_invoice_summary_avg_minutes_in_invoice_stage_is_none_with_no_deal_there(scenario):
+    with TestClient(app) as client:
+        response = client.get("/api/v1/reports/invoices", headers=scenario["admin_headers"])
+    body = response.json()["data"]
+    assert body["avg_minutes_in_invoice_stage"] is None

@@ -3,6 +3,7 @@ from datetime import date, datetime
 from decimal import Decimal
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     Date,
     DateTime,
@@ -46,6 +47,11 @@ class Invoice(Base):
     invoice_number: Mapped[str] = mapped_column(String, nullable=False)
     amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
     status: Mapped[str] = mapped_column(String, nullable=False, server_default="draft")
+    was_reworked: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
+    """Set once by invoice_service.mark_rework_requested, never reset —
+    report_service's invoice-rework-rate KPI needs "ever reworked", not
+    just "currently rework_requested" (an invoice reworked then re-sent
+    would otherwise be silently undercounted). Migration 0026."""
     issued_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     created_at: Mapped[datetime] = mapped_column(

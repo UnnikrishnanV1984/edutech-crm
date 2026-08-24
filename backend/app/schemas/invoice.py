@@ -37,6 +37,7 @@ class InvoiceOut(BaseModel):
     invoice_number: str
     amount: Decimal
     status: str
+    was_reworked: bool
     issued_at: datetime | None
     due_date: date | None
     created_at: datetime

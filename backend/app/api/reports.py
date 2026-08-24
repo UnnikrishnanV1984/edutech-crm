@@ -57,6 +57,18 @@ async def get_sla_compliance_report(
     return data_envelope(data, request.state.request_id, {"cached_at": cached_at})
 
 
+@router.get("/invoices")
+async def get_invoice_summary_report(
+    request: Request,
+    context: TenantContext = Depends(require_manager_or_admin),
+    scope: RowScope = Depends(get_row_scope),
+) -> dict:
+    data, cached_at = await report_service.get_invoice_summary(
+        context.db, context.tenant.id, scope.owner_ids
+    )
+    return data_envelope(data, request.state.request_id, {"cached_at": cached_at})
+
+
 @router.get("/my-queue")
 async def get_my_queue_report(
     request: Request, context: TenantContext = Depends(get_tenant_context)
