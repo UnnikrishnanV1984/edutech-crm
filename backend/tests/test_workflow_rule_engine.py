@@ -8,12 +8,13 @@ import json
 import os
 import uuid
 from dataclasses import dataclass, field
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import psycopg
 import pytest
 
-from app.workers.rules import _evaluate_event_rules, _run_one_rule
+from app.workers.rules import _evaluate_event_rules, _run_one_rule, _scan_time_based_rules
 
 MIGRATE_URL = os.environ.get("DATABASE_URL", "").replace("+psycopg", "")
 APP_URL = os.environ.get("DATABASE_APP_URL", "").replace("+psycopg", "")
@@ -334,3 +335,41 @@ async def test_evaluate_event_rules_runs_only_active_rules_of_matching_trigger(s
         (scenario["deal_id"],),
     )
     assert rows[0][0] == 1  # only the active rule fired, not the draft one
+
+
+async def test_scan_time_based_rules_fires_on_a_seeded_past_timestamp(scenario):
+    """PHASE_3_PLAN.md §10 acceptance criterion 6 — proven with a seeded
+    past stage_changed_at, not a real 24-hour wait."""
+    with psycopg.connect(MIGRATE_URL, autocommit=True) as conn, conn.cursor() as cur:
+        cur.execute("SELECT set_config('app.tenant_id', %s, false)", (str(scenario["tenant_id"]),))
+        cur.execute(
+            "UPDATE deals SET stage_changed_at = %s WHERE id = %s",
+            (datetime.now(UTC) - timedelta(hours=25), scenario["deal_id"]),
+        )
+        cur.execute("RESET app.tenant_id")
+
+    _make_rule(
+        scenario["tenant_id"],
+        scenario["staff_id"],
+        [{"type": "raise_escalation"}],
+        trigger_type="elapsed_time",
+    )
+    # trigger_config defaults to {} via _make_rule's INSERT — patch in
+    # the elapsed-time threshold this test actually needs.
+    with psycopg.connect(MIGRATE_URL, autocommit=True) as conn, conn.cursor() as cur:
+        cur.execute("SELECT set_config('app.tenant_id', %s, false)", (str(scenario["tenant_id"]),))
+        cur.execute(
+            "UPDATE workflow_rules SET trigger_config = %s::jsonb "
+            "WHERE tenant_id = %s AND trigger_type = 'elapsed_time'",
+            (json.dumps({"since": "stage_entered_at", "minutes": 1440}), scenario["tenant_id"]),
+        )
+        cur.execute("RESET app.tenant_id")
+
+    await _scan_time_based_rules(scenario["tenant_id"])
+
+    escalation_rows = _query(
+        scenario["tenant_id"],
+        "SELECT source, deal_id FROM escalations WHERE source = 'rule_triggered'",
+    )
+    assert len(escalation_rows) == 1
+    assert str(escalation_rows[0][1]) == str(scenario["deal_id"])
