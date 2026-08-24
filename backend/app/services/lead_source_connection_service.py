@@ -76,6 +76,30 @@ async def get_connection(
     return result.scalar_one_or_none()
 
 
+async def get_active_connection(
+    db: AsyncSession, tenant_id: uuid.UUID, source: str
+) -> LeadSourceConnection | None:
+    """For outbound sends (ARCHITECTURE.md §7d) — picks the most recently
+    created active connection for the platform. Nothing today records
+    which specific connection a given contact/deal originated from
+    (contacts.lead_source is a platform enum, not a connection FK), so a
+    tenant with two active connections for the same platform (e.g. two
+    Meta pages) has a genuine, unresolved ambiguity here — flagged, not
+    silently assumed away. Most tenants have at most one per platform in
+    practice."""
+    result = await db.execute(
+        select(LeadSourceConnection)
+        .where(
+            LeadSourceConnection.tenant_id == tenant_id,
+            LeadSourceConnection.source == source,
+            LeadSourceConnection.status == "active",
+        )
+        .order_by(LeadSourceConnection.created_at.desc())
+        .limit(1)
+    )
+    return result.scalar_one_or_none()
+
+
 async def update_connection(
     db: AsyncSession, connection: LeadSourceConnection, data: LeadSourceConnectionUpdate
 ) -> LeadSourceConnection:

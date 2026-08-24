@@ -6,6 +6,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.workers import conversions
 
 MIGRATE_URL = os.environ.get("DATABASE_URL", "").replace("+psycopg", "")
 
@@ -131,6 +132,62 @@ def test_patch_deal_stage_updates_stage_changed_at(scenario):
     updated = response.json()["data"]
     assert updated["stage_id"] == contacted_stage_id
     assert updated["stage_changed_at"] > deal["stage_changed_at"]
+
+
+def test_stage_change_to_non_won_stage_does_not_enqueue_conversion_send(scenario, monkeypatch):
+    """ARCHITECTURE.md §7d — only an is_won transition should enqueue."""
+    calls = []
+    monkeypatch.setattr(
+        conversions.send_conversion_event, "delay", lambda *a, **k: calls.append((a, k))
+    )
+    with TestClient(app) as client:
+        deal = client.post(
+            f"/api/v1/contacts/{scenario['contact_id']}/deals",
+            json={"course_id": str(scenario["course_id"])},
+            headers=_headers(scenario["tenant_id"]),
+        ).json()["data"]
+        stages = client.get(
+            "/api/v1/pipeline-stages", headers=_headers(scenario["tenant_id"])
+        ).json()["data"]
+        contacted_stage_id = next(s["id"] for s in stages if s["name"] == "Contacted")
+
+        response = client.patch(
+            f"/api/v1/deals/{deal['id']}",
+            json={"stage_id": contacted_stage_id},
+            headers=_headers(scenario["tenant_id"]),
+        )
+    assert response.status_code == 200
+    assert calls == []
+
+
+def test_stage_change_to_won_stage_enqueues_conversion_send_for_both_platforms(
+    scenario, monkeypatch
+):
+    calls = []
+    monkeypatch.setattr(
+        conversions.send_conversion_event, "delay", lambda *a, **k: calls.append(a)
+    )
+    with TestClient(app) as client:
+        deal = client.post(
+            f"/api/v1/contacts/{scenario['contact_id']}/deals",
+            json={"course_id": str(scenario["course_id"])},
+            headers=_headers(scenario["tenant_id"]),
+        ).json()["data"]
+        stages = client.get(
+            "/api/v1/pipeline-stages", headers=_headers(scenario["tenant_id"])
+        ).json()["data"]
+        enrolled_stage_id = next(s["id"] for s in stages if s["name"] == "Enrolled")
+
+        response = client.patch(
+            f"/api/v1/deals/{deal['id']}",
+            json={"stage_id": enrolled_stage_id},
+            headers=_headers(scenario["tenant_id"]),
+        )
+    assert response.status_code == 200
+    platforms = {call[2] for call in calls}
+    assert platforms == {"meta", "google"}
+    assert all(call[0] == str(scenario["tenant_id"]) for call in calls)
+    assert all(call[1] == deal["id"] for call in calls)
 
 
 def test_list_deals_filters_by_stage(scenario):

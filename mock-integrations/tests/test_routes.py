@@ -37,3 +37,41 @@ def test_google_oauth_token_exchange_returns_tokens():
     body = response.json()
     assert body["access_token"]
     assert body["refresh_token"] == "mock-refresh"
+
+
+def test_meta_conversion_events_accepted():
+    response = client.post(
+        "/meta/v18.0/pixel-123/events",
+        params={"access_token": "x"},
+        json={"data": [{"event_name": "Enrolled"}]},
+    )
+    assert response.status_code == 200
+    assert response.json() == {"events_received": 1}
+
+
+def test_google_conversion_requires_bearer_token():
+    assert (
+        client.post(
+            "/google/customers/123/conversions", json={"conversion_action": "action-1"}
+        ).status_code
+        == 401
+    )
+
+
+def test_google_conversion_requires_conversion_action():
+    response = client.post(
+        "/google/customers/123/conversions",
+        json={},
+        headers={"Authorization": "Bearer x"},
+    )
+    assert response.status_code == 400
+
+
+def test_google_conversion_accepted():
+    response = client.post(
+        "/google/customers/123/conversions",
+        json={"conversion_action": "action-1"},
+        headers={"Authorization": "Bearer x"},
+    )
+    assert response.status_code == 200
+    assert response.json() == {"results": [{"conversion_action": "action-1"}]}

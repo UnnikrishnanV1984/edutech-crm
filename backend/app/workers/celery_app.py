@@ -29,7 +29,7 @@ celery_app = Celery(
     "edutech_crm",
     broker=_settings.redis_url,
     backend=_settings.redis_url,
-    include=["app.workers.sla", "app.workers.rules"],
+    include=["app.workers.sla", "app.workers.rules", "app.workers.conversions"],
 )
 
 celery_app.conf.update(

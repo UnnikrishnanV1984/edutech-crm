@@ -32,3 +32,18 @@ async def list_leads(customer_id: str, authorization: str | None = Header(defaul
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Missing bearer token")
     return _FIXTURES
+
+
+@router.post("/customers/{customer_id}/conversions")
+async def receive_conversion(
+    customer_id: str, body: dict, authorization: str | None = Header(default=None)
+) -> dict:
+    """Stands in for the real Google Ads offline-conversions upload
+    endpoint — ARCHITECTURE.md §7d. Simplified path, matching this
+    router's existing /leads route rather than the real API's much more
+    verbose REST shape (customers/{id}:uploadClickConversions)."""
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing bearer token")
+    if not body.get("conversion_action"):
+        raise HTTPException(status_code=400, detail="Missing conversion_action")
+    return {"results": [{"conversion_action": body["conversion_action"]}]}

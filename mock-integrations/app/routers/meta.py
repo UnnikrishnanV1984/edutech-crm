@@ -35,6 +35,17 @@ class TriggerRequest(BaseModel):
     leadgen_id: str | None = None
 
 
+@router.post("/v18.0/{pixel_id}/events")
+async def receive_conversion_events(pixel_id: str, body: dict) -> dict:
+    """Stands in for the real Meta Conversions API — ARCHITECTURE.md
+    §7d. No real validation of access_token or user_data hashing; this
+    only needs to accept the shape backend actually sends and report how
+    many events it got, matching this router's existing leniency for
+    _trigger below."""
+    events = body.get("data", [])
+    return {"events_received": len(events)}
+
+
 @router.post("/_trigger")
 async def trigger_webhook(body: TriggerRequest) -> dict:
     record = (

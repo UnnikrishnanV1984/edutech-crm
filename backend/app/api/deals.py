@@ -12,6 +12,8 @@ from app.schemas.deal import DealCreate, DealOut, DealUpdate
 from app.services.activity_service import log_deal_stage_changed
 from app.services.contact_service import get_contact
 from app.services.deal_service import create_deal, get_deal, list_deals, update_deal
+from app.services.pipeline_stage_service import get_stage
+from app.workers.conversions import send_conversion_event
 from app.workers.rules import evaluate_event_rules
 
 router = APIRouter(tags=["deals"])
@@ -123,6 +125,17 @@ async def patch_deal(
         evaluate_event_rules.delay(
             str(context.tenant.id), "stage_changed", "deal", str(deal.id)
         )
+
+        # Outbound Meta/Google conversion signals — ARCHITECTURE.md §7d.
+        # Keyed off is_won (not a hardcoded stage name) so a tenant
+        # renaming "Enrolled" doesn't silently break this; both
+        # platforms are enqueued unconditionally and the task itself
+        # no-ops when that tenant has no matching active connection,
+        # keeping this route from needing to know integration details.
+        new_stage = await get_stage(context.db, context.tenant.id, deal.stage_id)
+        if new_stage is not None and new_stage.is_won:
+            for platform in ("meta", "google"):
+                send_conversion_event.delay(str(context.tenant.id), str(deal.id), platform)
 
     return data_envelope(
         DealOut.model_validate(deal).model_dump(mode="json"), request.state.request_id
