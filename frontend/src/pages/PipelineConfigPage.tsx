@@ -8,6 +8,10 @@ import {
   reorderPipelineStages,
   type PipelineStage,
 } from "../api/pipelineStages";
+import {
+  listPipelineStageTemplates,
+  type PipelineStageTemplate,
+} from "../api/pipelineStageTemplates";
 import { useAuth } from "../auth/context";
 import { Badge } from "../components/Badge";
 import { Button } from "../components/Button";
@@ -16,11 +20,22 @@ import { EmptyState } from "../components/EmptyState";
 import { stageColor, stageIcon } from "../stageColor";
 import { useMe } from "../useMe";
 
+interface StageSeed {
+  name: string;
+  isWon: boolean;
+  isLost: boolean;
+  isInvoiceStage: boolean;
+  isReworkStage: boolean;
+}
+
 export function PipelineConfigPage() {
   const { token } = useAuth();
   const { me } = useMe();
   const [stages, setStages] = useState<PipelineStage[]>([]);
+  const [templates, setTemplates] = useState<PipelineStageTemplate[]>([]);
+  const [showTemplates, setShowTemplates] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
+  const [createSeed, setCreateSeed] = useState<StageSeed | undefined>(undefined);
   const [busyId, setBusyId] = useState<string | undefined>(undefined);
   const [draggingId, setDraggingId] = useState<string | undefined>(undefined);
   const [error, setError] = useState<string | undefined>(undefined);
@@ -32,6 +47,23 @@ export function PipelineConfigPage() {
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(load, [token]);
+
+  useEffect(() => {
+    if (!token || me?.user.role !== "admin") return;
+    listPipelineStageTemplates(token).then((response) => setTemplates(response.data));
+  }, [token, me?.user.role]);
+
+  function applyTemplate(template: PipelineStageTemplate) {
+    setCreateSeed({
+      name: template.name,
+      isWon: template.is_won,
+      isLost: template.is_lost,
+      isInvoiceStage: template.is_invoice_stage,
+      isReworkStage: template.is_rework_stage,
+    });
+    setShowTemplates(false);
+    setShowCreate(true);
+  }
 
   if (me && me.user.role !== "admin") {
     return (
@@ -96,22 +128,80 @@ export function PipelineConfigPage() {
           </p>
         )}
 
+        {showTemplates && (
+          <Card title="Start from a template" action={<Button variant="text" onClick={() => setShowTemplates(false)}>Close</Button>}>
+            {templates.length === 0 && <EmptyState headline="No templates available" />}
+            {templates.length > 0 && (
+              <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+                {templates.map((template, index) => (
+                  <li
+                    key={template.id}
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      padding: "var(--space-3) var(--space-2)",
+                      borderTop: index === 0 ? "none" : "1px solid var(--border)",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
+                      <div>
+                        <div style={{ fontWeight: "var(--weight-semibold)" }}>{template.name}</div>
+                        <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
+                          {template.category}
+                        </div>
+                      </div>
+                      {template.is_won && <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Won</span>}
+                      {template.is_lost && <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Lost</span>}
+                      {template.is_invoice_stage && (
+                        <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Invoice</span>
+                      )}
+                      {template.is_rework_stage && (
+                        <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Rework</span>
+                      )}
+                    </div>
+                    <Button variant="secondary" onClick={() => applyTemplate(template)}>
+                      Use template
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+        )}
+
         {showCreate && (
           <CreateStageForm
+            initial={createSeed}
             onCreated={() => {
               setShowCreate(false);
+              setCreateSeed(undefined);
               load();
             }}
-            onCancel={() => setShowCreate(false)}
+            onCancel={() => {
+              setShowCreate(false);
+              setCreateSeed(undefined);
+            }}
           />
         )}
 
         <Card
           title="Configured stages"
           action={
-            <Button variant="primary" onClick={() => setShowCreate((v) => !v)}>
-              {showCreate ? "Cancel" : "+ New stage"}
-            </Button>
+            <div style={{ display: "flex", gap: "var(--space-2)" }}>
+              <Button variant="secondary" onClick={() => setShowTemplates((v) => !v)}>
+                {showTemplates ? "Hide templates" : "Start from a template"}
+              </Button>
+              <Button
+                variant="primary"
+                onClick={() => {
+                  setCreateSeed(undefined);
+                  setShowCreate((v) => !v);
+                }}
+              >
+                {showCreate ? "Cancel" : "+ New stage"}
+              </Button>
+            </div>
           }
         >
           {stages.length === 0 && <EmptyState headline="No pipeline stages yet" />}
@@ -147,6 +237,12 @@ export function PipelineConfigPage() {
                       {stage.is_lost && (
                         <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Lost</span>
                       )}
+                      {stage.is_invoice_stage && (
+                        <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Invoice</span>
+                      )}
+                      {stage.is_rework_stage && (
+                        <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Rework</span>
+                      )}
                     </div>
                     <Button
                       variant="text"
@@ -167,16 +263,20 @@ export function PipelineConfigPage() {
 }
 
 function CreateStageForm({
+  initial,
   onCreated,
   onCancel,
 }: {
+  initial?: StageSeed;
   onCreated: () => void;
   onCancel: () => void;
 }) {
   const { token } = useAuth();
-  const [name, setName] = useState("");
-  const [isWon, setIsWon] = useState(false);
-  const [isLost, setIsLost] = useState(false);
+  const [name, setName] = useState(initial?.name ?? "");
+  const [isWon, setIsWon] = useState(initial?.isWon ?? false);
+  const [isLost, setIsLost] = useState(initial?.isLost ?? false);
+  const [isInvoiceStage, setIsInvoiceStage] = useState(initial?.isInvoiceStage ?? false);
+  const [isReworkStage, setIsReworkStage] = useState(initial?.isReworkStage ?? false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | undefined>(undefined);
 
@@ -186,7 +286,13 @@ function CreateStageForm({
     setSubmitting(true);
     setError(undefined);
     try {
-      await createPipelineStage(token, { name, is_won: isWon, is_lost: isLost });
+      await createPipelineStage(token, {
+        name,
+        is_won: isWon,
+        is_lost: isLost,
+        is_invoice_stage: isInvoiceStage,
+        is_rework_stage: isReworkStage,
+      });
       onCreated();
     } catch (err) {
       setError(err instanceof ApiRequestError ? err.message : "Couldn't create stage");
@@ -246,6 +352,25 @@ function CreateStageForm({
       <p style={{ fontSize: 12, color: "var(--text-muted)" }}>
         Won/lost can't be changed after creation — later features (forecast,
         conversion-signal sends) depend on this being stable.
+      </p>
+      <label style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+        <input
+          type="checkbox"
+          checked={isInvoiceStage}
+          onChange={(event) => setIsInvoiceStage(event.target.checked)}
+        />
+        Prompts invoice creation when a deal enters this stage
+      </label>
+      <label style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+        <input
+          type="checkbox"
+          checked={isReworkStage}
+          onChange={(event) => setIsReworkStage(event.target.checked)}
+        />
+        Sends the deal's invoice back for rework when it enters this stage
+      </label>
+      <p style={{ fontSize: 12, color: "var(--text-muted)" }}>
+        Also fixed at creation — same reason as won/lost above.
       </p>
       {error && (
         <p role="alert" style={{ color: "var(--danger)" }}>
