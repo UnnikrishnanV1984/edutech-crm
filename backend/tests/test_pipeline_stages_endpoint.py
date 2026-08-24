@@ -114,6 +114,43 @@ def test_rename_to_existing_name_returns_409(tenant_and_user):
     assert response.json()["error"]["code"] == "CONFLICT"
 
 
+def test_default_win_probability_is_zero(tenant_and_user):
+    with TestClient(app) as client:
+        stages = client.get(
+            "/api/v1/pipeline-stages", headers=_headers(tenant_and_user)
+        ).json()["data"]
+    assert all(s["win_probability_pct"] == 0 for s in stages)
+
+
+def test_set_win_probability(tenant_and_user):
+    with TestClient(app) as client:
+        stages = client.get(
+            "/api/v1/pipeline-stages", headers=_headers(tenant_and_user)
+        ).json()["data"]
+        contacted_id = next(s["id"] for s in stages if s["name"] == "Contacted")
+
+        response = client.patch(
+            f"/api/v1/pipeline-stages/{contacted_id}",
+            json={"win_probability_pct": 30},
+            headers=_headers(tenant_and_user),
+        )
+    assert response.status_code == 200
+    assert response.json()["data"]["win_probability_pct"] == 30
+
+
+def test_win_probability_out_of_range_is_rejected(tenant_and_user):
+    with TestClient(app) as client:
+        stages = client.get(
+            "/api/v1/pipeline-stages", headers=_headers(tenant_and_user)
+        ).json()["data"]
+        response = client.patch(
+            f"/api/v1/pipeline-stages/{stages[0]['id']}",
+            json={"win_probability_pct": 150},
+            headers=_headers(tenant_and_user),
+        )
+    assert response.status_code == 400
+
+
 def test_two_tenants_get_independent_default_stages(tenant_and_user):
     tenant_id_2 = uuid.uuid4()
     with psycopg.connect(MIGRATE_URL, autocommit=True) as conn, conn.cursor() as cur:
