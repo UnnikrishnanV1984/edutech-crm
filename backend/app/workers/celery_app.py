@@ -11,6 +11,7 @@ Docker image as the API process, different CMD.
 """
 
 import asyncio
+import logging
 import sys
 
 from celery import Celery
@@ -22,6 +23,16 @@ if sys.platform == "win32":
     # directly on a Windows host needs the same event-loop-policy guard
     # any other standalone async entrypoint in this repo needs.
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
+# Celery's own --loglevel setup, not app/core/logging.py's
+# configure_logging (that only runs in the FastAPI process, never
+# imported here) — so the same httpx-URL-logging suppression
+# app/core/logging.py applies for the API process has to be repeated
+# here for worker/beat. Needed since app/workers/conversions.py sends
+# Meta's access_token as a query param (the real Conversions API's
+# actual contract), which httpx's own INFO-level request logging would
+# otherwise put in plain worker log output (CLAUDE.md rule 5).
+logging.getLogger("httpx").setLevel(logging.WARNING)
 
 _settings = get_settings()
 
