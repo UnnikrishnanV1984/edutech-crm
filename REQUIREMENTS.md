@@ -176,6 +176,9 @@ load.
 - **My stats**: leads worked, response time, conversion rate, demo
   attendance rate — personal only, not comparative to peers (avoid a
   leaderboard-pressure UI at the individual level; that's the manager view)
+- **My pipeline value** *(proposed, Phase 6)*: sum of `deal.value` for own
+  open deals, plus invoiced-but-unpaid amount — `PIPELINE_AND_REVENUE.md`
+  Section 4
 - **Notifications**: escalation acknowledgements, manager comments,
   reassignments
 
@@ -190,6 +193,9 @@ load.
 - **Follow-up flags**: the manager's own personal tracking list (Section
   4.3)
 - **Team forecast**: stage-weighted forecast rolled up for the team
+- **Team pipeline value** *(proposed, Phase 6)*: $ by stage, weighted
+  forecast in dollars, invoice rework rate for the team —
+  `PIPELINE_AND_REVENUE.md` Section 4
 - **Lead reallocation**: reassign leads across the team directly from the
   dashboard
 
@@ -198,6 +204,9 @@ load.
 - **Org-wide funnel & source ROI**: channel-level attribution, cost per
   enrollment (ties into the Meta/Google conversion feedback loop —
   `FEATURES_AND_PLAN.md` Phase 4)
+- **Revenue overview** *(proposed, Phase 6)*: invoiced vs. paid vs.
+  outstanding, invoice rework rate, average time in the invoice stage —
+  `PIPELINE_AND_REVENUE.md` Section 4
 - **SLA policy management**: configure targets, thresholds, business hours,
   holidays
 - **Workflow rule management**: active rules, pending manager-proposed

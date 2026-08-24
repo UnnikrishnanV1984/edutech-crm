@@ -132,6 +132,31 @@
   to EKS, and separately as an isolated single-tenant instance, with no code
   changes — only Helm `values.yaml` and environment config differ.
 
+### Phase 6 — General CRM: deal value, invoicing, pipeline stage templates
+- `deals` gains `value`/`currency`; `pipeline_stages` gains
+  `is_invoice_stage`/`is_rework_stage` flags, extending the existing
+  `is_won`/`is_lost` pattern — not a new mechanism
+- New `accounts` table for B2B deals (optional; EdTech doesn't need it)
+- Invoicing: create/send an invoice on a deal, record payments (full or
+  partial/EMI), automatic `rework_requested` status when a deal enters an
+  `is_rework_stage`
+- `pipeline_stage_templates`: a shared, pre-built stage library an Admin
+  picks from (copy-on-select) when configuring a tenant's pipeline, seeded
+  with both the existing EdTech stages and general ones (Invoice Sent,
+  Invoice Rework, etc.)
+- Dollar-based dashboard KPIs (pipeline value by stage, weighted forecast
+  in $, invoiced vs. paid vs. outstanding, invoice rework rate) — also
+  resolves the "cost-per-enrollment-in-dollars" open item noted in Phase
+  4's exit criteria, since it was blocked on `deals` having no value column
+- Full design in `PIPELINE_AND_REVENUE.md` — run through `architect` first
+  per `CLAUDE.md`, since this touches production tables and adds a new RLS
+  exception
+- **Exit criteria**: an Admin can build a pipeline from the template library
+  including an invoice stage and a rework stage; a deal carries a value; an
+  invoice created against a deal is visible on it and correctly reflects
+  rework when the deal re-enters that stage; all three dashboards show the
+  new $ KPIs.
+
 ## 3. Suggested working agreement for Claude Code
 
 - Work phase by phase; do not start Phase N+1 work until Phase N's exit
