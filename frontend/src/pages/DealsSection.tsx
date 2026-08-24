@@ -1,13 +1,43 @@
 import { useEffect, useState } from "react";
 
+import { ApiRequestError } from "../api/client";
 import { listCourses, type Course } from "../api/courses";
 import { listDeals, type Deal } from "../api/deals";
+import {
+  createInvoice,
+  listInvoicesForDeal,
+  updateInvoice,
+  type Invoice,
+  type InvoiceStatus,
+} from "../api/invoices";
+import { createPayment, listPaymentsForInvoice, type Payment } from "../api/payments";
 import { listPipelineStages, type PipelineStage } from "../api/pipelineStages";
 import { useAuth } from "../auth/context";
 import { Badge } from "../components/Badge";
 import { Button } from "../components/Button";
 import { stageColor } from "../stageColor";
 import { CreateDealPanel } from "./CreateDealPanel";
+
+const INVOICE_STATUS_TONE: Record<InvoiceStatus, { bg: string; fg: string; border: string }> = {
+  draft: { bg: "var(--surface)", fg: "var(--text-muted)", border: "var(--border)" },
+  sent: { bg: "var(--accent-subtle)", fg: "var(--accent)", border: "transparent" },
+  rework_requested: { bg: "var(--warning-bg)", fg: "var(--warning)", border: "transparent" },
+  paid: { bg: "var(--success-bg)", fg: "var(--success)", border: "transparent" },
+  cancelled: { bg: "var(--surface)", fg: "var(--text-muted)", border: "var(--border)" },
+};
+
+const INVOICE_STATUS_LABELS: Record<InvoiceStatus, string> = {
+  draft: "Draft",
+  sent: "Sent",
+  rework_requested: "Rework requested",
+  paid: "Paid",
+  cancelled: "Cancelled",
+};
+
+function formatMoney(value: string, currency: string) {
+  const amount = Number(value);
+  return `${currency} ${Number.isFinite(amount) ? amount.toLocaleString() : value}`;
+}
 
 interface DealsSectionProps {
   contactId: string;
@@ -19,6 +49,7 @@ export function DealsSection({ contactId }: DealsSectionProps) {
   const [stages, setStages] = useState<PipelineStage[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
   const [showCreate, setShowCreate] = useState(false);
+  const [expandedDealId, setExpandedDealId] = useState<string | undefined>(undefined);
 
   function load() {
     if (!token) return;
@@ -27,6 +58,7 @@ export function DealsSection({ contactId }: DealsSectionProps) {
     listCourses(token).then((response) => setCourses(response.data));
   }
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(load, [token, contactId]);
 
   function stageFor(stageId: string) {
@@ -54,20 +86,38 @@ export function DealsSection({ contactId }: DealsSectionProps) {
         )}
         {deals.map((deal) => {
           const stageInfo = stageFor(deal.stage_id);
+          const expanded = expandedDealId === deal.id;
           return (
             <li
               key={deal.id}
               style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                padding: 8,
                 borderBottom: "1px solid var(--border)",
               }}
             >
-              <span>{courseName(deal.course_id)}</span>
-              {stageInfo && (
-                <Badge label={stageInfo.stage.name} tone={stageColor(stageInfo.stage, stageInfo.index)} />
+              <div
+                onClick={() => setExpandedDealId(expanded ? undefined : deal.id)}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  padding: 8,
+                  cursor: "pointer",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
+                  <span>{courseName(deal.course_id)}</span>
+                  {Number(deal.value) > 0 && (
+                    <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
+                      {formatMoney(deal.value, deal.currency)}
+                    </span>
+                  )}
+                </div>
+                {stageInfo && (
+                  <Badge label={stageInfo.stage.name} tone={stageColor(stageInfo.stage, stageInfo.index)} />
+                )}
+              </div>
+              {expanded && (
+                <DealInvoices deal={deal} stage={stageInfo?.stage} onDealChanged={load} />
               )}
             </li>
           );
@@ -84,5 +134,373 @@ export function DealsSection({ contactId }: DealsSectionProps) {
         />
       )}
     </section>
+  );
+}
+
+function DealInvoices({
+  deal,
+  stage,
+  onDealChanged,
+}: {
+  deal: Deal;
+  stage: PipelineStage | undefined;
+  onDealChanged: () => void;
+}) {
+  const { token } = useAuth();
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const [showCreateInvoice, setShowCreateInvoice] = useState(false);
+  const [error, setError] = useState<string | undefined>(undefined);
+
+  function load() {
+    if (!token) return;
+    listInvoicesForDeal(token, deal.id).then((response) => {
+      setInvoices(response.data);
+      setLoaded(true);
+    });
+  }
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(load, [token, deal.id]);
+
+  const openInvoice = invoices.find((invoice) => invoice.status !== "cancelled");
+  const canCreateInvoice = stage?.is_invoice_stage && !openInvoice;
+
+  return (
+    <div
+      style={{
+        padding: "var(--space-3) var(--space-4)",
+        background: "var(--surface)",
+        display: "flex",
+        flexDirection: "column",
+        gap: "var(--space-3)",
+      }}
+    >
+      {error && (
+        <p role="alert" style={{ color: "var(--danger)", margin: 0 }}>
+          {error}
+        </p>
+      )}
+
+      {canCreateInvoice && !showCreateInvoice && (
+        <Button variant="primary" onClick={() => setShowCreateInvoice(true)}>
+          Create invoice
+        </Button>
+      )}
+
+      {showCreateInvoice && (
+        <CreateInvoiceForm
+          dealId={deal.id}
+          onCreated={() => {
+            setShowCreateInvoice(false);
+            load();
+          }}
+          onCancel={() => setShowCreateInvoice(false)}
+        />
+      )}
+
+      {loaded && invoices.length === 0 && !canCreateInvoice && (
+        <p style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)", margin: 0 }}>
+          No invoices yet.
+        </p>
+      )}
+
+      {invoices.map((invoice) => (
+        <InvoiceRow
+          key={invoice.id}
+          invoice={invoice}
+          currency={deal.currency}
+          onChanged={() => {
+            load();
+            onDealChanged();
+          }}
+          onError={setError}
+        />
+      ))}
+    </div>
+  );
+}
+
+function CreateInvoiceForm({
+  dealId,
+  onCreated,
+  onCancel,
+}: {
+  dealId: string;
+  onCreated: () => void;
+  onCancel: () => void;
+}) {
+  const { token } = useAuth();
+  const [invoiceNumber, setInvoiceNumber] = useState("");
+  const [amount, setAmount] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | undefined>(undefined);
+
+  async function handleSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    if (!token) return;
+    setSubmitting(true);
+    setError(undefined);
+    try {
+      await createInvoice(token, dealId, { invoice_number: invoiceNumber, amount });
+      onCreated();
+    } catch (err) {
+      setError(err instanceof ApiRequestError ? err.message : "Couldn't create invoice");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <form
+      onSubmit={(event) => {
+        void handleSubmit(event);
+      }}
+      style={{
+        display: "flex",
+        gap: "var(--space-2)",
+        alignItems: "flex-end",
+        flexWrap: "wrap",
+      }}
+    >
+      <label>
+        Invoice number*
+        <input
+          required
+          value={invoiceNumber}
+          onChange={(event) => setInvoiceNumber(event.target.value)}
+          style={{ display: "block", marginTop: 4 }}
+        />
+      </label>
+      <label>
+        Amount*
+        <input
+          required
+          type="number"
+          min="0"
+          step="0.01"
+          value={amount}
+          onChange={(event) => setAmount(event.target.value)}
+          style={{ display: "block", marginTop: 4, width: 140 }}
+        />
+      </label>
+      <Button variant="primary" type="submit" disabled={submitting}>
+        {submitting ? "Creating…" : "Create"}
+      </Button>
+      <Button variant="text" onClick={onCancel} disabled={submitting}>
+        Cancel
+      </Button>
+      {error && (
+        <p role="alert" style={{ color: "var(--danger)", width: "100%", margin: 0 }}>
+          {error}
+        </p>
+      )}
+    </form>
+  );
+}
+
+function InvoiceRow({
+  invoice,
+  currency,
+  onChanged,
+  onError,
+}: {
+  invoice: Invoice;
+  currency: string;
+  onChanged: () => void;
+  onError: (message: string | undefined) => void;
+}) {
+  const { token } = useAuth();
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [showPayments, setShowPayments] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  function loadPayments() {
+    if (!token) return;
+    listPaymentsForInvoice(token, invoice.id).then((response) => setPayments(response.data));
+  }
+
+  async function transition(status: "sent" | "cancelled") {
+    if (!token) return;
+    setBusy(true);
+    onError(undefined);
+    try {
+      await updateInvoice(token, invoice.id, { status });
+      onChanged();
+    } catch (err) {
+      onError(err instanceof ApiRequestError ? err.message : "Couldn't update invoice");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const paidTotal = payments.reduce((sum, payment) => sum + Number(payment.amount), 0);
+  const outstanding = Number(invoice.amount) - paidTotal;
+  const canRecordPayment = invoice.status === "sent" || invoice.status === "rework_requested";
+  const canSend = invoice.status === "draft" || invoice.status === "rework_requested";
+  const canCancel = invoice.status !== "paid" && invoice.status !== "cancelled";
+
+  return (
+    <div
+      style={{
+        border: "1px solid var(--border)",
+        borderRadius: "var(--radius)",
+        padding: "var(--space-3)",
+        display: "flex",
+        flexDirection: "column",
+        gap: "var(--space-2)",
+      }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+          <span style={{ fontWeight: "var(--weight-semibold)" }}>{invoice.invoice_number}</span>
+          <Badge
+            label={INVOICE_STATUS_LABELS[invoice.status]}
+            tone={INVOICE_STATUS_TONE[invoice.status]}
+          />
+          {invoice.was_reworked && (
+            <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
+              Reworked
+            </span>
+          )}
+        </div>
+        <span style={{ fontSize: "var(--text-sm)" }}>{formatMoney(invoice.amount, currency)}</span>
+      </div>
+
+      <div style={{ display: "flex", gap: "var(--space-2)" }}>
+        {canSend && (
+          <Button variant="secondary" disabled={busy} onClick={() => void transition("sent")}>
+            Send
+          </Button>
+        )}
+        {canCancel && (
+          <Button variant="text" disabled={busy} onClick={() => void transition("cancelled")}>
+            Cancel
+          </Button>
+        )}
+        {(invoice.status === "sent" ||
+          invoice.status === "rework_requested" ||
+          invoice.status === "paid") && (
+          <Button
+            variant="text"
+            onClick={() => {
+              setShowPayments((v) => !v);
+              if (!showPayments) loadPayments();
+            }}
+          >
+            {showPayments ? "Hide payments" : "Payments"}
+          </Button>
+        )}
+      </div>
+
+      {showPayments && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
+          {payments.length === 0 && (
+            <p style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)", margin: 0 }}>
+              No payments recorded yet.
+            </p>
+          )}
+          {payments.length > 0 && (
+            <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+              {payments.map((payment) => (
+                <li
+                  key={payment.id}
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    fontSize: "var(--text-sm)",
+                    padding: "2px 0",
+                  }}
+                >
+                  <span>
+                    {formatMoney(payment.amount, currency)} {payment.method && `(${payment.method})`}
+                  </span>
+                  <span style={{ color: "var(--text-muted)" }}>
+                    {new Date(payment.paid_at).toLocaleDateString()}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+          <p style={{ fontSize: "var(--text-sm)", margin: 0 }}>
+            Outstanding: {formatMoney(outstanding.toFixed(2), currency)}
+          </p>
+          {canRecordPayment && (
+            <RecordPaymentForm
+              invoiceId={invoice.id}
+              onRecorded={() => {
+                loadPayments();
+                onChanged();
+              }}
+            />
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function RecordPaymentForm({
+  invoiceId,
+  onRecorded,
+}: {
+  invoiceId: string;
+  onRecorded: () => void;
+}) {
+  const { token } = useAuth();
+  const [amount, setAmount] = useState("");
+  const [method, setMethod] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | undefined>(undefined);
+
+  async function handleSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    if (!token) return;
+    setSubmitting(true);
+    setError(undefined);
+    try {
+      await createPayment(token, invoiceId, { amount, method: method || undefined });
+      setAmount("");
+      setMethod("");
+      onRecorded();
+    } catch (err) {
+      setError(err instanceof ApiRequestError ? err.message : "Couldn't record payment");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <form
+      onSubmit={(event) => {
+        void handleSubmit(event);
+      }}
+      style={{ display: "flex", gap: "var(--space-2)", alignItems: "center", flexWrap: "wrap" }}
+    >
+      <input
+        required
+        type="number"
+        min="0"
+        step="0.01"
+        placeholder="Amount"
+        value={amount}
+        onChange={(event) => setAmount(event.target.value)}
+        style={{ width: 100 }}
+      />
+      <input
+        placeholder="Method (optional)"
+        value={method}
+        onChange={(event) => setMethod(event.target.value)}
+        style={{ width: 140 }}
+      />
+      <Button variant="secondary" type="submit" disabled={submitting}>
+        {submitting ? "Recording…" : "Record payment"}
+      </Button>
+      {error && (
+        <p role="alert" style={{ color: "var(--danger)", width: "100%", margin: 0 }}>
+          {error}
+        </p>
+      )}
+    </form>
   );
 }

@@ -199,6 +199,11 @@ export function PipelinePage() {
                           {courseName(deal.course_id)}
                         </div>
                       )}
+                      {Number(deal.value) > 0 && (
+                        <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
+                          {deal.currency} {Number(deal.value).toLocaleString()}
+                        </div>
+                      )}
                       <div
                         style={{
                           display: "flex",
