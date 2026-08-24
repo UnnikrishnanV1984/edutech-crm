@@ -17,6 +17,7 @@ reachability the same way this file is gated on the BFF.
 """
 
 import os
+import uuid
 
 import httpx
 import pytest
@@ -72,9 +73,19 @@ def _headers(token: str) -> dict:
 
 
 def _create_contact_as_a(token_a: str) -> str:
+    # This test module runs against the live BFF/FastAPI/Postgres chain
+    # (see module docstring) and has no teardown, so each run's contacts
+    # are real, permanent rows in the local dev DB. A unique suffix per
+    # call keeps repeated local runs from being indistinguishable from
+    # each other in the dev UI — it does not delete anything itself; run
+    # `docker compose exec db psql ...` (or equivalent) periodically if
+    # accumulated test data needs clearing.
     response = httpx.post(
         f"{BFF_BASE_URL}/api/v1/contacts",
-        json={"full_name": "Isolation Test Contact", "lead_source": "manual"},
+        json={
+            "full_name": f"Isolation Test Contact {uuid.uuid4().hex[:8]}",
+            "lead_source": "manual",
+        },
         headers=_headers(token_a),
         timeout=10,
     )
@@ -83,8 +94,6 @@ def _create_contact_as_a(token_a: str) -> str:
 
 
 def _create_course_as_a(token_a: str) -> str:
-    import uuid
-
     response = httpx.post(
         f"{BFF_BASE_URL}/api/v1/courses",
         json={"name": "Isolation Test Course", "code": f"ISO-{uuid.uuid4().hex[:8]}"},
