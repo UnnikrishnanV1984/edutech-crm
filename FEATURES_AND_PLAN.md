@@ -102,18 +102,19 @@
   weighted headcount (`PHASE_4_PLAN.md` — `deals` has no value/price
   column yet, so this isn't a $ figure)
 - Meta Conversions API + Google offline conversions (send enrollment
-  events back to ad platforms) — **design-approved, not yet built**
-  (`ARCHITECTURE.md` §7d); "fee-paid" events specifically are blocked on
-  the still-unbuilt `payments` feature, not part of this design
+  events back to ad platforms) — **shipped** (`ARCHITECTURE.md` §7d,
+  `PHASE_4B_CONVERSIONS_PLAN.md`); "fee-paid" events specifically remain
+  blocked on the still-unbuilt `payments` feature, not part of this build
 - Role-specific dashboards: Staff, Manager, Admin — **shipped**, content
   and layout defined in `REQUIREMENTS.md` Section 5
 - **Exit criteria**: marketing team can see cost-per-enrollment by channel,
   ad platforms are receiving conversion signals, and each role sees the
   dashboard defined for it in `REQUIREMENTS.md`. **Status**: dashboards
-  criterion met; conversion-signal criterion has an approved design
-  (`ARCHITECTURE.md` §7d) awaiting `feature-planner`/`feature-builder`;
-  cost-per-enrollment-in-dollars remains an open product decision (how
-  ad-spend data enters the system) not resolved by that design.
+  criterion met; conversion-signal criterion met (enrollment events send
+  on a deal reaching an `is_won` stage, verified against the live stack);
+  cost-per-enrollment-in-dollars remains the one open item — a product
+  decision on how ad-spend data enters the system, not resolved by the
+  conversion-signal work (sending events doesn't pull spend data back).
 
 ### Phase 5 — Multi-tenancy hardening & single-tenant packaging
 - Hash-partitioning for high-volume tables (activities, communication logs)

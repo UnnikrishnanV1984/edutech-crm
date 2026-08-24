@@ -273,11 +273,11 @@ succeeding.
 
 ## 7d. Outbound conversion signals (Meta Conversions API, Google offline conversions)
 
-Design-approved (architect pass, 2026-08-24), not yet built — hand-off to
-`feature-planner`/`feature-builder`. Deferred out of Phase 4's initial
-build as a new-external-integration per `CLAUDE.md`'s "what to ask about"
-list (`PHASE_4_PLAN.md` line 15). This section is the decision, so a
-future implementation doesn't have to re-derive it.
+Built (`PHASE_4B_CONVERSIONS_PLAN.md`), completing Phase 4's remaining
+exit-criteria clause. Originally deferred out of Phase 4's initial build
+as a new-external-integration per `CLAUDE.md`'s "what to ask about" list
+(`PHASE_4_PLAN.md` line 15); this section records the design decision
+made before implementation started.
 
 **No new service, no new credential store.** This reuses §7b's pattern
 end to end rather than inventing a second one: `mock-integrations` gains
@@ -330,6 +330,22 @@ signals, which undercuts the entire reason to send them. Enqueue-on-
 commit costs nothing extra infrastructure-wise (worker/beat already run)
 and keeps latency low, consistent with Phase 3's "fires without manual
 intervention" automation standard.
+
+**No `conversion_events` read endpoint, and no top-level cross-service
+E2E test** (unlike every other Phase 2/3/4 feature in `/tests`) — a
+deliberate pairing, not an oversight. The `/tests` tier's own convention
+(`test_tenant_isolation.py`, `test_lead_source_connections_e2e.py`) is
+HTTP-only, black-box against the live BFF — it never queries Postgres
+directly, unlike `backend/tests`. Since this send happens asynchronously
+via a Celery task with no HTTP surface to observe the outcome through,
+an E2E test here would have had to either add direct DB access to that
+tier (breaking its established black-box boundary) or wait on the
+deferred read endpoint (§4 of the implementation plan). Verified instead
+by `backend/tests/test_conversion_events.py` (calls the worker function
+directly against a real `mock-integrations`, backend/tests' own
+established convention for this) plus a manual live-stack check through
+the real BFF during implementation. Revisit if the deferred read
+endpoint gets built.
 
 **Still unresolved, not decided here**: sending conversion *events*
 doesn't give this app spend data *back* from Meta/Google, so "marketing
