@@ -5,6 +5,7 @@ import { useAuth } from "../auth/context";
 import { Button } from "../components/Button";
 import { EmptyState } from "../components/EmptyState";
 import { OwnerFilter } from "../components/OwnerFilter";
+import { defaultOwnerFilterValue } from "../ownerFilter";
 import { useMe } from "../useMe";
 import { useUsers } from "../useUsers";
 import { CreateTaskPanel } from "./CreateTaskPanel";
@@ -52,9 +53,9 @@ export function TasksPage() {
   const undoTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => {
-    if (me) setAssigneeId(me.user.id);
+    if (me) setAssigneeId(defaultOwnerFilterValue(me.user.role, me.user.id));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [me?.user.id]);
+  }, [me?.user.id, me?.user.role]);
 
   function load() {
     if (!token) return;

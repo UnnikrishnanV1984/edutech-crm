@@ -7,8 +7,10 @@ import { Avatar } from "../components/Avatar";
 import { Badge } from "../components/Badge";
 import { Button } from "../components/Button";
 import { EmptyState } from "../components/EmptyState";
+import { OwnerFilter } from "../components/OwnerFilter";
 import { Skeleton } from "../components/Skeleton";
 import { leadSourceColor, leadSourceLabel } from "../leadSource";
+import { defaultOwnerFilterValue } from "../ownerFilter";
 import { relativeTime } from "../relativeTime";
 import { userDisplayName, useUsers } from "../useUsers";
 import { useMe } from "../useMe";
@@ -27,9 +29,16 @@ export function ContactsListPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [leadSource, setLeadSource] = useState("");
-  const [onlyMine, setOnlyMine] = useState(true);
+  // undefined = "my team" (manager) or "everyone" (admin), same
+  // OwnerFilter contract as TasksPage.tsx/PipelinePage.tsx.
+  const [ownerId, setOwnerId] = useState<string | undefined>(undefined);
   const [error, setError] = useState<string | undefined>(undefined);
   const [showCreatePanel, setShowCreatePanel] = useState(false);
+
+  useEffect(() => {
+    if (me) setOwnerId(defaultOwnerFilterValue(me.user.role, me.user.id));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [me?.user.id, me?.user.role]);
 
   function load() {
     if (!token) {
@@ -39,7 +48,7 @@ export function ContactsListPage() {
     listContacts(token, {
       search: search || undefined,
       lead_source: leadSource || undefined,
-      owner_id: onlyMine && me ? me.user.id : undefined,
+      owner_id: me?.user.role === "counselor" ? undefined : ownerId,
       page,
       page_size: PAGE_SIZE,
     })
@@ -51,14 +60,15 @@ export function ContactsListPage() {
   }
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(load, [token, search, leadSource, onlyMine, me, page]);
+  useEffect(load, [token, search, leadSource, ownerId, me, page]);
 
   function updateFilter(update: () => void) {
     update();
     setPage(1);
   }
 
-  const hasFilters = Boolean(search || leadSource || onlyMine);
+  const isDefaultOwnerFilter = me ? ownerId === defaultOwnerFilterValue(me.user.role, me.user.id) : true;
+  const hasFilters = Boolean(search || leadSource || !isDefaultOwnerFilter);
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
@@ -96,12 +106,15 @@ export function ContactsListPage() {
           <option value="whatsapp">WhatsApp</option>
           <option value="manual">Manual</option>
         </select>
-        <Button
-          variant={onlyMine ? "primary" : "secondary"}
-          onClick={() => updateFilter(() => setOnlyMine((current) => !current))}
-        >
-          {onlyMine ? "Mine" : "Everyone"}
-        </Button>
+        {me && (
+          <OwnerFilter
+            role={me.user.role}
+            meId={me.user.id}
+            users={users}
+            selectedUserId={ownerId}
+            onChange={(value) => updateFilter(() => setOwnerId(value))}
+          />
+        )}
       </div>
 
       {error && (
@@ -142,7 +155,7 @@ export function ContactsListPage() {
                 updateFilter(() => {
                   setSearch("");
                   setLeadSource("");
-                  setOnlyMine(false);
+                  setOwnerId(me ? defaultOwnerFilterValue(me.user.role, me.user.id) : undefined);
                 })
               }
             >

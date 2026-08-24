@@ -10,6 +10,7 @@ import { Avatar } from "../components/Avatar";
 import { Button } from "../components/Button";
 import { OwnerFilter } from "../components/OwnerFilter";
 import { useToast } from "../components/toastContext";
+import { defaultOwnerFilterValue } from "../ownerFilter";
 import { stageColor, stageIcon } from "../stageColor";
 import { userDisplayName, useUsers } from "../useUsers";
 import { useMe } from "../useMe";
@@ -61,9 +62,9 @@ export function PipelinePage() {
   }
 
   useEffect(() => {
-    if (me) setOwnerId(me.user.id);
+    if (me) setOwnerId(defaultOwnerFilterValue(me.user.role, me.user.id));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [me?.user.id]);
+  }, [me?.user.id, me?.user.role]);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(load, [token, ownerId, me]);

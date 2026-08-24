@@ -147,4 +147,20 @@ describe("TasksPage owner filter", () => {
     expect(screen.getByLabelText("Filter by owner")).toBeInTheDocument();
     expect(screen.getByText("Everyone")).toBeInTheDocument();
   });
+
+  it("defaults an admin to Everyone, not Mine", async () => {
+    setup("admin");
+    mockedListTasks.mockResolvedValue({
+      data: [],
+      meta: { request_id: "r1", page: 1, page_size: 100, total: 0 },
+    });
+
+    render(<TasksPage />);
+    await waitFor(() =>
+      expect(screen.getByLabelText<HTMLSelectElement>("Filter by owner").value).toBe("everyone"),
+    );
+    // The default load should have gone out with no assignee_id filter.
+    const lastCall = mockedListTasks.mock.calls.at(-1)!;
+    expect(lastCall[1]?.assignee_id).toBeUndefined();
+  });
 });
