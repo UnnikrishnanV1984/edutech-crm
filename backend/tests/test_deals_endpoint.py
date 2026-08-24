@@ -63,6 +63,7 @@ def scenario():
 
     with psycopg.connect(MIGRATE_URL, autocommit=True) as conn, conn.cursor() as cur:
         cur.execute("SELECT set_config('app.tenant_id', %s, false)", (str(tenant_id),))
+        cur.execute("DELETE FROM invoices WHERE tenant_id = %s", (tenant_id,))
         cur.execute("DELETE FROM audit_logs WHERE tenant_id = %s", (tenant_id,))
         cur.execute("DELETE FROM activities WHERE tenant_id = %s", (tenant_id,))
         cur.execute("DELETE FROM deals WHERE tenant_id = %s", (tenant_id,))
@@ -262,6 +263,68 @@ def test_create_deal_with_another_tenants_account_returns_400(scenario):
             cur.execute("DELETE FROM users WHERE tenant_id = %s", (other_tenant_id,))
             cur.execute("RESET app.tenant_id")
             cur.execute("DELETE FROM tenants WHERE id = %s", (other_tenant_id,))
+
+
+def test_entering_rework_stage_flips_open_invoice(scenario):
+    """PIPELINE_AND_REVENUE_PLAN.md §7 task 6."""
+    admin_headers = {**_headers(scenario["tenant_id"]), "X-User-Role": "admin"}
+    with TestClient(app) as client:
+        client.get("/api/v1/pipeline-stages", headers=_headers(scenario["tenant_id"]))  # seed
+        rework_stage = client.post(
+            "/api/v1/pipeline-stages",
+            json={"name": "Invoice Rework", "is_rework_stage": True},
+            headers=admin_headers,
+        ).json()["data"]
+
+        deal = client.post(
+            f"/api/v1/contacts/{scenario['contact_id']}/deals",
+            json={"course_id": str(scenario["course_id"])},
+            headers=_headers(scenario["tenant_id"]),
+        ).json()["data"]
+        invoice = client.post(
+            f"/api/v1/deals/{deal['id']}/invoices",
+            json={"invoice_number": "INV-100", "amount": "500.00"},
+            headers=_headers(scenario["tenant_id"]),
+        ).json()["data"]
+        client.patch(
+            f"/api/v1/invoices/{invoice['id']}",
+            json={"status": "sent"},
+            headers=_headers(scenario["tenant_id"]),
+        )
+
+        client.patch(
+            f"/api/v1/deals/{deal['id']}",
+            json={"stage_id": rework_stage["id"]},
+            headers=_headers(scenario["tenant_id"]),
+        )
+
+        refetched = client.get(
+            f"/api/v1/invoices/{invoice['id']}", headers=_headers(scenario["tenant_id"])
+        ).json()["data"]
+    assert refetched["status"] == "rework_requested"
+
+
+def test_entering_rework_stage_with_no_invoice_is_a_no_op(scenario):
+    admin_headers = {**_headers(scenario["tenant_id"]), "X-User-Role": "admin"}
+    with TestClient(app) as client:
+        client.get("/api/v1/pipeline-stages", headers=_headers(scenario["tenant_id"]))  # seed
+        rework_stage = client.post(
+            "/api/v1/pipeline-stages",
+            json={"name": "Invoice Rework", "is_rework_stage": True},
+            headers=admin_headers,
+        ).json()["data"]
+        deal = client.post(
+            f"/api/v1/contacts/{scenario['contact_id']}/deals",
+            json={"course_id": str(scenario["course_id"])},
+            headers=_headers(scenario["tenant_id"]),
+        ).json()["data"]
+
+        response = client.patch(
+            f"/api/v1/deals/{deal['id']}",
+            json={"stage_id": rework_stage["id"]},
+            headers=_headers(scenario["tenant_id"]),
+        )
+    assert response.status_code == 200
 
 
 def test_list_deals_filters_by_stage(scenario):

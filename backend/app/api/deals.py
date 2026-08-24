@@ -13,6 +13,10 @@ from app.services.activity_service import log_deal_stage_changed
 from app.services.audit_log_service import record as record_audit_log
 from app.services.contact_service import get_contact
 from app.services.deal_service import create_deal, get_deal, list_deals, update_deal
+from app.services.invoice_service import (
+    get_most_recent_open_invoice_for_deal,
+    mark_rework_requested,
+)
 from app.services.pipeline_stage_service import get_stage
 from app.workers.conversions import send_conversion_event
 from app.workers.rules import evaluate_event_rules
@@ -146,6 +150,18 @@ async def patch_deal(
         if new_stage is not None and new_stage.is_won:
             for platform in ("meta", "google"):
                 send_conversion_event.delay(str(context.tenant.id), str(deal.id), platform)
+
+        # PIPELINE_AND_REVENUE_PLAN.md §5.2 — entering an is_rework_stage
+        # stage flips the deal's most recent non-cancelled invoice back
+        # to rework_requested. No-op if the deal has no invoice yet
+        # (invoice creation is a manual UI action that may not have
+        # happened before the deal moved here).
+        if new_stage is not None and new_stage.is_rework_stage:
+            open_invoice = await get_most_recent_open_invoice_for_deal(
+                context.db, context.tenant.id, deal.id
+            )
+            if open_invoice is not None:
+                await mark_rework_requested(context.db, open_invoice)
 
     return data_envelope(
         DealOut.model_validate(deal).model_dump(mode="json"), request.state.request_id
