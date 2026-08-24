@@ -271,6 +271,74 @@ integrations, doesn't need a later migration) but always records
 `workflow_runs.status = 'skipped_unavailable'` rather than silently
 succeeding.
 
+## 7d. Outbound conversion signals (Meta Conversions API, Google offline conversions)
+
+Design-approved (architect pass, 2026-08-24), not yet built — hand-off to
+`feature-planner`/`feature-builder`. Deferred out of Phase 4's initial
+build as a new-external-integration per `CLAUDE.md`'s "what to ask about"
+list (`PHASE_4_PLAN.md` line 15). This section is the decision, so a
+future implementation doesn't have to re-derive it.
+
+**No new service, no new credential store.** This reuses §7b's pattern
+end to end rather than inventing a second one: `mock-integrations` gains
+two new local-only routes simulating the real Conversions/offline-
+conversions APIs (same service, same "never deployed in production"
+annotation as its existing Meta/Google/WhatsApp routes); the real base
+URLs are the same `META_GRAPH_API_BASE_URL`/`GOOGLE_ADS_API_BASE_URL`
+config-swap §7b already established — no new env var for the endpoint
+itself. Auth reuses `lead_source_connections`' existing encrypted
+Meta/Google tokens (same ad account that already authenticates the
+inbound lead pull); that table gains one new nullable column,
+`conversion_target_id` (the Meta Pixel/Dataset ID or Google conversion
+action resource name), not a second credentials table — a second store
+for the same underlying token would just create a place for the two
+copies to drift or leak.
+
+**Trigger**: a deal transitioning into a stage with `is_won = true` (see
+`pipeline_stages` in `DATABASE_SCHEMA.md` §1) enqueues a
+`send_conversion_event` Celery task right after that transaction commits
+— the exact same dispatch point §7c's workflow-rule triggers already use
+(event-triggered background work is enqueued post-commit, never from
+inside the triggering transaction). Keying off `is_won`, not a hardcoded
+stage name, matches every other place in this codebase that reads
+pipeline-stage semantics (forecast, escalations) — a tenant renaming
+"Enrolled" must not silently break outbound conversion sends.
+
+**Only the enrollment signal ships.** A "fee paid" conversion event
+(also named in `FEATURES_AND_PLAN.md`'s Phase 4 line item) is explicitly
+NOT included: there is no `payments` table yet — `DATABASE_SCHEMA.md` §1
+lists it as part of the aspirational initial schema sketch, but no
+migration has ever created it, so there is no fee-paid signal to send.
+That's a prerequisite gap, not a decision made here; revisit once
+`payments` lands as its own feature.
+
+**Delivery semantics**: each (deal, platform) pair gets its own
+independent transaction and local retry loop when the task runs — not
+Celery's built-in task-level retry — matching §7c's workflow-engine
+reasoning exactly: a batch that fires conversions for several
+newly-won deals must not let one platform's failure roll back or
+duplicate a sibling deal's already-successful send. A new
+`conversion_events` table (`tenant_id`, `deal_id` composite FK,
+`platform`, `status`, `attempts`, `last_error`, `sent_at`) tracks
+delivery per the standard tenant-scoped pattern (`DATABASE_SCHEMA.md`
+§2) — one row per (deal, platform) since a deal can in principle need
+both a Meta and a Google send.
+
+**Real-time, not batched**: rejected a nightly Celery Beat sweep — ad
+platforms' own attribution modeling degrades with delayed conversion
+signals, which undercuts the entire reason to send them. Enqueue-on-
+commit costs nothing extra infrastructure-wise (worker/beat already run)
+and keeps latency low, consistent with Phase 3's "fires without manual
+intervention" automation standard.
+
+**Still unresolved, not decided here**: sending conversion *events*
+doesn't give this app spend data *back* from Meta/Google, so "marketing
+team can see cost-per-enrollment by channel" — Phase 4's other unmet
+exit-criteria clause — remains open. That needs a product decision on
+how ad-spend data enters the system (manual per-campaign entry vs. a
+platform spend-API pull, itself a further new integration) — flagged in
+`PHASE_4_PLAN.md` already and not resolved by this note.
+
 ## 8. Redis usage
 
 Redis is required, used for:

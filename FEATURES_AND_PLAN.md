@@ -95,16 +95,25 @@
   breach automatically raises an escalation visible on the manager's queue.
 
 ### Phase 4 — Reporting, forecasting, conversion feedback loop
-- Pipeline funnel and source ROI dashboards
-- Stage-weighted forecasting and win-probability
-- Meta Conversions API + Google offline conversions (send enrollment/fee-paid
-  events back to ad platforms)
-- Role-specific dashboards: Staff, Manager, Admin — content and layout
-  defined in `REQUIREMENTS.md` Section 5; build on precomputed reporting
-  aggregates, not live heavy queries
+- Pipeline funnel and source ROI dashboards — **shipped** (`PHASE_4_PLAN.md`,
+  lead counts by source; dollar-value ROI still blocked, see exit criteria
+  note below)
+- Stage-weighted forecasting and win-probability — **shipped**, as a
+  weighted headcount (`PHASE_4_PLAN.md` — `deals` has no value/price
+  column yet, so this isn't a $ figure)
+- Meta Conversions API + Google offline conversions (send enrollment
+  events back to ad platforms) — **design-approved, not yet built**
+  (`ARCHITECTURE.md` §7d); "fee-paid" events specifically are blocked on
+  the still-unbuilt `payments` feature, not part of this design
+- Role-specific dashboards: Staff, Manager, Admin — **shipped**, content
+  and layout defined in `REQUIREMENTS.md` Section 5
 - **Exit criteria**: marketing team can see cost-per-enrollment by channel,
   ad platforms are receiving conversion signals, and each role sees the
-  dashboard defined for it in `REQUIREMENTS.md`.
+  dashboard defined for it in `REQUIREMENTS.md`. **Status**: dashboards
+  criterion met; conversion-signal criterion has an approved design
+  (`ARCHITECTURE.md` §7d) awaiting `feature-planner`/`feature-builder`;
+  cost-per-enrollment-in-dollars remains an open product decision (how
+  ad-spend data enters the system) not resolved by that design.
 
 ### Phase 5 — Multi-tenancy hardening & single-tenant packaging
 - Hash-partitioning for high-volume tables (activities, communication logs)
