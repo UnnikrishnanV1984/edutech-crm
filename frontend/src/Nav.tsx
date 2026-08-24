@@ -51,6 +51,9 @@ export function Nav() {
     >
       <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
         <strong>EdTech CRM</strong>
+        <NavLink to="/dashboard" style={linkStyle}>
+          Dashboard
+        </NavLink>
         <NavLink to="/contacts" style={linkStyle}>
           Contacts
         </NavLink>

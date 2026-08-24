@@ -4,6 +4,7 @@ import { AuthProvider } from "./auth/AuthProvider";
 import { ToastProvider } from "./components/ToastProvider";
 import { ContactDetailPage } from "./pages/ContactDetailPage";
 import { ContactsListPage } from "./pages/ContactsListPage";
+import { DashboardPage } from "./pages/DashboardPage";
 import { EscalationsPage } from "./pages/EscalationsPage";
 import { FollowUpFlagsPage } from "./pages/FollowUpFlagsPage";
 import { IntegrationsPage } from "./pages/IntegrationsPage";
@@ -20,6 +21,7 @@ function AppRoutes() {
       <main style={{ flex: 1, minHeight: 0 }}>
         <Routes>
           <Route path="/" element={<Navigate to="/contacts" replace />} />
+          <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/contacts" element={<ContactsListPage />} />
           <Route path="/contacts/:contactId" element={<ContactDetailPage />} />
           <Route path="/pipeline" element={<PipelinePage />} />
