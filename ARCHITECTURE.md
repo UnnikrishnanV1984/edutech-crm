@@ -91,6 +91,8 @@ Everything runs in Docker Compose as separate modules/services:
 | `keycloak` | `quay.io/keycloak/keycloak` | Identity provider, OIDC |
 | `minio` (optional) | `minio/minio` | Local S3-compatible object storage for documents |
 | `mock-integrations` | Python (FastAPI) | Dev/test-only stand-in for the Meta Graph API, WhatsApp Cloud API, and Google Ads API — never deployed in production, same annotation as `minio` above. Part of the default stack (unlike `minio`'s opt-in `storage` profile): Phase 2's lead-capture pipelines can't be exercised locally at all without it. See §7a |
+| `worker` | Python (Celery) | Executes queued/scheduled tasks — SLA state computation, workflow rule evaluation. Same `backend` image, `celery worker` as the container command instead of `uvicorn`; `docker-entrypoint.sh` is bypassed (no reason to re-run migrations/seed a second time). See §7c |
+| `beat` | Python (Celery) | Fires the periodic dispatchers on a schedule (`celery beat`) — same image as `worker`, different command. Nothing here executes tasks itself, it only enqueues them for `worker` to pick up |
 
 Each service is its own Dockerfile/module so it can be built, tested, and
 shipped independently — the same images used in `docker compose up` locally
@@ -118,6 +120,7 @@ container:
 | `keycloak` | Deployment + Service in EKS (or AWS-managed alternative, e.g. Cognito, if the team later chooses to swap it — realm-based design keeps this optional) |
 | `minio` | Amazon S3 — not run in-cluster in production |
 | `mock-integrations` | **Not deployed** — production `backend` talks to the real Meta Graph API, WhatsApp Cloud API, and Google Ads API directly (`META_GRAPH_API_BASE_URL`/`WHATSAPP_API_BASE_URL`/`GOOGLE_ADS_API_BASE_URL` point at the real platforms, not at this service — same config-swap principle as `S3_ENDPOINT`/MinIO) |
+| `worker` / `beat` | Deployment (`worker`, horizontally scalable) + a single-replica Deployment (`beat` — running it more than once would fire every scheduled task multiple times) in EKS. Same `backend` image and ECR repo as the API Deployment, just a different container command per Deployment spec |
 
 Practical implications for how the repo should be structured:
 
@@ -221,6 +224,52 @@ this is what let Phase 2 be built and fully tested before any real
 platform credentials existed. Per-tenant Meta/Google/WhatsApp tokens are
 encrypted at rest (`pgcrypto` `pgp_sym_encrypt`, keyed by
 `INTEGRATION_CREDENTIALS_KEY`).
+
+## 7c. Celery: SLA computation and the workflow rule engine
+
+`PHASE_3_PLAN.md` is the first real use of the `/backend/app/workers`
+package `DEVELOPMENT_PLAN.md` §0/§8 reserved back in Phase 0 ("Celery,
+not BullMQ" — already decided there, not re-opened). Redis (§8) doubles
+as broker and result backend; no new stateful service.
+
+Two Beat-scheduled dispatchers run every 5 minutes, each fanning out
+**one task per active tenant** rather than looping over every tenant in
+a single task — a slow or failing tenant's computation can't delay or
+break another's:
+
+- `compute_sla_states` — walks each tenant's active `sla_policies`
+  against current deals/tasks, using a tenant-configured business-hours
+  clock (`tenant_sla_settings`) rather than raw wall-clock time. A fresh
+  transition into `breached` raises exactly one `sla_breach` escalation,
+  assigned to the deal/task owner's manager (`users.manager_id`) — a
+  breached item with no manager on file logs a warning and is skipped,
+  not silently escalated to nobody.
+- `scan_time_based_rules` — evaluates `elapsed_time`/`task_overdue`
+  workflow rules against matching deals/tasks.
+
+Event-triggered workflow rules (`stage_changed`, `lead_created`) are
+enqueued directly from their write path — the deal stage-change route
+and Phase 2's lead-ingestion paths (both the real webhook path and the
+dev-seed path) — right after that transaction commits, not queued from
+inside it.
+
+Every rule executes in its own short transaction against its own
+session, one rule at a time — never several rules sharing one
+transaction for the same trigger event. Retries are a local loop within
+one rule's handling (up to 3 attempts) rather than Celery's own
+task-level retry, which would re-run every other rule in the same batch
+alongside the one that actually failed. An action forced to raise on
+every attempt ends in exactly one `workflow_failure` escalation, not
+one per attempt.
+
+`workflow_rules.actions`/`conditions`/`trigger_config` are tenant-scoped
+JSONB, validated at write time but never used to build a raw SQL query
+— action execution dispatches on a fixed Python type enum. A
+`send_message` action is accepted by the schema (so the comms-provider
+work, still `architect`-blocked per `CLAUDE.md`'s rule on new external
+integrations, doesn't need a later migration) but always records
+`workflow_runs.status = 'skipped_unavailable'` rather than silently
+succeeding.
 
 ## 8. Redis usage
 

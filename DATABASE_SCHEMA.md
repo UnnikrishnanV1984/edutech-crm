@@ -5,7 +5,7 @@
 | Table | Purpose | Notes |
 |---|---|---|
 | `tenants` | One row per client | No `tenant_id` column (this table is global) |
-| `users` | Platform users (counselors, managers, admins) | `tenant_id`, role |
+| `users` | Platform users (counselors, managers, admins) | `tenant_id`, role, `manager_id` (self-referencing, nullable — the RBAC team mapping; no separate mapping table, `PHASE_3_PLAN.md` §3.1/§4) |
 | `contacts` | Leads/students | `tenant_id`, `lead_source`, `owner_id` — **not** `stage`: a contact can hold multiple concurrent `deals`, each with its own stage, so stage lives on `deals` (resolved in Phase 1 — see `DATABASE_SCHEMA.md` §2's `deals` row and `PHASE_1_PLAN.md` §2) |
 | `pipeline_stages` | Configurable per-tenant pipeline stages | `tenant_id`, `sort_order`, `is_won`/`is_lost` (not the tenant-editable name) is what later phases read |
 | `deals` | One row per application — a contact can have several concurrent (resolved in Phase 1, was "optional") | `tenant_id`, `contact_id`, `course_id`, `stage_id` |
@@ -13,15 +13,16 @@
 | `activities` | Calls, emails, WhatsApp messages, stage changes | `tenant_id`, high write volume — hash-partitioned |
 | `tasks` | Follow-ups, reminders | `tenant_id`, `assignee_id`, `due_at` |
 | `documents` | Metadata for uploaded files (actual file in S3/MinIO) | `tenant_id`, `contact_id` |
-| `workflow_rules` | Automation rule definitions | `tenant_id` |
-| `workflow_runs` | Execution log of triggered workflows | `tenant_id`, high write volume |
+| `workflow_rules` | Automation rule definitions (trigger/conditions/actions as JSONB) | `tenant_id`; `status` includes `pending_approval` — a Manager-authored rule is always forced into that status server-side regardless of what the request claims (`REQUIREMENTS.md` §2.4, `PHASE_3_PLAN.md` §7.3) |
+| `workflow_runs` | Execution log — one row per (rule, trigger source), not per action | `tenant_id`, hash-partitioned (high write volume), `workflow_rule_id` **is** a composite FK (unlike the exceptions below — `workflow_rules` isn't partitioned, so no obstacle) |
 | `payments` | Fee/EMI records | `tenant_id`, `contact_id` |
 | `lead_source_connections` | Per-tenant Meta/Google/WhatsApp/web connection credentials | `tenant_id`, but **no RLS** — a second documented global exemption alongside `tenants`: a webhook has to look up `external_account_id` to *discover* `tenant_id` before `app.tenant_id` can be set, so a policy keyed on that session variable can't gate this table. Every query against it filters `tenant_id` explicitly in application code instead — see `PHASE_2_PLAN.md` §3 |
-| `sla_policies` | Tenant-configured SLA targets per stage/task type | `tenant_id` — see `REQUIREMENTS.md` Section 3 |
-| `sla_states` | Computed on_track/at_risk/breached state per tracked item | `tenant_id`, high write volume |
-| `escalations` | Escalation records with lifecycle and resolution notes | `tenant_id` — see `REQUIREMENTS.md` Section 4 |
+| `tenant_sla_settings` | Business hours + holidays the SLA clock computes against | `tenant_id`; one row per tenant enforced by a unique index, **not** a different PK shape — still `(id, tenant_id)` per §2's "do not deviate," `PHASE_3_PLAN.md` §3.2 |
+| `sla_policies` | Tenant-configured SLA targets per stage/task type | `tenant_id` — see `REQUIREMENTS.md` Section 3, `PHASE_3_PLAN.md` §3.3 |
+| `sla_states` | Computed on_track/at_risk/breached state per tracked item | `tenant_id`, hash-partitioned (high write volume) — computed by a Celery Beat task, never written by a request handler, `PHASE_3_PLAN.md` §6 |
+| `escalations` | Escalation records with lifecycle and resolution notes | `tenant_id` — see `REQUIREMENTS.md` Section 4. `sla_state_id`/`workflow_run_id` are plain `UUID`, **not** composite FKs — both would reference a non-partition-key column of a hash-partitioned table, which Postgres can't express cleanly here (`PHASE_3_PLAN.md` §3.5) |
 | `follow_up_flags` | Manager's personal follow-up reminders on leads | `tenant_id`, `manager_id` |
-| `audit_log` | Configuration change history for Admin visibility | `tenant_id`, append-only |
+| `audit_log` | Configuration change history for Admin visibility | `tenant_id`, append-only — **not yet built**; no phase has claimed it (`DEVELOPMENT_PLAN.md` §8's original flag still stands after Phase 3) |
 
 Role-based access (Admin/Manager/Staff) is enforced at the application layer
 on top of these tables, not as additional RLS policies — see
