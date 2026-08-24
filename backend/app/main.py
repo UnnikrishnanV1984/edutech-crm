@@ -16,6 +16,7 @@ from app.api import (
     escalations,
     follow_up_flags,
     health,
+    invoices,
     lead_source_connections,
     me,
     pipeline_stages,
@@ -80,6 +81,7 @@ def create_app() -> FastAPI:
     app.include_router(courses.router)
     app.include_router(pipeline_stages.router)
     app.include_router(deals.router)
+    app.include_router(invoices.router)
     app.include_router(tasks.router)
     app.include_router(documents.router)
     app.include_router(users.router)

@@ -8,6 +8,7 @@ from app.models.deal import Deal
 from app.models.document import Document
 from app.models.escalation import Escalation
 from app.models.follow_up_flag import FollowUpFlag
+from app.models.invoice import Invoice
 from app.models.lead_source_connection import LeadSourceConnection
 from app.models.pipeline_stage import PipelineStage
 from app.models.sla_policy import SlaPolicy
@@ -30,6 +31,7 @@ __all__ = [
     "Document",
     "Escalation",
     "FollowUpFlag",
+    "Invoice",
     "LeadSourceConnection",
     "PipelineStage",
     "SlaPolicy",
