@@ -1,10 +1,17 @@
 # Pipeline generalization: deal value, invoicing, and stage templates
 
-**Status: proposed, not yet built.** This is a design document, matching the
-style of `PHASE_1_PLAN.md`–`PHASE_4B_CONVERSIONS_PLAN.md` — it describes
-target schema/behavior for a future phase (`FEATURES_AND_PLAN.md` §2 Phase
-6), not code that exists. Written against the actual current models
-(`backend/app/models/deal.py`, `pipeline_stage.py`) — not a guess.
+**Status: proposed, architect-reviewed, not yet built.** This is a design
+document, matching the style of `PHASE_1_PLAN.md`–`PHASE_4B_CONVERSIONS_PLAN.md`
+— it describes target schema/behavior for a future phase
+(`FEATURES_AND_PLAN.md` §2 Phase 6), not code that exists. Written against
+the actual current models (`backend/app/models/deal.py`,
+`pipeline_stage.py`) — not a guess. Architect review (2026-08-24) resolved
+the open questions inline, marked **Architect review** — migration safety
+confirmed, `pipeline_stage_templates`'s RLS exception confirmed as the
+`tenants`-style case, the `invoices`/`payments` composite-FK question
+resolved (and both tables newly recommended for hash-partitioning from
+creation), Phase 6/Phase 5 sequencing confirmed independent, and the
+flag-vs-enum choice upheld. Ready to hand to `feature-planner`.
 
 The CRM was built EdTech-first. This generalizes the pipeline engine so any
 vertical (IT hardware, services, generic B2B sales) can configure its own
@@ -45,6 +52,19 @@ while EdTech keeps working unchanged.
   EdTech deals get `value = 0` until backfilled, and continue to resolve
   `course_id` exactly as before; no behavior change for the shipped EdTech
   flow.
+- **Architect review note**: confirmed additive at the DB layer against
+  the live schema (alembic head 0019 as of this review; `deals` — 0005 —
+  has no later migration touching it, `course_id` is a plain `NOT NULL`
+  column with no CHECK/trigger depending on it). Relaxing it to nullable
+  is a safe `ALTER COLUMN ... DROP NOT NULL` with no backfill required.
+  That said, it is **not** purely a DB-layer change: `DealCreate.course_id`
+  and `DealOut.course_id` (`backend/app/schemas/deal.py`) are both
+  currently non-optional `uuid.UUID`, and `report_service`'s
+  course-grouped views and `PipelinePage.tsx`'s `courseName()` lookup both
+  assume a resolvable id. None of these crash on `None` (the frontend
+  lookup degrades to a blank label), but the schema/service/frontend
+  changes are real follow-on work in the same slice, not a side effect of
+  the migration alone — size the task breakdown accordingly.
 
 ### 2.2 `accounts` — new table (B2B organization)
 
@@ -66,22 +86,65 @@ Behavior these flags drive:
 - A deal entering an `is_rework_stage = true` stage sets its linked
   invoice's `status` to `rework_requested` and reopens it for editing.
 
+**Architect review — flags confirmed over an enum, at this scale.** Four
+flags split cleanly into two independent concern-pairs — terminal status
+(`is_won`/`is_lost`) and mid-pipeline financial triggers
+(`is_invoice_stage`/`is_rework_stage`) — not one mutually-exclusive
+category, which is what a single `stage_type` enum would actually model
+well. A stage can be an invoice-stage on its way toward a *later*,
+separate won stage (the proposal's own example flow treats them as
+distinct stages), so collapsing all four into one enum column would either
+force awkward combined values (`invoice_won`, `invoice_lost`, ...) or
+still need two enums side by side — no simpler than four named booleans,
+and less readable at the query site (`stage.is_won` vs.
+`stage.terminal_status == 'won'`). Not strained yet. Revisit this once a
+*third* independent concern-pair gets proposed (a different vertical
+wanting its own stage-trigger flag) — boolean columns stop scaling well
+past a small, stable set, and a `stage_triggers` tag table becomes the
+better shape at that point, not before.
+
 ### 2.4 `invoices` — new table
 
-Standard tenant-scoped pattern, composite FK to `deals` (same shape as
-`workflow_runs.workflow_rule_id` or `conversion_events.deal_id` — see
-`DATABASE_SCHEMA.md` for which existing pattern applies once this is
-planned in detail): `invoice_number`, `amount`, `status` (`draft` / `sent`
-/ `rework_requested` / `paid` / `cancelled`), `issued_at`, `due_date`.
+Composite FK to `deals`: `(deal_id, tenant_id) REFERENCES deals (id,
+tenant_id)`. This is the `workflow_runs.workflow_rule_id`-style pattern
+(target table not partitioned → no obstacle), not the `escalations`-style
+plain-UUID exception — `deals` has never been hash-partitioned (alembic
+0005) and this proposal doesn't change that.
+
+**Architect review — partition `invoices` from creation.** Not part of
+the original sketch, added on review: `invoices` is a per-stage-transition
+transactional table, the same shape as `activities`/`workflow_runs` (an
+event/artifact per occurrence, not a stable per-entity row like `deals`
+itself) — exactly `DATABASE_SCHEMA.md` §3's criterion for hash-partitioning
+from the start. `documents` was left plain at creation despite fitting
+that same criterion and needed an expensive create-copy-swap migration
+later to fix (`GAP_FIXES_PLAN.md` item 7) — `invoices` should be
+partitioned by `tenant_id` in its creating migration instead of repeating
+that mistake. Columns unchanged: `invoice_number`, `amount`, `status`
+(`draft` / `sent` / `rework_requested` / `paid` / `cancelled`), `issued_at`,
+`due_date`.
 
 ### 2.5 `payments` — redefine, don't duplicate
 
 `payments` already exists as a name in `DATABASE_SCHEMA.md` ("Fee/EMI
 records") but is unbuilt. Redefine it here rather than adding a second
-table: `invoice_id` (composite FK to `invoices`), `amount`, `paid_at`,
-`method`. An invoice is `paid` once its payments sum to its `amount`.
-EdTech's fee/EMI collection becomes a special case of this — multiple
-`payments` rows against one `invoices` row — not a separate mechanism.
+table: `invoice_id`, `amount`, `paid_at`, `method`. An invoice is `paid`
+once its payments sum to its `amount`. EdTech's fee/EMI collection becomes
+a special case of this — multiple `payments` rows against one `invoices`
+row, likely the highest-volume table this proposal adds — not a separate
+mechanism.
+
+**Architect review — `invoice_id` is a plain UUID, not a composite FK.**
+This resolves the "still open" question the original draft flagged.
+Because `invoices` is now recommended hash-partitioned (§2.4 above),
+referencing it from `payments` hits the same obstacle
+`DATABASE_SCHEMA.md` already documents for
+`escalations.sla_state_id`/`workflow_run_id`: a composite FK into a
+hash-partitioned table's non-partition-key id isn't something this
+codebase's existing pattern supports cleanly. `payments` should also be
+hash-partitioned by `tenant_id` from creation, for the same reason as
+`invoices` above — it's the more write-heavy table of the two (EMI/
+installment schedules mean several `payments` rows per `invoices` row).
 
 ### 2.6 `pipeline_stage_templates` — new, global table
 
@@ -92,6 +155,24 @@ different reason — see `DATABASE_SCHEMA.md` §1). Columns: `name`,
 `category` (e.g., "EdTech admissions", "B2B sales", "Generic"),
 `default_sort_order`, `is_won`, `is_lost`, `is_invoice_stage`,
 `is_rework_stage`, `default_win_probability_pct`.
+
+**Architect review — this is the `tenants` exception, not the
+`lead_source_connections` one, and that's the right fit, not just a
+convenient one.** `lead_source_connections`'s exemption exists because a
+webhook must query it to *discover* `tenant_id` before `app.tenant_id`
+can be set — a bootstrapping-order problem, and that table still has a
+real `tenant_id` column RLS just can't gate on. `pipeline_stage_templates`
+has no such problem and no `tenant_id` column at all: it's genuinely
+global content, seeded once for every tenant to read from, the same shape
+as `tenants` itself rather than a workaround. The safety of skipping RLS
+here rests entirely on one fact that should be stated as a hard
+requirement, not left implicit: **no tenant-facing write path may ever
+exist for this table.** Selecting a template copies its values into a
+tenant's own `pipeline_stages` row (RLS-protected); nothing lets a tenant
+admin write back into the shared library — the API surface for this table
+should be read-only (list/get), full stop, with any future write path
+(adding new templates) restricted to platform-operator tooling outside
+the tenant-facing API entirely.
 
 **Selection model**: an Admin configuring their tenant's pipeline sees this
 library in the pipeline config screen (`PipelineConfigPage.tsx` already
@@ -165,3 +246,26 @@ working agreement, run this through `architect` first (it touches
 production tables — `deals`, `pipeline_stages` — and adds one of the
 documented RLS exceptions), then `feature-planner` for the detailed
 task breakdown before `feature-builder` starts.
+
+**Architect review — Phase 6 does not need to wait for Phase 5 to close,
+and should proceed in parallel.** `FEATURES_AND_PLAN.md` §3's "work phase
+by phase" line is a *suggested working agreement*, not one of `CLAUDE.md`'s
+eight non-negotiable rules — and this codebase already has precedent for
+sequencing by actual dependency rather than strict number order: Phase 2-4
+lead-capture/automation/reporting work shipped well ahead of Phase 5's
+infra hardening starting at all. The reason to gate Phase N+1 is when it
+would build feature work on top of an unfinished or untested Phase N
+*foundation* — that's not the relationship here. Phase 5's remaining scope
+(per-tenant rate limiting, load testing, the first real EKS deployment,
+single-tenant path validation, and hash-partitioning of the *existing*
+high-volume tables) touches deployment/ops and a disjoint set of tables
+from Phase 6's (`deals`, `pipeline_stages`, and three new tables). Neither
+phase's migrations, endpoints, or infra changes collide with the other's.
+The one soft dependency worth naming: validating a real EKS deployment
+sooner rather than much later is still worth doing before the app's
+schema surface grows a lot more, simply so the deployment pipeline gets
+proven against a realistic footprint — a scheduling preference, not a
+blocker on starting Phase 6's design or build work.
+`FEATURES_AND_PLAN.md` §2 should record Phase 6 as explicitly
+parallel-track with Phase 5 rather than sequential after it, so this
+doesn't read as silently skipping the working agreement.

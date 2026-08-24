@@ -133,6 +133,13 @@
   changes — only Helm `values.yaml` and environment config differ.
 
 ### Phase 6 — General CRM: deal value, invoicing, pipeline stage templates
+**Parallel-track with Phase 5, not sequential after it** — architect review
+in `PIPELINE_AND_REVENUE.md` §6 (2026-08-24): Phase 5's remaining scope
+(infra hardening, EKS deployment, partitioning the *existing* high-volume
+tables) and Phase 6's (new tables, `deals`/`pipeline_stages` columns) touch
+disjoint tables and layers, so §3's "work phase by phase" agreement below
+doesn't gate one on the other here. Don't wait for Phase 5's exit criteria
+before starting Phase 6.
 - `deals` gains `value`/`currency`; `pipeline_stages` gains
   `is_invoice_stage`/`is_rework_stage` flags, extending the existing
   `is_won`/`is_lost` pattern — not a new mechanism
