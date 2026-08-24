@@ -4,6 +4,7 @@ import express, { type Express } from "express";
 import { config } from "./config/index.js";
 import { requireAuth } from "./middleware/auth.js";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
+import { rateLimitByTenant } from "./middleware/rateLimit.js";
 import { requestContext } from "./middleware/requestContext.js";
 import { stripForwardedHeaders } from "./middleware/stripForwardedHeaders.js";
 import { createBackendProxy } from "./proxy.js";
@@ -22,7 +23,7 @@ export function createApp(): Express {
 
   app.use(healthRouter);
 
-  app.use("/api/v1", requireAuth, createBackendProxy());
+  app.use("/api/v1", requireAuth, rateLimitByTenant, createBackendProxy());
 
   app.use(notFoundHandler);
   app.use(errorHandler);
