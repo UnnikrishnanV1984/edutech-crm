@@ -77,6 +77,107 @@ Browser (React)
 <- rendered UI
 ```
 
+## 4a. Admin-driven role assignment and user deactivation (Keycloak Admin API)
+
+Design-approved (architect pass, 2026-08-24), not yet built — hand-off
+to `feature-planner`/`feature-builder`. Requested alongside a Users nav
+menu; **user creation is explicitly deferred**, see below.
+
+**Problem**: an admin wants to change a user's role and deactivate a
+user in-app. Both conflict with this repo's existing design as it
+stands today: §4 above establishes Keycloak as the sole source of
+identity/role truth, and `app/services/user_service.py`'s `upsert_user`
+JIT-provisions/refreshes `role` from the token's `realm_access.roles`
+claim on every authenticated request — an in-app-only role change (e.g.
+a new `role` column write with no Keycloak counterpart) would be
+silently reverted the moment that user made their next request. This
+is why `UserUpdate` deliberately excludes `role` today.
+
+**Decision: extend into Keycloak via its Admin REST API, not around
+it.** The alternative — an app-level permission-override table the
+backend reads instead of/alongside the token's role claim — was
+considered and rejected: it creates a second place role can live,
+directly contradicting §4's "Keycloak issues... role claims,
+FastAPI... trusts the BFF's forwarded, already-validated context"
+model for no real benefit here (the override table would need to win
+over the JIT refresh anyway, which just reintroduces the exact
+silent-revert bug in a different shape — now the override silently
+wins over what the admin's own Keycloak console shows, instead of the
+other way around). Going through Keycloak keeps a single source of
+truth; the in-app `users.role` column stays what it already is today —
+a cache, refreshed by JIT provisioning, now also eagerly refreshed
+immediately after an admin-triggered change so the UI doesn't wait for
+the target user's next login to show it.
+
+**New client**: a confidential client (e.g. `backend-admin`),
+`serviceAccountsEnabled: true`, no direct user login — granted the
+`realm-management` client's `manage-users` role (Keycloak's standard
+service-account pattern for Admin REST API access), added to
+`keycloak/realm-export.json` alongside the existing `web` client.
+New secrets: `KEYCLOAK_ADMIN_CLIENT_ID` / `KEYCLOAK_ADMIN_CLIENT_SECRET`
+— backend-only (never sent to `web`/`bff`), needed in `.env`/Docker
+Compose locally and as a Kubernetes Secret in Helm values for
+production, same handling as `INTEGRATION_CREDENTIALS_KEY`. This is a
+new external integration per `CLAUDE.md`'s gate — that gate is satisfied
+by this note.
+
+**Role change**: `PATCH /api/v1/users/{id}` (existing route, currently
+`manager_id`-only) gains a `role` field, admin-only. Backend calls
+Keycloak Admin API to update the target's realm-role assignment (remove
+the old role, add the new one — Keycloak has no single "set role to X"
+call, it's add/remove against the role-mappings endpoint), then, only
+on that call's success, updates the local `users.role` column in the
+same request so the admin's own UI reflects it immediately. If the
+Keycloak call fails, the local row is left untouched and the request
+returns an error — never write the local column speculatively ahead of
+Keycloak confirming it, which would reintroduce exactly the
+inconsistency this design exists to avoid.
+
+**User deactivation**: `PATCH /api/v1/users/{id}` also gains a `status`
+field (`users.status` already exists — `active`/`disabled`, unused by
+any route today). Backend calls Keycloak Admin API to set the target
+user's `enabled: false`, then flips the local `status` column the same
+way. Keycloak refuses to issue a new access/refresh token to a disabled
+user, so this blocks future logins and token refreshes — but **does
+not instantly revoke an already-issued, unexpired access token** (this
+app validates tokens via JWKS/signature, not live introspection per §4,
+so a still-valid JWT keeps working until it naturally expires). That's
+a standard, accepted trade-off of stateless JWT auth, not something
+this design solves — worth knowing, not silently glossed over. Once
+`status = 'disabled'` locally, the user also drops out of
+`list_users`/`RowScope`'s team/counselor lookups immediately (those
+already filter on `status`, or should — confirm at implementation time
+that every read path does), independent of Keycloak's own timeline.
+
+**Explicitly deferred: creating a user.** No invite/signup flow exists
+anywhere in this app (`registrationAllowed: false`, confirmed), and
+building one properly needs either Keycloak's required-actions/email
+flow (which needs Keycloak SMTP configured — not present anywhere in
+this stack today, a further dependency) or an admin manually handing a
+temporary password to the new user out-of-band (a real but
+unglamorous option, and still needs the Keycloak Admin API's "create
+user" call plus a decision on how the temp password is communicated —
+a product question, not an engineering one). Neither is decided here;
+"Users" ships with role-change and deactivate only in the first pass —
+narrower than the original ask, called out explicitly rather than
+silently building a half-working invite flow.
+
+**Multi-tenancy**: identical code path for pooled and single-tenant,
+per the "same images, different config" principle — the admin client's
+target realm is whatever `KEYCLOAK_ISSUER_URL`/realm config already
+points at (single realm with a `tenant_id` attribute for pooled tenants,
+a dedicated realm for isolated ones, per §4's existing tiering). In the
+pooled case, the service account technically has Admin API reach across
+*all* tenants' users within that one shared realm — Keycloak's realm
+boundary doesn't line up with the app's tenant boundary the way the
+per-tenant `db` RLS policies do. The safety net is entirely at the
+application layer: every call must re-confirm the target `user_id`
+belongs to `context.tenant.id` (the existing `PATCH /api/v1/users/{id}`
+route already does this via `get_user(db, tenant_id, user_id)` before
+touching anything) *before* the Keycloak Admin API call is ever made —
+this is not optional defense-in-depth, it is the only thing preventing
+a tenant A admin from disabling a tenant B user by id.
+
 ## 5. Local development environment
 
 Everything runs in Docker Compose as separate modules/services:

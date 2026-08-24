@@ -43,7 +43,11 @@
 - Role-specific dashboards: Staff (queue + SLA timers), Manager (team
   funnel + escalations queue), Admin (org funnel + policy/user/integration
   management) — `REQUIREMENTS.md` Section 5
-- Tenant admin console (users, roles, pipeline config)
+- Tenant admin console (users, roles, pipeline config) — never assigned
+  to a phase; pipeline config + the Mine/Everyone filter confusion
+  planned ad hoc in `ADMIN_UX_IMPROVEMENTS_PLAN.md`. Users/role
+  management routed to `architect` separately (Keycloak JIT-provisioning
+  conflict — see `ARCHITECTURE.md`)
 - Audit log
 
 ## 2. Phased plan

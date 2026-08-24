@@ -5,7 +5,7 @@
 | Table | Purpose | Notes |
 |---|---|---|
 | `tenants` | One row per client | No `tenant_id` column (this table is global) |
-| `users` | Platform users (counselors, managers, admins) | `tenant_id`, role, `manager_id` (self-referencing, nullable — the RBAC team mapping; no separate mapping table, `PHASE_3_PLAN.md` §3.1/§4) |
+| `users` | Platform users (counselors, managers, admins) | `tenant_id`, role, `manager_id` (self-referencing, nullable — the RBAC team mapping; no separate mapping table, `PHASE_3_PLAN.md` §3.1/§4). `role`/`status` stay JIT-refreshed from Keycloak on every request; an admin-triggered change goes through Keycloak's Admin API first and only writes here on that call's success — never the other way around — `ARCHITECTURE.md` §4a |
 | `contacts` | Leads/students | `tenant_id`, `lead_source`, `owner_id` — **not** `stage`: a contact can hold multiple concurrent `deals`, each with its own stage, so stage lives on `deals` (resolved in Phase 1 — see `DATABASE_SCHEMA.md` §2's `deals` row and `PHASE_1_PLAN.md` §2) |
 | `pipeline_stages` | Configurable per-tenant pipeline stages | `tenant_id`, `sort_order`, `is_won`/`is_lost` (not the tenant-editable name) is what later phases read; `win_probability_pct` (default `0`) drives Phase 4's stage-weighted forecast — `PHASE_4_PLAN.md` §3.1 |
 | `deals` | One row per application — a contact can have several concurrent (resolved in Phase 1, was "optional") | `tenant_id`, `contact_id`, `course_id`, `stage_id` |
