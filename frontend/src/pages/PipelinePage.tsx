@@ -69,7 +69,8 @@ export function PipelinePage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(load, [token, ownerId, me]);
 
-  function courseName(courseId: string) {
+  function courseName(courseId: string | null) {
+    if (!courseId) return null; // non-EdTech deal, no course to show
     return courses.find((c) => c.id === courseId)?.name ?? "";
   }
 
@@ -193,9 +194,11 @@ export function PipelinePage() {
                       <div style={{ fontWeight: "var(--weight-semibold)" }}>
                         {contact?.full_name ?? "…"}
                       </div>
-                      <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
-                        {courseName(deal.course_id)}
-                      </div>
+                      {courseName(deal.course_id) && (
+                        <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
+                          {courseName(deal.course_id)}
+                        </div>
+                      )}
                       <div
                         style={{
                           display: "flex",

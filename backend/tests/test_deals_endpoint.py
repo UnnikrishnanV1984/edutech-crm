@@ -66,6 +66,7 @@ def scenario():
         cur.execute("DELETE FROM audit_logs WHERE tenant_id = %s", (tenant_id,))
         cur.execute("DELETE FROM activities WHERE tenant_id = %s", (tenant_id,))
         cur.execute("DELETE FROM deals WHERE tenant_id = %s", (tenant_id,))
+        cur.execute("DELETE FROM accounts WHERE tenant_id = %s", (tenant_id,))
         cur.execute("DELETE FROM contacts WHERE tenant_id = %s", (tenant_id,))
         cur.execute("DELETE FROM courses WHERE tenant_id = %s", (tenant_id,))
         cur.execute("DELETE FROM pipeline_stages WHERE tenant_id = %s", (tenant_id,))
@@ -189,6 +190,78 @@ def test_stage_change_to_won_stage_enqueues_conversion_send_for_both_platforms(
     assert platforms == {"meta", "google"}
     assert all(call[0] == str(scenario["tenant_id"]) for call in calls)
     assert all(call[1] == deal["id"] for call in calls)
+
+
+def test_create_deal_with_no_course_id_succeeds(scenario):
+    """PIPELINE_AND_REVENUE_PLAN.md §8 — non-EdTech verticals don't
+    resolve to a course; the deal is still created."""
+    with TestClient(app) as client:
+        response = client.post(
+            f"/api/v1/contacts/{scenario['contact_id']}/deals",
+            json={},
+            headers=_headers(scenario["tenant_id"]),
+        )
+    assert response.status_code == 200
+    assert response.json()["data"]["course_id"] is None
+
+
+def test_deal_value_currency_and_account_round_trip(scenario):
+    with TestClient(app) as client:
+        account = client.post(
+            "/api/v1/accounts", json={"name": "Acme Corp"}, headers=_headers(scenario["tenant_id"])
+        ).json()["data"]
+        response = client.post(
+            f"/api/v1/contacts/{scenario['contact_id']}/deals",
+            json={"account_id": account["id"], "value": "1500.50", "currency": "USD"},
+            headers=_headers(scenario["tenant_id"]),
+        )
+    assert response.status_code == 200
+    body = response.json()["data"]
+    assert body["account_id"] == account["id"]
+    assert body["value"] == "1500.50"
+    assert body["currency"] == "USD"
+
+
+def test_deal_value_defaults_to_zero_when_unset(scenario):
+    with TestClient(app) as client:
+        response = client.post(
+            f"/api/v1/contacts/{scenario['contact_id']}/deals",
+            json={"course_id": str(scenario["course_id"])},
+            headers=_headers(scenario["tenant_id"]),
+        )
+    body = response.json()["data"]
+    assert body["value"] == "0.00" or body["value"] == "0"
+    assert body["currency"] == "INR"
+
+
+def test_create_deal_with_another_tenants_account_returns_400(scenario):
+    other_tenant_id = uuid.uuid4()
+    with psycopg.connect(MIGRATE_URL, autocommit=True) as conn, conn.cursor() as cur:
+        cur.execute(
+            "INSERT INTO tenants (id, slug, name) VALUES (%s, %s, %s)",
+            (other_tenant_id, f"t-{other_tenant_id}", "Other Tenant"),
+        )
+    try:
+        with TestClient(app) as client:
+            other_account = client.post(
+                "/api/v1/accounts",
+                json={"name": "Other Co"},
+                headers=_headers(other_tenant_id, "sub-other"),
+            ).json()["data"]
+            response = client.post(
+                f"/api/v1/contacts/{scenario['contact_id']}/deals",
+                json={"account_id": other_account["id"]},
+                headers=_headers(scenario["tenant_id"]),
+            )
+        assert response.status_code == 400
+        assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+    finally:
+        with psycopg.connect(MIGRATE_URL, autocommit=True) as conn, conn.cursor() as cur:
+            cur.execute("SELECT set_config('app.tenant_id', %s, false)", (str(other_tenant_id),))
+            cur.execute("DELETE FROM accounts WHERE tenant_id = %s", (other_tenant_id,))
+            cur.execute("DELETE FROM users WHERE tenant_id = %s", (other_tenant_id,))
+            cur.execute("RESET app.tenant_id")
+            cur.execute("DELETE FROM tenants WHERE id = %s", (other_tenant_id,))
 
 
 def test_list_deals_filters_by_stage(scenario):

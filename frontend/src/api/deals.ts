@@ -4,9 +4,12 @@ import type { CollectionEnvelope, DataEnvelope } from "./types";
 export interface Deal {
   id: string;
   contact_id: string;
-  course_id: string;
+  course_id: string | null;
   stage_id: string;
   owner_id: string;
+  account_id: string | null;
+  value: string;
+  currency: string;
   stage_changed_at: string;
   created_at: string;
   updated_at: string;
@@ -41,10 +44,19 @@ export async function listDeals(
   );
 }
 
+export interface DealWriteInput {
+  course_id?: string;
+  stage_id?: string;
+  owner_id?: string;
+  account_id?: string;
+  value?: string;
+  currency?: string;
+}
+
 export async function createDeal(
   token: string,
   contactId: string,
-  input: { course_id: string; stage_id?: string; owner_id?: string },
+  input: DealWriteInput,
 ): Promise<DataEnvelope<Deal>> {
   return apiPost<DataEnvelope<Deal>>(token, `/api/v1/contacts/${contactId}/deals`, input);
 }
@@ -52,7 +64,7 @@ export async function createDeal(
 export async function updateDeal(
   token: string,
   dealId: string,
-  input: { course_id?: string; stage_id?: string; owner_id?: string },
+  input: DealWriteInput,
 ): Promise<DataEnvelope<Deal>> {
   return apiPatch<DataEnvelope<Deal>>(token, `/api/v1/deals/${dealId}`, input);
 }

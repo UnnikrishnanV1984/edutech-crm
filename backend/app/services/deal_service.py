@@ -24,6 +24,9 @@ async def create_deal(
         course_id=data.course_id,
         stage_id=stage_id,
         owner_id=data.owner_id or default_owner_id,
+        account_id=data.account_id,
+        value=data.value,
+        currency=data.currency,
     )
     db.add(deal)
     await db.flush()

@@ -35,7 +35,8 @@ export function DealsSection({ contactId }: DealsSectionProps) {
     return stage ? { stage, index } : undefined;
   }
 
-  function courseName(courseId: string) {
+  function courseName(courseId: string | null) {
+    if (!courseId) return "General deal"; // non-EdTech deal, no course attached
     return courses.find((c) => c.id === courseId)?.name ?? "Unknown course";
   }
 

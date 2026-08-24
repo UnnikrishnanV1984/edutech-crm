@@ -38,7 +38,7 @@ async def post_deal(
     except IntegrityError as exc:
         await context.db.rollback()
         raise ApiError(
-            400, VALIDATION_ERROR, "course_id, stage_id, or owner_id does not exist"
+            400, VALIDATION_ERROR, "course_id, stage_id, owner_id, or account_id does not exist"
         ) from exc
 
     return data_envelope(
@@ -104,7 +104,7 @@ async def patch_deal(
     except IntegrityError as exc:
         await context.db.rollback()
         raise ApiError(
-            400, VALIDATION_ERROR, "course_id, stage_id, or owner_id does not exist"
+            400, VALIDATION_ERROR, "course_id, stage_id, owner_id, or account_id does not exist"
         ) from exc
 
     if old_stage_id is not None:
