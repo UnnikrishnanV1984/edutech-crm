@@ -16,9 +16,35 @@ service:
   port: 8000
 
 # Internal only — reachable from bff, never exposed via a public
-# ingress (ARCHITECTURE.md §6).
+# ingress (ARCHITECTURE.md §6). Leave this disabled; /webhooks/*'s
+# separate public path below is the only supported way to expose this
+# backend externally.
 ingress:
   enabled: false
+
+# /webhooks/* only (Meta/WhatsApp/Google callbacks, the embeddable
+# web-form widget — GAP_FIXES_PLAN.md item 2) — ARCHITECTURE.md §6
+# already specified this needs its own, separate, public ingress path
+# since /api/v1/* above stays internal-only. Same ALB as `web`'s in a
+# real deployment, just a second, differently-exposed route. Disabled
+# by default like `ingress` above; turn this on for any deployment that
+# needs a real Meta/WhatsApp/Google integration or the embeddable form
+# to actually be reachable from outside the cluster.
+#
+# Same default host as deploy/helm/bff's own ingress (api.example.com,
+# different path) since both sit on the same conceptual "api" domain —
+# in a real AWS deployment, set the same
+# alb.ingress.kubernetes.io/group.name annotation on both this chart's
+# webhooksIngress.annotations and bff's ingress.annotations so the AWS
+# Load Balancer Controller merges them onto one ALB. Without it, two
+# separate Ingress resources claiming the same host get two separate
+# ALBs, and only one will actually own that DNS name.
+webhooksIngress:
+  enabled: false
+  className: alb
+  host: api.example.com
+  path: /webhooks
+  annotations: {}
 
 resources:
   requests:

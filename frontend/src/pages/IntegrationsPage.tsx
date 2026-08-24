@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 
 import {
   listConnections,
@@ -12,8 +12,46 @@ import { Badge } from "../components/Badge";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
 import { EmptyState } from "../components/EmptyState";
+import { config } from "../config";
 import { useMe } from "../useMe";
 import { ConnectSourcePanel } from "./ConnectSourcePanel";
+
+// GAP_FIXES_PLAN.md item 2 — the ingestion endpoint (POST /webhooks/web)
+// already exists and is real; this is the missing piece, an actual
+// snippet a tenant can drop onto their own landing page. Framework-free
+// on purpose — it has to run on an arbitrary external page, not just
+// inside this app.
+function buildEmbedSnippet(embedKey: string): string {
+  return `<form id="edutech-crm-lead-form">
+  <input name="full_name" placeholder="Full name" required />
+  <input name="email" type="email" placeholder="Email" />
+  <input name="phone" placeholder="Phone" />
+  <button type="submit">Submit</button>
+</form>
+<script>
+(function () {
+  var form = document.getElementById("edutech-crm-lead-form");
+  form.addEventListener("submit", function (event) {
+    event.preventDefault();
+    var data = new FormData(form);
+    fetch("${config.backendPublicUrl}/webhooks/web", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        embed_key: "${embedKey}",
+        full_name: data.get("full_name"),
+        email: data.get("email") || undefined,
+        phone: data.get("phone") || undefined,
+      }),
+    }).then(function (response) {
+      if (response.ok) {
+        form.innerHTML = "<p>Thanks — we will be in touch.</p>";
+      }
+    });
+  });
+})();
+</script>`;
+}
 
 const SOURCE_LABELS: Record<string, string> = {
   meta: "Meta Lead Ads",
@@ -28,6 +66,7 @@ export function IntegrationsPage() {
   const [connections, setConnections] = useState<LeadSourceConnection[]>([]);
   const [showConnect, setShowConnect] = useState(false);
   const [busyId, setBusyId] = useState<string | undefined>(undefined);
+  const [expandedEmbedId, setExpandedEmbedId] = useState<string | undefined>(undefined);
 
   function load() {
     if (!token) return;
@@ -121,7 +160,8 @@ export function IntegrationsPage() {
             </thead>
             <tbody>
               {connections.map((connection) => (
-                <tr key={connection.id} style={{ borderBottom: "1px solid var(--border)" }}>
+                <Fragment key={connection.id}>
+                <tr style={{ borderBottom: "1px solid var(--border)" }}>
                   <td style={{ padding: "var(--space-2)" }}>{SOURCE_LABELS[connection.source]}</td>
                   <td style={{ padding: "var(--space-2)", fontFamily: "monospace", fontSize: 12 }}>
                     {connection.external_account_id}
@@ -154,6 +194,18 @@ export function IntegrationsPage() {
                       : "Never"}
                   </td>
                   <td style={{ padding: "var(--space-2)", display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                    {connection.source === "web" && (
+                      <Button
+                        variant="text"
+                        onClick={() =>
+                          setExpandedEmbedId((current) =>
+                            current === connection.id ? undefined : connection.id,
+                          )
+                        }
+                      >
+                        {expandedEmbedId === connection.id ? "Hide embed code" : "Get embed code"}
+                      </Button>
+                    )}
                     {connection.source === "google" && connection.status === "active" && (
                       <Button
                         variant="text"
@@ -172,6 +224,14 @@ export function IntegrationsPage() {
                     </Button>
                   </td>
                 </tr>
+                {expandedEmbedId === connection.id && (
+                  <tr style={{ borderBottom: "1px solid var(--border)" }}>
+                    <td colSpan={6} style={{ padding: "var(--space-2)" }}>
+                      <EmbedSnippetBlock embedKey={connection.external_account_id} />
+                    </td>
+                  </tr>
+                )}
+                </Fragment>
               ))}
             </tbody>
           </table>
@@ -187,6 +247,44 @@ export function IntegrationsPage() {
           }}
         />
       )}
+    </div>
+  );
+}
+
+function EmbedSnippetBlock({ embedKey }: { embedKey: string }) {
+  const [copied, setCopied] = useState(false);
+  const snippet = buildEmbedSnippet(embedKey);
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
+      <p style={{ fontSize: 12, color: "var(--text-muted)", margin: 0 }}>
+        Paste this into your landing page's HTML. No credentials needed — the embed key above is
+        the only "secret", and it can only submit leads, never read data.
+      </p>
+      <textarea
+        readOnly
+        value={snippet}
+        rows={12}
+        style={{
+          width: "100%",
+          fontFamily: "monospace",
+          fontSize: 12,
+          resize: "vertical",
+        }}
+        onClick={(event) => event.currentTarget.select()}
+      />
+      <Button
+        variant="secondary"
+        onClick={() => {
+          void navigator.clipboard.writeText(snippet).then(() => {
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+          });
+        }}
+        style={{ alignSelf: "flex-start" }}
+      >
+        {copied ? "Copied!" : "Copy to clipboard"}
+      </Button>
     </div>
   );
 }

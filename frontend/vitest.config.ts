@@ -11,6 +11,7 @@ export default defineConfig({
       VITE_KEYCLOAK_REALM: "test-realm",
       VITE_KEYCLOAK_CLIENT_ID: "web",
       VITE_BFF_BASE_URL: "http://test-bff",
+      VITE_BACKEND_PUBLIC_URL: "http://test-backend",
     },
   },
 });
