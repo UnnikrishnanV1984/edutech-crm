@@ -37,6 +37,14 @@ env:
   LOG_LEVEL: info
   BACKEND_BASE_URL: "http://backend:8000"
   KEYCLOAK_CLIENT_ID: web
+  # Must match this deployment's actual web chart ingress.host (with
+  # scheme) — different domain per pooled-vs-single-tenant deploy, same
+  # "same images, different config" principle as ingress.host itself.
+  # Comma-separated if the browser needs to reach this BFF from more
+  # than one origin. Without this, the BFF falls back to its local-dev
+  # default (localhost:5173) and rejects every real request — see
+  # bff/src/config/index.ts's corsOrigins.
+  CORS_ORIGIN: "https://app.example.com"
 
 # Secret values (KEYCLOAK_ISSUER_URL/JWKS_URL if treated as sensitive,
 # Redis URL, etc.) — this chart only references an externally-managed
