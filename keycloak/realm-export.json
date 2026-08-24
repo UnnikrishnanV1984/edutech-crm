@@ -26,10 +26,12 @@
       "directAccessGrantsEnabled": true,
       "serviceAccountsEnabled": false,
       "redirectUris": [
-        "http://localhost:5173/*"
+        "http://localhost:5173/*",
+        "https://tableware-ceramics-crimp.ngrok-free.dev/*"
       ],
       "webOrigins": [
-        "http://localhost:5173"
+        "http://localhost:5173",
+        "https://tableware-ceramics-crimp.ngrok-free.dev"
       ],
       "attributes": {
         "pkce.code.challenge.method": "S256"
