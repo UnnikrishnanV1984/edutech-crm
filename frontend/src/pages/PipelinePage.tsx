@@ -8,6 +8,7 @@ import { listPipelineStages, type PipelineStage } from "../api/pipelineStages";
 import { useAuth } from "../auth/context";
 import { Avatar } from "../components/Avatar";
 import { Button } from "../components/Button";
+import { OwnerFilter } from "../components/OwnerFilter";
 import { useToast } from "../components/toastContext";
 import { stageColor, stageIcon } from "../stageColor";
 import { userDisplayName, useUsers } from "../useUsers";
@@ -25,7 +26,10 @@ export function PipelinePage() {
   const [deals, setDeals] = useState<Deal[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
   const [contactsById, setContactsById] = useState<Record<string, Contact>>({});
-  const [onlyMine, setOnlyMine] = useState(false);
+  // undefined = "my team" (manager) or "everyone" (admin), per
+  // ADMIN_UX_IMPROVEMENTS_PLAN.md Sec5 — same OwnerFilter contract as
+  // TasksPage.tsx.
+  const [ownerId, setOwnerId] = useState<string | undefined>(undefined);
   const [draggingDealId, setDraggingDealId] = useState<string | undefined>(undefined);
   const [confirmDrop, setConfirmDrop] = useState<{ deal: Deal; stage: PipelineStage } | undefined>(
     undefined,
@@ -36,7 +40,10 @@ export function PipelinePage() {
     if (!token) return;
     listPipelineStages(token).then((response) => setStages(response.data));
     listCourses(token).then((response) => setCourses(response.data));
-    listDeals(token, { owner_id: onlyMine && me ? me.user.id : undefined, page_size: 100 }).then(
+    listDeals(token, {
+      owner_id: me?.user.role === "counselor" ? undefined : ownerId,
+      page_size: 100,
+    }).then(
       (response) => {
         setDeals(response.data);
         const missing = [...new Set(response.data.map((d) => d.contact_id))].filter(
@@ -53,8 +60,13 @@ export function PipelinePage() {
     );
   }
 
+  useEffect(() => {
+    if (me) setOwnerId(me.user.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [me?.user.id]);
+
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(load, [token, onlyMine, me]);
+  useEffect(load, [token, ownerId, me]);
 
   function courseName(courseId: string) {
     return courses.find((c) => c.id === courseId)?.name ?? "";
@@ -96,13 +108,16 @@ export function PipelinePage() {
     <div style={{ padding: 24 }}>
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
         <h1>Pipeline</h1>
-        <div style={{ display: "flex", gap: 8 }}>
-          <Button
-            variant={onlyMine ? "primary" : "secondary"}
-            onClick={() => setOnlyMine((v) => !v)}
-          >
-            {onlyMine ? "Mine" : "Everyone"}
-          </Button>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          {me && (
+            <OwnerFilter
+              role={me.user.role}
+              meId={me.user.id}
+              users={users}
+              selectedUserId={ownerId}
+              onChange={setOwnerId}
+            />
+          )}
           <Button variant="primary" onClick={() => setShowCreate(true)}>
             + New Deal
           </Button>

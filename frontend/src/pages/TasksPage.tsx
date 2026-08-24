@@ -4,7 +4,9 @@ import { listTasks, updateTask, type Task } from "../api/tasks";
 import { useAuth } from "../auth/context";
 import { Button } from "../components/Button";
 import { EmptyState } from "../components/EmptyState";
+import { OwnerFilter } from "../components/OwnerFilter";
 import { useMe } from "../useMe";
+import { useUsers } from "../useUsers";
 import { CreateTaskPanel } from "./CreateTaskPanel";
 
 type View = "list" | "board";
@@ -37,24 +39,34 @@ function groupTasks(tasks: Task[]) {
 export function TasksPage() {
   const { token } = useAuth();
   const { me } = useMe();
+  const users = useUsers();
   const [view, setView] = useState<View>("list");
-  const [scope, setScope] = useState<"mine" | "everyone">("mine");
+  // undefined = "my team" (manager) or "everyone" (admin) — omitted
+  // from the request, RowScope decides what that means server-side.
+  // A counselor's requests never set this (OwnerFilter renders nothing
+  // for them, and their view is always "mine" regardless).
+  const [assigneeId, setAssigneeId] = useState<string | undefined>(undefined);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [pendingUndo, setPendingUndo] = useState<Task | undefined>(undefined);
   const [showCreate, setShowCreate] = useState(false);
   const undoTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
+  useEffect(() => {
+    if (me) setAssigneeId(me.user.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [me?.user.id]);
+
   function load() {
     if (!token) return;
     listTasks(token, {
-      assignee_id: scope === "mine" && me ? me.user.id : undefined,
+      assignee_id: me?.user.role === "counselor" ? undefined : assigneeId,
       status: "open",
       page_size: 100,
     }).then((response) => setTasks(response.data));
   }
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(load, [token, scope, me]);
+  useEffect(load, [token, assigneeId, me]);
 
   async function complete(task: Task) {
     setTasks((current) => current.filter((t) => t.id !== task.id));
@@ -106,13 +118,16 @@ export function TasksPage() {
     <div style={{ maxWidth: 1280, margin: "0 auto", padding: 24 }}>
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
         <h1>Tasks</h1>
-        <div style={{ display: "flex", gap: 8 }}>
-          <Button
-            variant={scope === "mine" ? "primary" : "secondary"}
-            onClick={() => setScope((s) => (s === "mine" ? "everyone" : "mine"))}
-          >
-            {scope === "mine" ? "Mine" : "Everyone"}
-          </Button>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          {me && (
+            <OwnerFilter
+              role={me.user.role}
+              meId={me.user.id}
+              users={users}
+              selectedUserId={assigneeId}
+              onChange={setAssigneeId}
+            />
+          )}
           <Button variant={view === "list" ? "primary" : "secondary"} onClick={() => setView("list")}>
             List
           </Button>
@@ -150,7 +165,11 @@ export function TasksPage() {
 
       {tasks.length === 0 && (
         <EmptyState
-          headline={scope === "mine" ? "You're all caught up" : "No open tasks"}
+          headline={
+            me?.user.role === "counselor" || assigneeId === me?.user.id
+              ? "You're all caught up"
+              : "No open tasks"
+          }
         />
       )}
 

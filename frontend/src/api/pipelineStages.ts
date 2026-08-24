@@ -1,4 +1,4 @@
-import { apiGet, apiPatch } from "./client";
+import { apiDelete, apiGet, apiPatch, apiPost } from "./client";
 import type { DataEnvelope } from "./types";
 
 export interface PipelineStage {
@@ -21,4 +21,30 @@ export async function updatePipelineStage(
   input: { name?: string; sort_order?: number },
 ): Promise<DataEnvelope<PipelineStage>> {
   return apiPatch<DataEnvelope<PipelineStage>>(token, `/api/v1/pipeline-stages/${stageId}`, input);
+}
+
+export async function createPipelineStage(
+  token: string,
+  input: { name: string; is_won?: boolean; is_lost?: boolean },
+): Promise<DataEnvelope<PipelineStage>> {
+  return apiPost<DataEnvelope<PipelineStage>>(token, "/api/v1/pipeline-stages", input);
+}
+
+export async function deletePipelineStage(
+  token: string,
+  stageId: string,
+): Promise<DataEnvelope<Record<string, never>>> {
+  return apiDelete<DataEnvelope<Record<string, never>>>(
+    token,
+    `/api/v1/pipeline-stages/${stageId}`,
+  );
+}
+
+export async function reorderPipelineStages(
+  token: string,
+  stageIds: string[],
+): Promise<DataEnvelope<PipelineStage[]>> {
+  return apiPatch<DataEnvelope<PipelineStage[]>>(token, "/api/v1/pipeline-stages/reorder", {
+    stage_ids: stageIds,
+  });
 }

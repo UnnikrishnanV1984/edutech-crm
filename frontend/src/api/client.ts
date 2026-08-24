@@ -47,3 +47,7 @@ export function apiPost<T>(token: string, path: string, data: unknown): Promise<
 export function apiPatch<T>(token: string, path: string, data: unknown): Promise<T> {
   return request<T>(token, path, { method: "PATCH", body: JSON.stringify(data) });
 }
+
+export function apiDelete<T>(token: string, path: string): Promise<T> {
+  return request<T>(token, path, { method: "DELETE" });
+}
