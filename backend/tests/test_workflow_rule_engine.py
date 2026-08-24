@@ -177,6 +177,103 @@ async def test_assign_round_robin_action(scenario):
     assert str(rows[0][0]) == str(scenario["staff_id"])  # only counselor in this tenant
 
 
+async def test_assign_by_territory_matches_contact_territory(scenario):
+    # A second counselor in "north", distinct from the fixture's
+    # untagged staff_id — the match must prefer them over falling back
+    # to round-robin.
+    north_counselor_id = uuid.uuid4()
+    with psycopg.connect(MIGRATE_URL, autocommit=True) as conn, conn.cursor() as cur:
+        cur.execute("SELECT set_config('app.tenant_id', %s, false)", (str(scenario["tenant_id"]),))
+        cur.execute(
+            "INSERT INTO users (id, tenant_id, keycloak_sub, email, role, territory) "
+            "VALUES (%s, %s, %s, %s, 'counselor', 'north')",
+            (
+                north_counselor_id,
+                scenario["tenant_id"],
+                f"sub-{north_counselor_id}",
+                "north@example.test",
+            ),
+        )
+        cur.execute(
+            "UPDATE contacts SET territory = 'north' WHERE id = %s", (scenario["contact_id"],)
+        )
+        cur.execute("RESET app.tenant_id")
+
+    rule = _make_rule(
+        scenario["tenant_id"], scenario["staff_id"], [{"type": "assign_by_territory"}]
+    )
+    await _run_one_rule(scenario["tenant_id"], rule, "contact", scenario["contact_id"])
+    rows = _query(
+        scenario["tenant_id"],
+        "SELECT owner_id FROM contacts WHERE id = %s",
+        (scenario["contact_id"],),
+    )
+    assert str(rows[0][0]) == str(north_counselor_id)
+
+
+async def test_assign_by_territory_falls_back_to_round_robin_with_no_match(scenario):
+    # Fixture's contact/staff have no territory set at all — the only
+    # counselor in the tenant, reached via the round-robin fallback.
+    rule = _make_rule(
+        scenario["tenant_id"], scenario["staff_id"], [{"type": "assign_by_territory"}]
+    )
+    await _run_one_rule(scenario["tenant_id"], rule, "contact", scenario["contact_id"])
+    rows = _query(
+        scenario["tenant_id"],
+        "SELECT owner_id FROM contacts WHERE id = %s",
+        (scenario["contact_id"],),
+    )
+    assert str(rows[0][0]) == str(scenario["staff_id"])
+
+
+async def test_assign_by_territory_never_matches_another_tenants_counselor(scenario):
+    other_tenant_id = uuid.uuid4()
+    other_counselor_id = uuid.uuid4()
+    with psycopg.connect(MIGRATE_URL, autocommit=True) as conn, conn.cursor() as cur:
+        cur.execute(
+            "INSERT INTO tenants (id, slug, name) VALUES (%s, %s, %s)",
+            (other_tenant_id, f"t-{other_tenant_id}", "Other Territory Tenant"),
+        )
+        cur.execute("SELECT set_config('app.tenant_id', %s, false)", (str(other_tenant_id),))
+        cur.execute(
+            "INSERT INTO users (id, tenant_id, keycloak_sub, email, role, territory) "
+            "VALUES (%s, %s, %s, %s, 'counselor', 'north')",
+            (
+                other_counselor_id,
+                other_tenant_id,
+                f"sub-{other_counselor_id}",
+                "other-north@example.test",
+            ),
+        )
+        cur.execute("SELECT set_config('app.tenant_id', %s, false)", (str(scenario["tenant_id"]),))
+        cur.execute(
+            "UPDATE contacts SET territory = 'north' WHERE id = %s", (scenario["contact_id"],)
+        )
+        cur.execute("RESET app.tenant_id")
+
+    try:
+        # No "north" counselor in scenario["tenant_id"] itself — must
+        # fall back to round-robin within this tenant, never reach
+        # across into other_tenant_id's matching counselor.
+        rule = _make_rule(
+            scenario["tenant_id"], scenario["staff_id"], [{"type": "assign_by_territory"}]
+        )
+        await _run_one_rule(scenario["tenant_id"], rule, "contact", scenario["contact_id"])
+        rows = _query(
+            scenario["tenant_id"],
+            "SELECT owner_id FROM contacts WHERE id = %s",
+            (scenario["contact_id"],),
+        )
+        assert str(rows[0][0]) == str(scenario["staff_id"])
+        assert str(rows[0][0]) != str(other_counselor_id)
+    finally:
+        with psycopg.connect(MIGRATE_URL, autocommit=True) as conn, conn.cursor() as cur:
+            cur.execute("SELECT set_config('app.tenant_id', %s, false)", (str(other_tenant_id),))
+            cur.execute("DELETE FROM users WHERE tenant_id = %s", (other_tenant_id,))
+            cur.execute("RESET app.tenant_id")
+            cur.execute("DELETE FROM tenants WHERE id = %s", (other_tenant_id,))
+
+
 async def test_create_task_action(scenario):
     rule = _make_rule(
         scenario["tenant_id"],

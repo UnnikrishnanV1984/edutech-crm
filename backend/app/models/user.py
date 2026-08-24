@@ -38,6 +38,9 @@ class User(Base):
     express a self-referencing composite FK on the same table cleanly);
     the DB constraint in alembic 0010 is the real guarantee."""
     status: Mapped[str] = mapped_column(String, nullable=False, server_default="active")
+    territory: Mapped[str | None] = mapped_column(String, nullable=True)
+    """Admin-set, matched against contacts.territory by the
+    assign_by_territory workflow-rule action — GAP_FIXES_PLAN.md item 3."""
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

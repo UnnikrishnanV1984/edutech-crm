@@ -45,9 +45,35 @@ def tenant():
     yield tenant_id
     with psycopg.connect(MIGRATE_URL, autocommit=True) as conn, conn.cursor() as cur:
         cur.execute("SELECT set_config('app.tenant_id', %s, false)", (str(tenant_id),))
+        cur.execute("DELETE FROM audit_logs WHERE tenant_id = %s", (tenant_id,))
         cur.execute("DELETE FROM users WHERE tenant_id = %s", (tenant_id,))
         cur.execute("RESET app.tenant_id")
         cur.execute("DELETE FROM tenants WHERE id = %s", (tenant_id,))
+
+
+def _admin_headers(tenant_id, user_sub) -> dict:
+    return {
+        "X-Tenant-Id": str(tenant_id),
+        "X-User-Id": user_sub,
+        "X-User-Email": f"{user_sub}@example.test",
+        "X-User-Role": "admin",
+    }
+
+
+def test_admin_can_set_a_users_territory(tenant):
+    with TestClient(app) as client:
+        staff_id = client.get("/api/v1/me", headers=_headers(tenant, "sub-staff")).json()["data"][
+            "user"
+        ]["id"]
+
+        response = client.patch(
+            f"/api/v1/users/{staff_id}",
+            json={"territory": "north"},
+            headers=_admin_headers(tenant, "sub-admin"),
+        )
+
+    assert response.status_code == 200
+    assert response.json()["data"]["territory"] == "north"
 
 
 def test_list_users_includes_jit_provisioned_callers(tenant):

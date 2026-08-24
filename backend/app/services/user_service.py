@@ -82,6 +82,28 @@ async def update_user_manager(
     return user
 
 
+async def update_user_territory(
+    db: AsyncSession, tenant_id: uuid.UUID, user: User, territory: str | None, actor_id: uuid.UUID
+) -> User:
+    """No validation beyond what the schema already does — unlike
+    manager_id, territory has no referential constraint to check
+    (GAP_FIXES_PLAN.md item 3)."""
+    old_territory = user.territory
+    user.territory = territory
+    await db.flush()
+    await db.refresh(user)
+    await record_audit_log(
+        db,
+        tenant_id,
+        actor_id,
+        "user.territory_changed",
+        "user",
+        user.id,
+        payload={"old_territory": old_territory, "new_territory": territory},
+    )
+    return user
+
+
 async def list_team_member_ids(
     db: AsyncSession, tenant_id: uuid.UUID, manager_id: uuid.UUID
 ) -> list[uuid.UUID]:

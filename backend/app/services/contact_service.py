@@ -58,6 +58,7 @@ async def create_contact(
         phone=data.phone,
         lead_source=data.lead_source,
         owner_id=data.owner_id or default_owner_id,
+        territory=data.territory,
     )
     db.add(contact)
     try:

@@ -4,6 +4,7 @@ import type { DataEnvelope } from "./types";
 export type TriggerType = "stage_changed" | "lead_created" | "task_overdue" | "elapsed_time";
 export type ActionType =
   | "assign_round_robin"
+  | "assign_by_territory"
   | "create_task"
   | "change_stage"
   | "notify_manager"

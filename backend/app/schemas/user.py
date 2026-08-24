@@ -20,6 +20,7 @@ class UserOut(BaseModel):
     role: str
     manager_id: uuid.UUID | None
     status: str
+    territory: str | None
 
 
 class UserUpdate(BaseModel):
@@ -33,12 +34,13 @@ class UserUpdate(BaseModel):
     here would be silently reverted the next time that user made any
     request. Keycloak remains the sole source of truth for role; a real
     "change a user's role" feature needs a Keycloak Admin API
-    integration, which is new scope this plan didn't budget for. Only
-    `manager_id` is settable here — Keycloak has no concept of it, so
-    this app is the only source of truth for it.
+    integration, which is new scope this plan didn't budget for.
+    `manager_id`/`territory` are settable here — Keycloak has no concept
+    of either, so this app is the only source of truth for them.
     """
 
     manager_id: uuid.UUID | None = None
+    territory: str | None = None
 
 
 class MeData(BaseModel):

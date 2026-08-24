@@ -8,7 +8,7 @@ from app.deps.roles import require_admin
 from app.deps.tenant import TenantContext, get_tenant_context
 from app.schemas.user import UserOut, UserUpdate
 from app.services.user_list_service import list_users
-from app.services.user_service import get_user, update_user_manager
+from app.services.user_service import get_user, update_user_manager, update_user_territory
 
 router = APIRouter(prefix="/api/v1/users", tags=["users"])
 
@@ -37,6 +37,10 @@ async def patch_user(
     if "manager_id" in updates:
         user = await update_user_manager(
             context.db, context.tenant.id, user, updates["manager_id"], context.user.id
+        )
+    if "territory" in updates:
+        user = await update_user_territory(
+            context.db, context.tenant.id, user, updates["territory"], context.user.id
         )
     return data_envelope(
         UserOut.model_validate(user).model_dump(mode="json"), request.state.request_id

@@ -39,6 +39,7 @@ from app.models.contact import Contact
 from app.models.deal import Deal
 from app.models.task import Task
 from app.models.tenant import Tenant
+from app.models.user import User
 from app.models.workflow_rule import WorkflowRule
 from app.models.workflow_run import WorkflowRun
 from app.schemas.task import TaskCreate
@@ -139,6 +140,47 @@ async def _resolve_deal_and_contact(
     return None, None, None
 
 
+async def _next_round_robin_counselor(db, tenant_id: uuid.UUID) -> uuid.UUID | None:
+    counselor_ids = await list_counselor_ids(db, tenant_id)
+    if not counselor_ids:
+        return None
+    redis = get_redis_client()
+    try:
+        index = await redis.incr(f"roundrobin:{tenant_id}:owner")
+    finally:
+        await redis.aclose()
+    return counselor_ids[(index - 1) % len(counselor_ids)]
+
+
+async def _match_territory_counselor(
+    db, tenant_id: uuid.UUID, territory: str
+) -> uuid.UUID | None:
+    result = await db.execute(
+        select(User.id)
+        .where(
+            User.tenant_id == tenant_id,
+            User.role == "counselor",
+            User.status == "active",
+            User.territory == territory,
+        )
+        .order_by(User.created_at, User.id)
+        .limit(1)
+    )
+    return result.scalar_one_or_none()
+
+
+async def _apply_new_owner(
+    db, tenant_id: uuid.UUID, deal: Deal | None, contact_id: uuid.UUID | None, new_owner: uuid.UUID
+) -> None:
+    if deal is not None:
+        deal.owner_id = new_owner
+    if contact_id is not None:
+        contact = await _load_contact(db, tenant_id, contact_id)
+        if contact is not None:
+            contact.owner_id = new_owner
+    await db.flush()
+
+
 async def _execute_action(
     db, tenant_id: uuid.UUID, action: dict, source_type: str, source_id: uuid.UUID
 ) -> None:
@@ -149,23 +191,31 @@ async def _execute_action(
     )
 
     if action_type == "assign_round_robin":
-        counselor_ids = await list_counselor_ids(db, tenant_id)
-        if not counselor_ids:
+        new_owner = await _next_round_robin_counselor(db, tenant_id)
+        if new_owner is None:
             logger.warning("workflow_action_skipped_no_counselors", tenant_id=str(tenant_id))
             return
-        redis = get_redis_client()
-        try:
-            index = await redis.incr(f"roundrobin:{tenant_id}:owner")
-        finally:
-            await redis.aclose()
-        new_owner = counselor_ids[(index - 1) % len(counselor_ids)]
-        if deal is not None:
-            deal.owner_id = new_owner
+        await _apply_new_owner(db, tenant_id, deal, contact_id, new_owner)
+
+    elif action_type == "assign_by_territory":
+        # GAP_FIXES_PLAN.md item 3 — admin-set territory on both sides
+        # (no connector emits one on a raw lead yet). Falls back to
+        # round robin rather than leaving the record unassigned when
+        # there's no territory set or no counselor matches it — expected
+        # to be the common case today, not an edge case.
+        territory = None
         if contact_id is not None:
             contact = await _load_contact(db, tenant_id, contact_id)
-            if contact is not None:
-                contact.owner_id = new_owner
-        await db.flush()
+            territory = contact.territory if contact is not None else None
+        new_owner = (
+            await _match_territory_counselor(db, tenant_id, territory) if territory else None
+        )
+        if new_owner is None:
+            new_owner = await _next_round_robin_counselor(db, tenant_id)
+        if new_owner is None:
+            logger.warning("workflow_action_skipped_no_counselors", tenant_id=str(tenant_id))
+            return
+        await _apply_new_owner(db, tenant_id, deal, contact_id, new_owner)
 
     elif action_type == "create_task":
         if contact_id is None or owner_id is None:

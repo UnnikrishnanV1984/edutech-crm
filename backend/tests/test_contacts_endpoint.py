@@ -190,6 +190,24 @@ def test_get_and_patch_contact(tenant_and_user):
         assert patched.json()["data"]["full_name"] == "Frank Updated"
 
 
+def test_create_and_patch_contact_territory(tenant_and_user):
+    with TestClient(app) as client:
+        created = client.post(
+            "/api/v1/contacts",
+            json={"full_name": "Gita", "lead_source": "manual", "territory": "south"},
+            headers=_headers(tenant_and_user),
+        ).json()["data"]
+        assert created["territory"] == "south"
+
+        patched = client.patch(
+            f"/api/v1/contacts/{created['id']}",
+            json={"territory": "north"},
+            headers=_headers(tenant_and_user),
+        )
+        assert patched.status_code == 200
+        assert patched.json()["data"]["territory"] == "north"
+
+
 def test_get_unknown_contact_returns_404(tenant_and_user):
     with TestClient(app) as client:
         response = client.get(

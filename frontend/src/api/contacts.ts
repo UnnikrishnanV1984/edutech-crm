@@ -9,6 +9,7 @@ export interface Contact {
   lead_source: string;
   owner_id: string;
   status: string;
+  territory: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -27,6 +28,7 @@ export interface ContactCreateInput {
   phone?: string;
   lead_source: string;
   owner_id?: string;
+  territory?: string;
 }
 
 function buildQuery(params: Record<string, string | number | undefined>): string {

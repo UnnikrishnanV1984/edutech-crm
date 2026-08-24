@@ -29,6 +29,7 @@ class ContactCreate(BaseModel):
     phone: str | None = None
     lead_source: str
     owner_id: uuid.UUID | None = None  # defaults to the acting user
+    territory: str | None = None  # admin-set — GAP_FIXES_PLAN.md item 3
 
     _check_email = field_validator("email")(_validate_email)
 
@@ -40,6 +41,7 @@ class ContactUpdate(BaseModel):
     lead_source: str | None = None
     owner_id: uuid.UUID | None = None
     status: str | None = None
+    territory: str | None = None
 
     _check_email = field_validator("email")(_validate_email)
 
@@ -54,5 +56,6 @@ class ContactOut(BaseModel):
     lead_source: str
     owner_id: uuid.UUID
     status: str
+    territory: str | None
     created_at: datetime
     updated_at: datetime

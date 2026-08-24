@@ -36,6 +36,7 @@ describe("CreateContactPanel", () => {
       lead_source: "web",
       owner_id: "u1",
       status: "active",
+      territory: null,
       created_at: "2026-01-01T00:00:00Z",
       updated_at: "2026-01-01T00:00:00Z",
     };
@@ -60,6 +61,7 @@ describe("CreateContactPanel", () => {
       lead_source: "manual",
       owner_id: "u1",
       status: "active",
+      territory: null,
       created_at: "2026-01-01T00:00:00Z",
       updated_at: "2026-01-01T00:00:00Z",
     };
@@ -98,6 +100,7 @@ describe("CreateContactPanel", () => {
         lead_source: "manual",
         owner_id: "u1",
         status: "active",
+        territory: null,
         created_at: "2026-01-01T00:00:00Z",
         updated_at: "2026-01-01T00:00:00Z",
       },

@@ -18,6 +18,8 @@ export function ContactDetailPage() {
   const [contact, setContact] = useState<Contact | undefined>(undefined);
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
+  const [editingTerritory, setEditingTerritory] = useState(false);
+  const [territoryDraft, setTerritoryDraft] = useState("");
   const [error, setError] = useState<string | undefined>(undefined);
 
   useEffect(() => {
@@ -36,6 +38,18 @@ export function ContactDetailPage() {
       await updateContact(token, contact.id, { full_name: nameDraft });
     } catch {
       setContact((current) => (current ? { ...current, full_name: previous } : current));
+    }
+  }
+
+  async function saveTerritory() {
+    if (!token || !contact) return;
+    const previous = contact.territory;
+    setContact({ ...contact, territory: territoryDraft || null });
+    setEditingTerritory(false);
+    try {
+      await updateContact(token, contact.id, { territory: territoryDraft });
+    } catch {
+      setContact((current) => (current ? { ...current, territory: previous } : current));
     }
   }
 
@@ -83,6 +97,31 @@ export function ContactDetailPage() {
           />
           <span style={{ color: "var(--text-muted)", fontSize: 13 }}>
             Owner: {userDisplayName(users, contact.owner_id)}
+          </span>
+          <span style={{ color: "var(--text-muted)", fontSize: 13 }}>
+            Territory:{" "}
+            {editingTerritory ? (
+              <input
+                autoFocus
+                value={territoryDraft}
+                onChange={(event) => setTerritoryDraft(event.target.value)}
+                onBlur={() => void saveTerritory()}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") void saveTerritory();
+                }}
+                style={{ fontSize: 13, width: 100 }}
+              />
+            ) : (
+              <span
+                onClick={() => {
+                  setTerritoryDraft(contact.territory ?? "");
+                  setEditingTerritory(true);
+                }}
+                style={{ cursor: "text" }}
+              >
+                {contact.territory ?? "—"}
+              </span>
+            )}
           </span>
           <span style={{ color: "var(--text-muted)", fontSize: 13 }}>
             Created {new Date(contact.created_at).toLocaleDateString()}

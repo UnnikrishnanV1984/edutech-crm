@@ -31,6 +31,8 @@ class Contact(Base):
     lead_source: Mapped[str] = mapped_column(String, nullable=False)
     owner_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     status: Mapped[str] = mapped_column(String, nullable=False, server_default="active")
+    territory: Mapped[str | None] = mapped_column(String, nullable=True)
+    """Admin-set — GAP_FIXES_PLAN.md item 3, see users.territory."""
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

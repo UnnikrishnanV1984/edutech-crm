@@ -24,6 +24,7 @@ const TRIGGERS: { value: TriggerType; label: string }[] = [
 
 const ACTIONS: { value: ActionType; label: string }[] = [
   { value: "assign_round_robin", label: "Assign round-robin" },
+  { value: "assign_by_territory", label: "Assign by territory (falls back to round-robin)" },
   { value: "create_task", label: "Create a follow-up task" },
   { value: "change_stage", label: "Change the deal's stage" },
   { value: "notify_manager", label: "Notify the manager" },

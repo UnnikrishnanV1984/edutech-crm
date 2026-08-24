@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, model_validator
 TRIGGER_TYPES = ("stage_changed", "lead_created", "task_overdue", "elapsed_time")
 ACTION_TYPES = (
     "assign_round_robin",
+    "assign_by_territory",
     "create_task",
     "change_stage",
     "notify_manager",
