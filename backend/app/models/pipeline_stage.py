@@ -22,6 +22,13 @@ class PipelineStage(Base):
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False)
     is_won: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
     is_lost: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
+    is_invoice_stage: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
+    """A deal entering this stage prompts invoice creation/send in the UI
+    — PIPELINE_AND_REVENUE.md §2.3. Fixed meaning on the flag, same
+    is_won/is_lost precedent, settable only at creation."""
+    is_rework_stage: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
+    """A deal entering this stage flips its linked invoice's status to
+    rework_requested — PIPELINE_AND_REVENUE.md §2.3."""
     win_probability_pct: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
     """Admin-configurable, drives stage-weighted forecasting
     (PHASE_4_PLAN.md §3.1) — 0 until an admin sets it, not a guessed

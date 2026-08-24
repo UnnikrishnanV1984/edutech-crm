@@ -249,6 +249,39 @@ def test_create_stage_appends_at_end(tenant_and_user):
     assert stages[-1]["sort_order"] > stages[-2]["sort_order"]
 
 
+def test_create_stage_with_invoice_and_rework_flags(tenant_and_user):
+    """PIPELINE_AND_REVENUE_PLAN.md §7 task 4 — same creation-only shape
+    as is_won/is_lost."""
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/v1/pipeline-stages",
+            json={"name": "Invoice Sent", "is_invoice_stage": True},
+            headers=_admin_headers(tenant_and_user),
+        )
+    assert response.status_code == 200
+    body = response.json()["data"]
+    assert body["is_invoice_stage"] is True
+    assert body["is_rework_stage"] is False
+
+
+def test_patch_stage_cannot_change_invoice_or_rework_flags(tenant_and_user):
+    with TestClient(app) as client:
+        created = client.post(
+            "/api/v1/pipeline-stages",
+            json={"name": "Invoice Sent", "is_invoice_stage": True},
+            headers=_admin_headers(tenant_and_user),
+        ).json()["data"]
+        response = client.patch(
+            f"/api/v1/pipeline-stages/{created['id']}",
+            json={"name": "Invoice Sent (renamed)"},
+            headers=_admin_headers(tenant_and_user),
+        )
+    assert response.status_code == 200
+    body = response.json()["data"]
+    assert body["name"] == "Invoice Sent (renamed)"
+    assert body["is_invoice_stage"] is True  # unchanged — not a PATCH-able field
+
+
 def test_create_stage_duplicate_name_returns_409(tenant_and_user):
     with TestClient(app) as client:
         client.get("/api/v1/pipeline-stages", headers=_headers(tenant_and_user))  # seed

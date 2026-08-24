@@ -122,6 +122,8 @@ async def create_stage(
         sort_order=next_sort_order,
         is_won=data.is_won,
         is_lost=data.is_lost,
+        is_invoice_stage=data.is_invoice_stage,
+        is_rework_stage=data.is_rework_stage,
     )
     db.add(stage)
     await db.flush()

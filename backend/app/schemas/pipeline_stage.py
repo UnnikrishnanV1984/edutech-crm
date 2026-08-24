@@ -27,6 +27,8 @@ class PipelineStageCreate(BaseModel):
     # endpoint afterward.
     is_won: bool = False
     is_lost: bool = False
+    is_invoice_stage: bool = False
+    is_rework_stage: bool = False
 
 
 class PipelineStageReorder(BaseModel):
@@ -41,6 +43,8 @@ class PipelineStageOut(BaseModel):
     sort_order: int
     is_won: bool
     is_lost: bool
+    is_invoice_stage: bool
+    is_rework_stage: bool
     win_probability_pct: int
     created_at: datetime
     updated_at: datetime

@@ -7,6 +7,8 @@ export interface PipelineStage {
   sort_order: number;
   is_won: boolean;
   is_lost: boolean;
+  is_invoice_stage: boolean;
+  is_rework_stage: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -25,7 +27,13 @@ export async function updatePipelineStage(
 
 export async function createPipelineStage(
   token: string,
-  input: { name: string; is_won?: boolean; is_lost?: boolean },
+  input: {
+    name: string;
+    is_won?: boolean;
+    is_lost?: boolean;
+    is_invoice_stage?: boolean;
+    is_rework_stage?: boolean;
+  },
 ): Promise<DataEnvelope<PipelineStage>> {
   return apiPost<DataEnvelope<PipelineStage>>(token, "/api/v1/pipeline-stages", input);
 }
