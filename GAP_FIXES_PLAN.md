@@ -292,12 +292,26 @@ None.
 None — it's a client of the existing API, not a new endpoint.
 
 ### Tool choice
-**k6**, run via its official Docker image (`grafana/k6`) rather than
-adding an npm/pip dependency to any of the three services — keeps this
-slice fully isolated from `frontend`/`bff`/`backend`'s own dependency
-trees, and matches how this repo already treats one-off tooling (e.g.
-the cross-service E2E test in `/tests` has its own
-`tests/requirements.txt`, separate from `backend`'s).
+**k6**, run as a native binary on the host rather than adding an npm/pip
+dependency to any of the three services — keeps this slice fully
+isolated from `frontend`/`bff`/`backend`'s own dependency trees, and
+matches how this repo already treats one-off host-run tooling (e.g. the
+cross-service E2E test in `/tests` runs on the host against the
+docker-compose stack, not inside a container).
+
+**Deviation from the original plan, found once actually tested**: the
+plan originally proposed running k6 via its official Docker image
+(`grafana/k6`). That doesn't work here: Keycloak's dev-mode `start-dev`
+stamps a token's `iss` claim from the Host header of the request that
+fetched it, and the BFF validates `iss` against `KEYCLOAK_ISSUER_URL`
+(the browser-facing `http://localhost:8080/...`) — a token fetched from
+*inside* a container (whether via the compose network's `keycloak`
+hostname or Docker Desktop's `host.docker.internal`) gets a different
+`iss`, which the BFF then rejects with 401. Confirmed by decoding a
+token fetched both ways and reproducing the mismatch directly. A native
+k6 process on the host naturally requests through `localhost`, matching
+exactly what a browser (and `tests/test_tenant_isolation.py`) already do
+— no mismatch, no workaround needed.
 
 ### Task breakdown
 1. `loadtest/scenarios/mixed-traffic.js` — a k6 script simulating the

@@ -126,6 +126,10 @@ pytest tests/test_tenant_isolation.py -v
 # Helm charts (skeletons — not yet deployed to a real cluster)
 helm lint deploy/helm/<backend|bff|web|keycloak>
 helm template test deploy/helm/<chart> --set image.repository=<repo> --set image.tag=<tag>
+
+# Load test — requires `docker compose up` already running and a native
+# k6 binary (do NOT run k6 via Docker — see loadtest/README.md for why).
+k6 run loadtest/scenarios/mixed-traffic.js
 ```
 
 ## Conventions
