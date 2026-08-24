@@ -164,3 +164,37 @@ describe("TasksPage owner filter", () => {
     expect(lastCall[1]?.assignee_id).toBeUndefined();
   });
 });
+
+describe("TasksPage board view", () => {
+  it("fetches and renders done tasks when Board is selected", async () => {
+    setup("counselor");
+    mockedListTasks.mockImplementation((_token, params) => {
+      if (params?.status === "done") {
+        return Promise.resolve({
+          data: [{ ...TASK, id: "t2", title: "Send welcome email", status: "done" as const }],
+          meta: { request_id: "r1", page: 1, page_size: 100, total: 1 },
+        });
+      }
+      return Promise.resolve({
+        data: [TASK],
+        meta: { request_id: "r1", page: 1, page_size: 100, total: 1 },
+      });
+    });
+
+    render(<TasksPage />);
+    await waitFor(() => expect(screen.getByText("Call back")).toBeInTheDocument());
+
+    expect(mockedListTasks).not.toHaveBeenCalledWith(
+      "test-token",
+      expect.objectContaining({ status: "done" }),
+    );
+
+    fireEvent.click(screen.getByText("Board"));
+
+    await waitFor(() => expect(screen.getByText("Send welcome email")).toBeInTheDocument());
+    expect(mockedListTasks).toHaveBeenCalledWith(
+      "test-token",
+      expect.objectContaining({ status: "done" }),
+    );
+  });
+});

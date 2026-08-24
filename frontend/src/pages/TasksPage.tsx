@@ -48,6 +48,9 @@ export function TasksPage() {
   // for them, and their view is always "mine" regardless).
   const [assigneeId, setAssigneeId] = useState<string | undefined>(undefined);
   const [tasks, setTasks] = useState<Task[]>([]);
+  // Only fetched when the Board view is open — the List view has no use
+  // for it, so this stays empty (and un-requested) otherwise.
+  const [doneTasks, setDoneTasks] = useState<Task[]>([]);
   const [pendingUndo, setPendingUndo] = useState<Task | undefined>(undefined);
   const [showCreate, setShowCreate] = useState(false);
   const undoTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -69,6 +72,20 @@ export function TasksPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(load, [token, assigneeId, me]);
 
+  function loadDone() {
+    if (!token) return;
+    listTasks(token, {
+      assignee_id: me?.user.role === "counselor" ? undefined : assigneeId,
+      status: "done",
+      page_size: 100,
+    }).then((response) => setDoneTasks(response.data));
+  }
+
+  useEffect(() => {
+    if (view === "board") loadDone();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, token, assigneeId, me]);
+
   async function complete(task: Task) {
     setTasks((current) => current.filter((t) => t.id !== task.id));
     setPendingUndo(task);
@@ -80,6 +97,7 @@ export function TasksPage() {
       return;
     }
     undoTimer.current = setTimeout(() => setPendingUndo(undefined), 5000);
+    if (view === "board") loadDone();
   }
 
   async function undo(task: Task) {
@@ -221,6 +239,20 @@ export function TasksPage() {
           </div>
           <div style={{ flex: 1 }}>
             <h2 style={{ fontSize: 14 }}>Done</h2>
+            <ul style={{ listStyle: "none", padding: 0 }}>
+              {doneTasks.map((task) => (
+                <li
+                  key={task.id}
+                  style={{
+                    padding: 8,
+                    color: "var(--text-muted)",
+                    textDecoration: "line-through",
+                  }}
+                >
+                  {task.title}
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
       )}
