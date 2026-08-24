@@ -7,6 +7,7 @@ alembic upgrade head
 if [ "$ENVIRONMENT" = "development" ]; then
     python -m app.db.seed
     python -m app.connectors.seed_runner
+    python -m app.db.seed_ops_data
 fi
 
 exec "$@"
