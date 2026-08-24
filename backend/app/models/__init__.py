@@ -1,4 +1,5 @@
 from app.models.activity import Activity
+from app.models.audit_log import AuditLog
 from app.models.contact import Contact
 from app.models.conversion_event import ConversionEvent
 from app.models.course import Course
@@ -19,6 +20,7 @@ from app.models.workflow_run import WorkflowRun
 
 __all__ = [
     "Activity",
+    "AuditLog",
     "Contact",
     "ConversionEvent",
     "Course",

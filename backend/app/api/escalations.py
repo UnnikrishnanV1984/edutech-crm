@@ -56,6 +56,6 @@ async def patch_escalation(
     if context.user_role != "admin" and escalation.assigned_to != context.user.id:
         raise ApiError(403, FORBIDDEN, "Only the assigned manager or an admin can act on this")
     escalation = await update_escalation(
-        context.db, escalation, body.status, body.resolution_note, body.reassign_to
+        context.db, escalation, body.status, body.resolution_note, body.reassign_to, context.user.id
     )
     return data_envelope(_out(escalation), request.state.request_id)

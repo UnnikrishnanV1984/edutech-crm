@@ -129,7 +129,9 @@ async def _seed_tenant(db: AsyncSession, tenant_id: uuid.UUID) -> None:
     await create_policy(
         db,
         tenant_id,
-        SlaPolicyCreate(name="First response within 1 hour", applies_to="task_due", target_minutes=60),
+        SlaPolicyCreate(
+            name="First response within 1 hour", applies_to="task_due", target_minutes=60
+        ),
     )
     if open_stage is not None:
         await create_policy(
@@ -146,7 +148,9 @@ async def _seed_tenant(db: AsyncSession, tenant_id: uuid.UUID) -> None:
     legacy_policy = await create_policy(
         db,
         tenant_id,
-        SlaPolicyCreate(name="Legacy: respond within 24 hours", applies_to="task_due", target_minutes=1440),
+        SlaPolicyCreate(
+            name="Legacy: respond within 24 hours", applies_to="task_due", target_minutes=1440
+        ),
     )
     legacy_policy.status = "disabled"
 
@@ -188,7 +192,9 @@ async def _seed_tenant(db: AsyncSession, tenant_id: uuid.UUID) -> None:
             db,
             tenant_id,
             admin.id,
-            FollowUpFlagCreate(deal_id=deal.id, note=note, remind_on=(now + timedelta(days=day_offset)).date()),
+            FollowUpFlagCreate(
+                deal_id=deal.id, note=note, remind_on=(now + timedelta(days=day_offset)).date()
+            ),
         )
 
     # --- Escalations ----------------------------------------------------
@@ -212,7 +218,12 @@ async def _seed_tenant(db: AsyncSession, tenant_id: uuid.UUID) -> None:
     )
     if tasks:
         await create_sla_breach_escalation(
-            db, tenant_id, sla_state_id=uuid.uuid4(), deal_id=None, task_id=tasks[0].id, assigned_to=admin.id
+            db,
+            tenant_id,
+            sla_state_id=uuid.uuid4(),
+            deal_id=None,
+            task_id=tasks[0].id,
+            assigned_to=admin.id,
         )
     workflow_failure = await create_workflow_failure_escalation(
         db,
@@ -222,13 +233,22 @@ async def _seed_tenant(db: AsyncSession, tenant_id: uuid.UUID) -> None:
         task_id=None,
         assigned_to=admin.id,
     )
-    await update_escalation(db, workflow_failure, status="acknowledged", resolution_note=None, reassign_to=None)
+    await update_escalation(
+        db, workflow_failure, status="acknowledged", resolution_note=None, reassign_to=None,
+        actor_id=admin.id,
+    )
     if len(tasks) > 1:
         rule_triggered = await create_rule_triggered_escalation(
-            db, tenant_id, workflow_run_id=uuid.uuid4(), deal_id=None, task_id=tasks[-1].id, assigned_to=admin.id
+            db,
+            tenant_id,
+            workflow_run_id=uuid.uuid4(),
+            deal_id=None,
+            task_id=tasks[-1].id,
+            assigned_to=admin.id,
         )
         rule_triggered = await update_escalation(
-            db, rule_triggered, status="acknowledged", resolution_note=None, reassign_to=None
+            db, rule_triggered, status="acknowledged", resolution_note=None, reassign_to=None,
+            actor_id=admin.id,
         )
         await update_escalation(
             db,
@@ -236,6 +256,7 @@ async def _seed_tenant(db: AsyncSession, tenant_id: uuid.UUID) -> None:
             status="resolved",
             resolution_note="Reassigned lead to backup counselor",
             reassign_to=None,
+            actor_id=admin.id,
         )
     db.add(
         Escalation(

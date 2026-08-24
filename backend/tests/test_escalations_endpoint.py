@@ -90,6 +90,7 @@ def scenario():
     with psycopg.connect(MIGRATE_URL, autocommit=True) as conn, conn.cursor() as cur:
         cur.execute("SELECT set_config('app.tenant_id', %s, false)", (str(tenant_id),))
         tables = (
+            "audit_logs",
             "escalations",
             "activities",
             "deals",

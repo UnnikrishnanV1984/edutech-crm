@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import VALIDATION_ERROR, ApiError
 from app.models.user import User
+from app.services.audit_log_service import record as record_audit_log
 
 
 async def upsert_user(
@@ -50,7 +51,11 @@ async def get_user(db: AsyncSession, tenant_id: uuid.UUID, user_id: uuid.UUID) -
 
 
 async def update_user_manager(
-    db: AsyncSession, tenant_id: uuid.UUID, user: User, manager_id: uuid.UUID | None
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+    user: User,
+    manager_id: uuid.UUID | None,
+    actor_id: uuid.UUID,
 ) -> User:
     """The manager-to-team mapping (REQUIREMENTS.md §5.3) — users.manager_id
     *is* the mapping, no separate table. manager_id=None clears it."""
@@ -58,9 +63,22 @@ async def update_user_manager(
         manager = await get_user(db, tenant_id, manager_id)
         if manager is None or manager.role != "manager":
             raise ApiError(400, VALIDATION_ERROR, "manager_id must reference a manager")
+    old_manager_id = user.manager_id
     user.manager_id = manager_id
     await db.flush()
     await db.refresh(user)
+    await record_audit_log(
+        db,
+        tenant_id,
+        actor_id,
+        "user.manager_changed",
+        "user",
+        user.id,
+        payload={
+            "old_manager_id": str(old_manager_id) if old_manager_id else None,
+            "new_manager_id": str(manager_id) if manager_id else None,
+        },
+    )
     return user
 
 

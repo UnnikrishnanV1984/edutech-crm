@@ -92,7 +92,7 @@ def scenario():
 
     with psycopg.connect(MIGRATE_URL, autocommit=True) as conn, conn.cursor() as cur:
         cur.execute("SELECT set_config('app.tenant_id', %s, false)", (str(tenant_id),))
-        for table in ("activities", "deals", "contacts", "tasks", "users"):
+        for table in ("audit_logs", "activities", "deals", "contacts", "tasks", "users"):
             cur.execute(f"DELETE FROM {table} WHERE tenant_id = %s", (tenant_id,))
         cur.execute("RESET app.tenant_id")
         cur.execute("DELETE FROM tenants WHERE id = %s", (tenant_id,))

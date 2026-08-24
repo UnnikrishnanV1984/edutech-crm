@@ -35,7 +35,9 @@ async def patch_user(
         raise ApiError(404, NOT_FOUND, "User not found")
     updates = body.model_dump(exclude_unset=True)
     if "manager_id" in updates:
-        user = await update_user_manager(context.db, context.tenant.id, user, updates["manager_id"])
+        user = await update_user_manager(
+            context.db, context.tenant.id, user, updates["manager_id"], context.user.id
+        )
     return data_envelope(
         UserOut.model_validate(user).model_dump(mode="json"), request.state.request_id
     )

@@ -23,7 +23,7 @@
 | `sla_states` | Computed on_track/at_risk/breached state per tracked item | `tenant_id`, hash-partitioned (high write volume) — computed by a Celery Beat task, never written by a request handler, `PHASE_3_PLAN.md` §6 |
 | `escalations` | Escalation records with lifecycle and resolution notes | `tenant_id` — see `REQUIREMENTS.md` Section 4. `sla_state_id`/`workflow_run_id` are plain `UUID`, **not** composite FKs — both would reference a non-partition-key column of a hash-partitioned table, which Postgres can't express cleanly here (`PHASE_3_PLAN.md` §3.5) |
 | `follow_up_flags` | Manager's personal follow-up reminders on leads | `tenant_id`, `manager_id` |
-| `audit_log` | Configuration change history for Admin visibility | `tenant_id`, append-only — **not yet built**; no phase has claimed it (`DEVELOPMENT_PLAN.md` §8's original flag still stands after Phase 3) |
+| `audit_logs` | Configuration change history for Admin visibility | `tenant_id`, append-only. v1 (`GAP_FIXES_PLAN.md` item 6): write-only, three call sites (user manager reassignment, deal stage change, escalation status/reassign transitions), no read API/UI yet — not hash-partitioned, revisit if volume grows |
 
 Role-based access (Admin/Manager/Staff) is enforced at the application layer
 on top of these tables, not as additional RLS policies — see

@@ -10,6 +10,7 @@ from app.models.escalation import Escalation
 from app.models.task import Task
 from app.models.user import User
 from app.schemas.escalation import EscalationCreate
+from app.services.audit_log_service import record as record_audit_log
 
 # open -> acknowledged -> resolved is the only forward path this service
 # drives; reassignment is handled separately (reassign_to on
@@ -171,6 +172,7 @@ async def update_escalation(
     status: str | None,
     resolution_note: str | None,
     reassign_to: uuid.UUID | None,
+    actor_id: uuid.UUID,
 ) -> Escalation:
     now = datetime.now(UTC)
     if status is not None:
@@ -187,6 +189,9 @@ async def update_escalation(
             escalation.resolved_at = now
         if resolution_note is not None:
             escalation.resolution_note = resolution_note
+        await record_audit_log(
+            db, escalation.tenant_id, actor_id, f"escalation.{status}", "escalation", escalation.id
+        )
 
     if reassign_to is not None:
         if escalation.status == "resolved":
@@ -194,6 +199,15 @@ async def update_escalation(
         escalation.assigned_to = reassign_to
         escalation.status = "open"
         escalation.acknowledged_at = None
+        await record_audit_log(
+            db,
+            escalation.tenant_id,
+            actor_id,
+            "escalation.reassigned",
+            "escalation",
+            escalation.id,
+            payload={"reassigned_to": str(reassign_to)},
+        )
 
     await db.flush()
     await db.refresh(escalation)

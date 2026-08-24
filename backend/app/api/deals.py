@@ -10,6 +10,7 @@ from app.deps.scope import RowScope, get_row_scope
 from app.deps.tenant import TenantContext, get_tenant_context
 from app.schemas.deal import DealCreate, DealOut, DealUpdate
 from app.services.activity_service import log_deal_stage_changed
+from app.services.audit_log_service import record as record_audit_log
 from app.services.contact_service import get_contact
 from app.services.deal_service import create_deal, get_deal, list_deals, update_deal
 from app.services.pipeline_stage_service import get_stage
@@ -115,6 +116,15 @@ async def patch_deal(
             actor_id=context.user.id,
             old_stage_id=old_stage_id,
             new_stage_id=deal.stage_id,
+        )
+        await record_audit_log(
+            context.db,
+            context.tenant.id,
+            context.user.id,
+            "deal.stage_changed",
+            "deal",
+            deal.id,
+            payload={"old_stage_id": str(old_stage_id), "new_stage_id": str(deal.stage_id)},
         )
         # Enqueued before this route's own transaction commits (that
         # happens in get_tenant_context's post-yield cleanup, after this

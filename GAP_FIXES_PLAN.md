@@ -336,12 +336,16 @@ not an oversight.
 **Scope decision for v1**: DB-only, write-side only, no API/UI yet.
 Building a full admin-facing audit viewer is a second slice on top of
 this one — keeping this one to "the data actually gets captured" avoids
-combining a schema decision with a UI decision in one PR. Minimal event
-set for v1 (extend later, don't try to log everything on day one):
-user role/status changes, deal stage changes, escalation
-acknowledge/resolve/reassign actions — the three categories `CLAUDE.md`
-and `REQUIREMENTS.md` most directly frame as needing an admin-visible
-trail.
+combining a schema decision with a UI decision in one PR.
+
+**Deviation from the original plan, found once actually in the code**:
+`user role/status changes` isn't a real call site — `UserUpdate`
+deliberately excludes `role`/`status` (see its own docstring:
+Keycloak JIT-provisioning refreshes `role` from the token claim on every
+request, so an in-app role change would be silently reverted). The only
+real user-mutation path today is `update_user_manager` (manager
+reassignment). v1's three logged events are: user manager reassignment,
+deal stage changes, and escalation acknowledge/resolve/reassign actions.
 
 ### Affected layers
 - **Database**: new `audit_logs` table (append-only, standard
