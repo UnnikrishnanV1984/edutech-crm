@@ -15,6 +15,7 @@ export interface FunnelRow {
   stage_id: string;
   stage_name: string;
   count: number;
+  value: string;
 }
 
 export interface SourceAttributionRow {
@@ -26,13 +27,25 @@ export interface ForecastStageRow {
   stage_id: string;
   stage_name: string;
   deal_count: number;
+  value: string;
   win_probability_pct: number;
   expected_count: number;
+  expected_value: string;
 }
 
 export interface ForecastReport {
   expected_enrollments: number;
+  expected_value: string;
   by_stage: ForecastStageRow[];
+}
+
+export interface InvoiceSummary {
+  period: string;
+  invoiced_total: string;
+  paid_total: string;
+  outstanding_total: string;
+  invoice_rework_rate: number;
+  avg_minutes_in_invoice_stage: number | null;
 }
 
 export interface SlaComplianceRow {
@@ -73,6 +86,10 @@ export async function getSourceAttribution(
 
 export async function getForecast(token: string): Promise<ReportEnvelope<ForecastReport>> {
   return apiGet<ReportEnvelope<ForecastReport>>(token, "/api/v1/reports/forecast");
+}
+
+export async function getInvoiceSummary(token: string): Promise<ReportEnvelope<InvoiceSummary>> {
+  return apiGet<ReportEnvelope<InvoiceSummary>>(token, "/api/v1/reports/invoices");
 }
 
 export async function getSlaCompliance(

@@ -2,8 +2,13 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { listConnections, type LeadSourceConnection } from "../api/leadSourceConnections";
-import { getForecast, getFunnel, getSourceAttribution } from "../api/reports";
-import type { ForecastReport, FunnelRow, SourceAttributionRow } from "../api/reports";
+import { getForecast, getFunnel, getInvoiceSummary, getSourceAttribution } from "../api/reports";
+import type {
+  ForecastReport,
+  FunnelRow,
+  InvoiceSummary,
+  SourceAttributionRow,
+} from "../api/reports";
 import { useAuth } from "../auth/context";
 import { Badge } from "../components/Badge";
 import { Card } from "../components/Card";
@@ -14,6 +19,7 @@ export function AdminDashboard() {
   const [funnel, setFunnel] = useState<FunnelRow[]>([]);
   const [sources, setSources] = useState<SourceAttributionRow[]>([]);
   const [forecast, setForecast] = useState<ForecastReport | undefined>(undefined);
+  const [invoiceSummary, setInvoiceSummary] = useState<InvoiceSummary | undefined>(undefined);
   const [connections, setConnections] = useState<LeadSourceConnection[]>([]);
 
   useEffect(() => {
@@ -21,10 +27,12 @@ export function AdminDashboard() {
     getFunnel(token).then((response) => setFunnel(response.data));
     getSourceAttribution(token).then((response) => setSources(response.data));
     getForecast(token).then((response) => setForecast(response.data));
+    getInvoiceSummary(token).then((response) => setInvoiceSummary(response.data));
     listConnections(token).then((response) => setConnections(response.data));
   }, [token]);
 
   const maxCount = Math.max(1, ...funnel.map((f) => f.count));
+  const pipelineValue = funnel.reduce((sum, row) => sum + Number(row.value), 0);
 
   const quickLinks = (
     <div style={{ display: "flex", gap: "var(--space-4)", fontSize: "var(--text-sm)" }}>
@@ -50,7 +58,7 @@ export function AdminDashboard() {
 
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)" }}>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-5)" }}>
-          <Card title="Org funnel">
+          <Card title={`Org funnel${pipelineValue > 0 ? ` — ${pipelineValue.toLocaleString()} pipeline value` : ""}`}>
             {funnel.length === 0 && <EmptyState headline="No deals yet" />}
             {funnel.length > 0 && (
               <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
@@ -71,6 +79,7 @@ export function AdminDashboard() {
                     />
                     <span style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>
                       {row.count}
+                      {Number(row.value) > 0 && ` · ${Number(row.value).toLocaleString()}`}
                     </span>
                   </div>
                 ))}
@@ -107,11 +116,45 @@ export function AdminDashboard() {
 
         {forecast && (
           <Card title={`Forecast — ${forecast.expected_enrollments} expected enrollments`}>
+            <p style={{ fontSize: "var(--text-base)", margin: "0 0 var(--space-2)" }}>
+              Weighted forecast value: {Number(forecast.expected_value).toLocaleString()}
+            </p>
             <p style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", margin: 0 }}>
-              Weighted headcount, not revenue — set win probabilities per stage
-              to refine this.
+              Both figures are weighted by each stage's win probability — set
+              those per stage to refine this.
             </p>
           </Card>
+        )}
+
+        {invoiceSummary && (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "var(--space-5)" }}>
+            <Card title="Invoiced this month">
+              <p style={{ fontSize: "var(--text-xl)", margin: 0 }}>
+                {Number(invoiceSummary.invoiced_total).toLocaleString()}
+              </p>
+            </Card>
+            <Card title="Paid this month">
+              <p style={{ fontSize: "var(--text-xl)", margin: 0, color: "var(--success)" }}>
+                {Number(invoiceSummary.paid_total).toLocaleString()}
+              </p>
+            </Card>
+            <Card title="Outstanding">
+              <p style={{ fontSize: "var(--text-xl)", margin: 0, color: "var(--warning)" }}>
+                {Number(invoiceSummary.outstanding_total).toLocaleString()}
+              </p>
+            </Card>
+            <Card title="Invoice rework rate">
+              <p style={{ fontSize: "var(--text-xl)", margin: 0 }}>
+                {Math.round(invoiceSummary.invoice_rework_rate * 100)}%
+              </p>
+              {invoiceSummary.avg_minutes_in_invoice_stage !== null && (
+                <p style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", margin: 0 }}>
+                  Avg {Math.round(invoiceSummary.avg_minutes_in_invoice_stage)} min in an invoice
+                  stage right now
+                </p>
+              )}
+            </Card>
+          </div>
         )}
 
         <Card title="Integration health">
