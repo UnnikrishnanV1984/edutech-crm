@@ -11,6 +11,7 @@ import {
 import { useAuth } from "../auth/context";
 import { Badge } from "../components/Badge";
 import { Button } from "../components/Button";
+import { Card } from "../components/Card";
 import { EmptyState } from "../components/EmptyState";
 import { useMe } from "../useMe";
 
@@ -33,7 +34,7 @@ export function SlaPoliciesPage() {
 
   if (me && me.user.role !== "admin") {
     return (
-      <div style={{ maxWidth: 1280, margin: "0 auto", padding: 24 }}>
+      <div style={{ maxWidth: 1120, margin: "0 auto", padding: "var(--space-6)" }}>
         <EmptyState headline="Admins only" />
       </div>
     );
@@ -54,72 +55,78 @@ export function SlaPoliciesPage() {
   const stageName = (id: string | null) => stages.find((s) => s.id === id)?.name ?? "—";
 
   return (
-    <div style={{ maxWidth: 1280, margin: "0 auto", padding: 24 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
-        <h1>SLA policies</h1>
-        <Button variant="primary" onClick={() => setShowCreate((v) => !v)}>
-          {showCreate ? "Cancel" : "+ New policy"}
-        </Button>
+    <div style={{ maxWidth: 1120, margin: "0 auto", padding: "var(--space-6)" }}>
+      <h1 style={{ marginBottom: "var(--space-5)" }}>SLA policies</h1>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)" }}>
+        {showCreate && (
+          <CreatePolicyForm
+            stages={stages}
+            onCreated={() => {
+              setShowCreate(false);
+              load();
+            }}
+          />
+        )}
+
+        <Card
+          title="Configured policies"
+          action={
+            <Button variant="primary" onClick={() => setShowCreate((v) => !v)}>
+              {showCreate ? "Cancel" : "+ New policy"}
+            </Button>
+          }
+        >
+          {policies.length === 0 && <EmptyState headline="No SLA policies yet" />}
+
+          {policies.length > 0 && (
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr style={{ textAlign: "left", borderBottom: "1px solid var(--border)" }}>
+                  <th style={{ padding: "var(--space-2)" }}>Name</th>
+                  <th style={{ padding: "var(--space-2)" }}>Applies to</th>
+                  <th style={{ padding: "var(--space-2)" }}>Target</th>
+                  <th style={{ padding: "var(--space-2)" }}>Status</th>
+                  <th style={{ padding: "var(--space-2)" }}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {policies.map((policy) => (
+                  <tr key={policy.id} style={{ borderBottom: "1px solid var(--border)" }}>
+                    <td style={{ padding: "var(--space-2)" }}>{policy.name}</td>
+                    <td style={{ padding: "var(--space-2)" }}>
+                      {policy.applies_to === "stage_entry"
+                        ? `Stage: ${stageName(policy.stage_id)}`
+                        : "Any task due date"}
+                    </td>
+                    <td style={{ padding: "var(--space-2)" }}>{policy.target_minutes} min</td>
+                    <td style={{ padding: "var(--space-2)" }}>
+                      <Badge
+                        variant="chip"
+                        label={policy.status}
+                        tone={
+                          policy.status === "active"
+                            ? { bg: "var(--success-bg)", fg: "var(--success)", border: "transparent" }
+                            : { bg: "var(--surface)", fg: "var(--text-muted)", border: "var(--border)" }
+                        }
+                      />
+                    </td>
+                    <td style={{ padding: "var(--space-2)", textAlign: "right" }}>
+                      <Button
+                        variant="text"
+                        disabled={busyId === policy.id}
+                        onClick={() => void toggleStatus(policy)}
+                      >
+                        {policy.status === "active" ? "Disable" : "Enable"}
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </Card>
       </div>
-
-      {showCreate && (
-        <CreatePolicyForm
-          stages={stages}
-          onCreated={() => {
-            setShowCreate(false);
-            load();
-          }}
-        />
-      )}
-
-      {policies.length === 0 && !showCreate && <EmptyState headline="No SLA policies yet" />}
-
-      {policies.length > 0 && (
-        <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 16 }}>
-          <thead>
-            <tr style={{ textAlign: "left", borderBottom: "1px solid var(--border)" }}>
-              <th style={{ padding: 8 }}>Name</th>
-              <th style={{ padding: 8 }}>Applies to</th>
-              <th style={{ padding: 8 }}>Target</th>
-              <th style={{ padding: 8 }}>Status</th>
-              <th style={{ padding: 8 }}></th>
-            </tr>
-          </thead>
-          <tbody>
-            {policies.map((policy) => (
-              <tr key={policy.id} style={{ borderBottom: "1px solid var(--border)" }}>
-                <td style={{ padding: 8 }}>{policy.name}</td>
-                <td style={{ padding: 8 }}>
-                  {policy.applies_to === "stage_entry"
-                    ? `Stage: ${stageName(policy.stage_id)}`
-                    : "Any task due date"}
-                </td>
-                <td style={{ padding: 8 }}>{policy.target_minutes} min</td>
-                <td style={{ padding: 8 }}>
-                  <Badge
-                    variant="chip"
-                    label={policy.status}
-                    tone={
-                      policy.status === "active"
-                        ? { bg: "var(--success-bg)", fg: "var(--success)", border: "transparent" }
-                        : { bg: "var(--surface)", fg: "var(--text-muted)", border: "var(--border)" }
-                    }
-                  />
-                </td>
-                <td style={{ padding: 8, textAlign: "right" }}>
-                  <Button
-                    variant="text"
-                    disabled={busyId === policy.id}
-                    onClick={() => void toggleStatus(policy)}
-                  >
-                    {policy.status === "active" ? "Disable" : "Enable"}
-                  </Button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
     </div>
   );
 }
@@ -167,10 +174,11 @@ function CreatePolicyForm({
       style={{
         display: "flex",
         flexDirection: "column",
-        gap: 12,
-        padding: 16,
+        gap: "var(--space-3)",
+        padding: "var(--space-5)",
         border: "1px solid var(--border)",
         borderRadius: "var(--radius-lg)",
+        boxShadow: "var(--shadow-sm)",
         background: "var(--elevation-2)",
         maxWidth: 480,
       }}

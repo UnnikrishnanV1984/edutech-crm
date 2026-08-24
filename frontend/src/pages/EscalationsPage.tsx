@@ -4,6 +4,7 @@ import { listEscalations, updateEscalation, type Escalation } from "../api/escal
 import { useAuth } from "../auth/context";
 import { Badge } from "../components/Badge";
 import { Button } from "../components/Button";
+import { Card } from "../components/Card";
 import { EmptyState } from "../components/EmptyState";
 import { useMe } from "../useMe";
 
@@ -37,7 +38,7 @@ export function EscalationsPage() {
 
   if (me && me.user.role === "counselor") {
     return (
-      <div style={{ maxWidth: 1280, margin: "0 auto", padding: 24 }}>
+      <div style={{ maxWidth: 1120, margin: "0 auto", padding: "var(--space-6)" }}>
         <EmptyState
           headline="Managers and admins only"
           subtext="You can raise an escalation from a deal, but the queue itself is a manager view."
@@ -60,58 +61,60 @@ export function EscalationsPage() {
   }
 
   return (
-    <div style={{ maxWidth: 1280, margin: "0 auto", padding: 24 }}>
-      <h1 style={{ marginBottom: 16 }}>Escalations</h1>
+    <div style={{ maxWidth: 1120, margin: "0 auto", padding: "var(--space-6)" }}>
+      <h1 style={{ marginBottom: "var(--space-5)" }}>Escalations</h1>
 
-      {escalations.length === 0 && (
-        <EmptyState headline="Nothing escalated" subtext="Open escalations assigned to you will show up here." />
-      )}
+      <Card>
+        {escalations.length === 0 && (
+          <EmptyState headline="Nothing escalated" subtext="Open escalations assigned to you will show up here." />
+        )}
 
-      {escalations.length > 0 && (
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead>
-            <tr style={{ textAlign: "left", borderBottom: "1px solid var(--border)" }}>
-              <th style={{ padding: 8 }}>Source</th>
-              <th style={{ padding: 8 }}>Status</th>
-              <th style={{ padding: 8 }}>Opened</th>
-              <th style={{ padding: 8 }}></th>
-            </tr>
-          </thead>
-          <tbody>
-            {escalations.map((escalation) => (
-              <tr key={escalation.id} style={{ borderBottom: "1px solid var(--border)" }}>
-                <td style={{ padding: 8 }}>{SOURCE_LABELS[escalation.source]}</td>
-                <td style={{ padding: 8 }}>
-                  <Badge variant="chip" label={escalation.status} tone={STATUS_TONE[escalation.status]} />
-                </td>
-                <td style={{ padding: 8, color: "var(--text-muted)", fontSize: 13 }}>
-                  {new Date(escalation.opened_at).toLocaleString()}
-                </td>
-                <td style={{ padding: 8, display: "flex", gap: 8, justifyContent: "flex-end" }}>
-                  {escalation.status === "open" && (
-                    <Button
-                      variant="text"
-                      disabled={busyId === escalation.id}
-                      onClick={() => void act(escalation, "acknowledged")}
-                    >
-                      Acknowledge
-                    </Button>
-                  )}
-                  {escalation.status === "acknowledged" && (
-                    <Button
-                      variant="text"
-                      disabled={busyId === escalation.id}
-                      onClick={() => void act(escalation, "resolved")}
-                    >
-                      Resolve
-                    </Button>
-                  )}
-                </td>
+        {escalations.length > 0 && (
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr style={{ textAlign: "left", borderBottom: "1px solid var(--border)" }}>
+                <th style={{ padding: "var(--space-2)" }}>Source</th>
+                <th style={{ padding: "var(--space-2)" }}>Status</th>
+                <th style={{ padding: "var(--space-2)" }}>Opened</th>
+                <th style={{ padding: "var(--space-2)" }}></th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+            </thead>
+            <tbody>
+              {escalations.map((escalation) => (
+                <tr key={escalation.id} style={{ borderBottom: "1px solid var(--border)" }}>
+                  <td style={{ padding: "var(--space-2)" }}>{SOURCE_LABELS[escalation.source]}</td>
+                  <td style={{ padding: "var(--space-2)" }}>
+                    <Badge variant="chip" label={escalation.status} tone={STATUS_TONE[escalation.status]} />
+                  </td>
+                  <td style={{ padding: "var(--space-2)", color: "var(--text-muted)", fontSize: 13 }}>
+                    {new Date(escalation.opened_at).toLocaleString()}
+                  </td>
+                  <td style={{ padding: "var(--space-2)", display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                    {escalation.status === "open" && (
+                      <Button
+                        variant="text"
+                        disabled={busyId === escalation.id}
+                        onClick={() => void act(escalation, "acknowledged")}
+                      >
+                        Acknowledge
+                      </Button>
+                    )}
+                    {escalation.status === "acknowledged" && (
+                      <Button
+                        variant="text"
+                        disabled={busyId === escalation.id}
+                        onClick={() => void act(escalation, "resolved")}
+                      >
+                        Resolve
+                      </Button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </Card>
     </div>
   );
 }

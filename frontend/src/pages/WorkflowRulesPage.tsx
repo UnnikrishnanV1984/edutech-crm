@@ -8,6 +8,7 @@ import {
 import { useAuth } from "../auth/context";
 import { Badge } from "../components/Badge";
 import { Button } from "../components/Button";
+import { Card } from "../components/Card";
 import { EmptyState } from "../components/EmptyState";
 import { useMe } from "../useMe";
 import { CreateWorkflowRulePanel } from "./CreateWorkflowRulePanel";
@@ -36,7 +37,7 @@ export function WorkflowRulesPage() {
 
   if (me && me.user.role === "counselor") {
     return (
-      <div style={{ maxWidth: 1280, margin: "0 auto", padding: 24 }}>
+      <div style={{ maxWidth: 1120, margin: "0 auto", padding: "var(--space-6)" }}>
         <EmptyState headline="Managers and admins only" />
       </div>
     );
@@ -56,81 +57,85 @@ export function WorkflowRulesPage() {
   }
 
   return (
-    <div style={{ maxWidth: 1280, margin: "0 auto", padding: 24 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
-        <h1>Workflow rules</h1>
-        <Button variant="primary" onClick={() => setShowCreate(true)}>
-          + New rule
-        </Button>
-      </div>
+    <div style={{ maxWidth: 1120, margin: "0 auto", padding: "var(--space-6)" }}>
+      <h1 style={{ marginBottom: "var(--space-5)" }}>Workflow rules</h1>
 
-      {rules.length === 0 && <EmptyState headline="No workflow rules yet" />}
+      <Card
+        title="Configured rules"
+        action={
+          <Button variant="primary" onClick={() => setShowCreate(true)}>
+            + New rule
+          </Button>
+        }
+      >
+        {rules.length === 0 && <EmptyState headline="No workflow rules yet" />}
 
-      {rules.length > 0 && (
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead>
-            <tr style={{ textAlign: "left", borderBottom: "1px solid var(--border)" }}>
-              <th style={{ padding: 8 }}>Name</th>
-              <th style={{ padding: 8 }}>Trigger</th>
-              <th style={{ padding: 8 }}>Status</th>
-              <th style={{ padding: 8 }}></th>
-            </tr>
-          </thead>
-          <tbody>
-            {rules.map((rule) => (
-              <tr key={rule.id} style={{ borderBottom: "1px solid var(--border)" }}>
-                <td style={{ padding: 8 }}>{rule.name}</td>
-                <td style={{ padding: 8 }}>{rule.trigger_type.replace("_", " ")}</td>
-                <td style={{ padding: 8 }}>
-                  <Badge
-                    variant="chip"
-                    label={rule.status.replace("_", " ")}
-                    tone={STATUS_TONE[rule.status]}
-                  />
-                </td>
-                <td style={{ padding: 8, display: "flex", gap: 8, justifyContent: "flex-end" }}>
-                  {isAdmin && rule.status === "pending_approval" && (
-                    <>
-                      <Button
-                        variant="text"
-                        disabled={busyId === rule.id}
-                        onClick={() => void decide(rule, "active")}
-                      >
-                        Approve
-                      </Button>
+        {rules.length > 0 && (
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr style={{ textAlign: "left", borderBottom: "1px solid var(--border)" }}>
+                <th style={{ padding: "var(--space-2)" }}>Name</th>
+                <th style={{ padding: "var(--space-2)" }}>Trigger</th>
+                <th style={{ padding: "var(--space-2)" }}>Status</th>
+                <th style={{ padding: "var(--space-2)" }}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {rules.map((rule) => (
+                <tr key={rule.id} style={{ borderBottom: "1px solid var(--border)" }}>
+                  <td style={{ padding: "var(--space-2)" }}>{rule.name}</td>
+                  <td style={{ padding: "var(--space-2)" }}>{rule.trigger_type.replace("_", " ")}</td>
+                  <td style={{ padding: "var(--space-2)" }}>
+                    <Badge
+                      variant="chip"
+                      label={rule.status.replace("_", " ")}
+                      tone={STATUS_TONE[rule.status]}
+                    />
+                  </td>
+                  <td style={{ padding: "var(--space-2)", display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                    {isAdmin && rule.status === "pending_approval" && (
+                      <>
+                        <Button
+                          variant="text"
+                          disabled={busyId === rule.id}
+                          onClick={() => void decide(rule, "active")}
+                        >
+                          Approve
+                        </Button>
+                        <Button
+                          variant="text"
+                          disabled={busyId === rule.id}
+                          onClick={() => void decide(rule, "disabled")}
+                        >
+                          Reject
+                        </Button>
+                      </>
+                    )}
+                    {isAdmin && rule.status === "active" && (
                       <Button
                         variant="text"
                         disabled={busyId === rule.id}
                         onClick={() => void decide(rule, "disabled")}
                       >
-                        Reject
+                        Disable
                       </Button>
-                    </>
-                  )}
-                  {isAdmin && rule.status === "active" && (
-                    <Button
-                      variant="text"
-                      disabled={busyId === rule.id}
-                      onClick={() => void decide(rule, "disabled")}
-                    >
-                      Disable
-                    </Button>
-                  )}
-                  {isAdmin && rule.status === "disabled" && (
-                    <Button
-                      variant="text"
-                      disabled={busyId === rule.id}
-                      onClick={() => void decide(rule, "active")}
-                    >
-                      Enable
-                    </Button>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+                    )}
+                    {isAdmin && rule.status === "disabled" && (
+                      <Button
+                        variant="text"
+                        disabled={busyId === rule.id}
+                        onClick={() => void decide(rule, "active")}
+                      >
+                        Enable
+                      </Button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </Card>
 
       {showCreate && (
         <CreateWorkflowRulePanel

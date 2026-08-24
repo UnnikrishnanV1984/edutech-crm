@@ -12,13 +12,13 @@ import { PipelinePage } from "./pages/PipelinePage";
 import { SlaPoliciesPage } from "./pages/SlaPoliciesPage";
 import { TasksPage } from "./pages/TasksPage";
 import { WorkflowRulesPage } from "./pages/WorkflowRulesPage";
-import { Nav } from "./Nav";
+import { Sidebar } from "./Sidebar";
 
 function AppRoutes() {
   return (
-    <>
-      <Nav />
-      <main style={{ flex: 1, minHeight: 0 }}>
+    <div style={{ display: "flex", height: "100svh" }}>
+      <Sidebar />
+      <main style={{ flex: 1, minWidth: 0, overflowY: "auto" }}>
         <Routes>
           <Route path="/" element={<Navigate to="/contacts" replace />} />
           <Route path="/dashboard" element={<DashboardPage />} />
@@ -33,7 +33,7 @@ function AppRoutes() {
           <Route path="/workflow-rules" element={<WorkflowRulesPage />} />
         </Routes>
       </main>
-    </>
+    </div>
   );
 }
 

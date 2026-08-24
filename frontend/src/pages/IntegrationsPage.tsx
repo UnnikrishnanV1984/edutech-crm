@@ -9,6 +9,7 @@ import {
 import { useAuth } from "../auth/context";
 import { Badge } from "../components/Badge";
 import { Button } from "../components/Button";
+import { Card } from "../components/Card";
 import { EmptyState } from "../components/EmptyState";
 import { useMe } from "../useMe";
 import { ConnectSourcePanel } from "./ConnectSourcePanel";
@@ -37,7 +38,7 @@ export function IntegrationsPage() {
 
   if (me && me.user.role !== "admin") {
     return (
-      <div style={{ maxWidth: 1280, margin: "0 auto", padding: 24 }}>
+      <div style={{ maxWidth: 1120, margin: "0 auto", padding: "var(--space-6)" }}>
         <EmptyState headline="Admins only" subtext="Ask a tenant admin to manage integrations." />
       </div>
     );
@@ -69,83 +70,87 @@ export function IntegrationsPage() {
   }
 
   return (
-    <div style={{ maxWidth: 1280, margin: "0 auto", padding: 24 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
-        <h1>Integrations</h1>
-        <Button variant="primary" onClick={() => setShowConnect(true)}>
-          + Connect
-        </Button>
-      </div>
+    <div style={{ maxWidth: 1120, margin: "0 auto", padding: "var(--space-6)" }}>
+      <h1 style={{ marginBottom: "var(--space-5)" }}>Integrations</h1>
 
-      {connections.length === 0 && (
-        <EmptyState
-          headline="No lead sources connected"
-          subtext="Connect Meta, Google, WhatsApp, or a web form to start capturing leads automatically."
-          action={
-            <Button variant="primary" onClick={() => setShowConnect(true)}>
-              + Connect a source
-            </Button>
-          }
-        />
-      )}
+      <Card
+        title="Connected sources"
+        action={
+          <Button variant="primary" onClick={() => setShowConnect(true)}>
+            + Connect
+          </Button>
+        }
+      >
+        {connections.length === 0 && (
+          <EmptyState
+            headline="No lead sources connected"
+            subtext="Connect Meta, Google, WhatsApp, or a web form to start capturing leads automatically."
+            action={
+              <Button variant="primary" onClick={() => setShowConnect(true)}>
+                + Connect a source
+              </Button>
+            }
+          />
+        )}
 
-      {connections.length > 0 && (
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead>
-            <tr style={{ textAlign: "left", borderBottom: "1px solid var(--border)" }}>
-              <th style={{ padding: 8 }}>Source</th>
-              <th style={{ padding: 8 }}>Account</th>
-              <th style={{ padding: 8 }}>Status</th>
-              <th style={{ padding: 8 }}>Last synced</th>
-              <th style={{ padding: 8 }}></th>
-            </tr>
-          </thead>
-          <tbody>
-            {connections.map((connection) => (
-              <tr key={connection.id} style={{ borderBottom: "1px solid var(--border)" }}>
-                <td style={{ padding: 8 }}>{SOURCE_LABELS[connection.source]}</td>
-                <td style={{ padding: 8, fontFamily: "monospace", fontSize: 12 }}>
-                  {connection.external_account_id}
-                </td>
-                <td style={{ padding: 8 }}>
-                  <Badge
-                    variant="chip"
-                    label={connection.status}
-                    tone={
-                      connection.status === "active"
-                        ? { bg: "var(--success-bg)", fg: "var(--success)", border: "transparent" }
-                        : { bg: "var(--surface)", fg: "var(--text-muted)", border: "var(--border)" }
-                    }
-                  />
-                </td>
-                <td style={{ padding: 8, color: "var(--text-muted)", fontSize: 13 }}>
-                  {connection.last_synced_at
-                    ? new Date(connection.last_synced_at).toLocaleString()
-                    : "Never"}
-                </td>
-                <td style={{ padding: 8, display: "flex", gap: 8, justifyContent: "flex-end" }}>
-                  {connection.source === "google" && connection.status === "active" && (
+        {connections.length > 0 && (
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr style={{ textAlign: "left", borderBottom: "1px solid var(--border)" }}>
+                <th style={{ padding: "var(--space-2)" }}>Source</th>
+                <th style={{ padding: "var(--space-2)" }}>Account</th>
+                <th style={{ padding: "var(--space-2)" }}>Status</th>
+                <th style={{ padding: "var(--space-2)" }}>Last synced</th>
+                <th style={{ padding: "var(--space-2)" }}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {connections.map((connection) => (
+                <tr key={connection.id} style={{ borderBottom: "1px solid var(--border)" }}>
+                  <td style={{ padding: "var(--space-2)" }}>{SOURCE_LABELS[connection.source]}</td>
+                  <td style={{ padding: "var(--space-2)", fontFamily: "monospace", fontSize: 12 }}>
+                    {connection.external_account_id}
+                  </td>
+                  <td style={{ padding: "var(--space-2)" }}>
+                    <Badge
+                      variant="chip"
+                      label={connection.status}
+                      tone={
+                        connection.status === "active"
+                          ? { bg: "var(--success-bg)", fg: "var(--success)", border: "transparent" }
+                          : { bg: "var(--surface)", fg: "var(--text-muted)", border: "var(--border)" }
+                      }
+                    />
+                  </td>
+                  <td style={{ padding: "var(--space-2)", color: "var(--text-muted)", fontSize: 13 }}>
+                    {connection.last_synced_at
+                      ? new Date(connection.last_synced_at).toLocaleString()
+                      : "Never"}
+                  </td>
+                  <td style={{ padding: "var(--space-2)", display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                    {connection.source === "google" && connection.status === "active" && (
+                      <Button
+                        variant="text"
+                        disabled={busyId === connection.id}
+                        onClick={() => void sync(connection)}
+                      >
+                        Sync now
+                      </Button>
+                    )}
                     <Button
                       variant="text"
                       disabled={busyId === connection.id}
-                      onClick={() => void sync(connection)}
+                      onClick={() => void toggleStatus(connection)}
                     >
-                      Sync now
+                      {connection.status === "active" ? "Disconnect" : "Reconnect"}
                     </Button>
-                  )}
-                  <Button
-                    variant="text"
-                    disabled={busyId === connection.id}
-                    onClick={() => void toggleStatus(connection)}
-                  >
-                    {connection.status === "active" ? "Disconnect" : "Reconnect"}
-                  </Button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </Card>
 
       {showConnect && (
         <ConnectSourcePanel

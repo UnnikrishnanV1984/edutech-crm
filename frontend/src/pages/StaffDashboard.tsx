@@ -5,6 +5,7 @@ import { getMyQueue, getMyStats, type MyQueueItem, type MyStats, type SlaUrgency
 import { listTasks, type Task } from "../api/tasks";
 import { useAuth } from "../auth/context";
 import { Badge } from "../components/Badge";
+import { Card } from "../components/Card";
 import { EmptyState } from "../components/EmptyState";
 import { useMe } from "../useMe";
 
@@ -17,6 +18,24 @@ const URGENCY_TONE: Record<string, { bg: string; fg: string; border: string }> =
 function urgencyLabel(state: SlaUrgency): string {
   if (state === null) return "no SLA yet";
   return state.replace("_", " ");
+}
+
+function Stat({ value, label }: { value: string | number; label: string }) {
+  return (
+    <div style={{ flex: 1 }}>
+      <div
+        style={{
+          fontSize: "var(--text-2xl)",
+          lineHeight: "var(--line-2xl)",
+          fontWeight: "var(--weight-semibold)",
+          color: "var(--text-h)",
+        }}
+      >
+        {value}
+      </div>
+      <div style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{label}</div>
+    </div>
+  );
 }
 
 export function StaffDashboard() {
@@ -43,59 +62,49 @@ export function StaffDashboard() {
   }, [token, me]);
 
   return (
-    <div style={{ maxWidth: 1280, margin: "0 auto", padding: 24 }}>
-      <h1 style={{ marginBottom: 16 }}>My dashboard</h1>
+    <div style={{ maxWidth: 1120, margin: "0 auto", padding: "var(--space-6)" }}>
+      <h1 style={{ marginBottom: "var(--space-5)" }}>My dashboard</h1>
 
-      {stats && (
-        <div style={{ display: "flex", gap: 24, marginBottom: 24 }}>
-          <div>
-            <div style={{ fontSize: 24, fontWeight: "var(--weight-semibold)" }}>
-              {stats.leads_worked}
+      <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)" }}>
+        {stats && (
+          <Card>
+            <div style={{ display: "flex", gap: "var(--space-6)" }}>
+              <Stat value={stats.leads_worked} label="Leads worked" />
+              <Stat value={`${Math.round(stats.conversion_rate * 100)}%`} label="Conversion rate" />
+              <Stat value={tasksToday.length} label="Tasks due today" />
             </div>
-            <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Leads worked</div>
-          </div>
-          <div>
-            <div style={{ fontSize: 24, fontWeight: "var(--weight-semibold)" }}>
-              {Math.round(stats.conversion_rate * 100)}%
-            </div>
-            <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Conversion rate</div>
-          </div>
-          <div>
-            <div style={{ fontSize: 24, fontWeight: "var(--weight-semibold)" }}>
-              {tasksToday.length}
-            </div>
-            <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Tasks due today</div>
-          </div>
-        </div>
-      )}
+          </Card>
+        )}
 
-      <h2 style={{ fontSize: 16, marginBottom: 8 }}>My queue</h2>
-      {queue.length === 0 && <EmptyState headline="No assigned leads" />}
-      {queue.length > 0 && (
-        <ul style={{ listStyle: "none", padding: 0 }}>
-          {queue.map((item) => (
-            <li
-              key={item.deal_id}
-              onClick={() => navigate(`/contacts/${item.contact_id}`)}
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                padding: 8,
-                borderBottom: "1px solid var(--border)",
-                cursor: "pointer",
-              }}
-            >
-              <span>Deal {item.deal_id.slice(0, 8)}</span>
-              <Badge
-                variant="chip"
-                label={urgencyLabel(item.sla_state)}
-                tone={item.sla_state ? URGENCY_TONE[item.sla_state] : undefined}
-              />
-            </li>
-          ))}
-        </ul>
-      )}
+        <Card title="My queue">
+          {queue.length === 0 && <EmptyState headline="No assigned leads" />}
+          {queue.length > 0 && (
+            <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+              {queue.map((item, index) => (
+                <li
+                  key={item.deal_id}
+                  onClick={() => navigate(`/contacts/${item.contact_id}`)}
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    padding: "var(--space-3) var(--space-2)",
+                    borderTop: index === 0 ? "none" : "1px solid var(--border)",
+                    cursor: "pointer",
+                  }}
+                >
+                  <span>Deal {item.deal_id.slice(0, 8)}</span>
+                  <Badge
+                    variant="chip"
+                    label={urgencyLabel(item.sla_state)}
+                    tone={item.sla_state ? URGENCY_TONE[item.sla_state] : undefined}
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+      </div>
     </div>
   );
 }
