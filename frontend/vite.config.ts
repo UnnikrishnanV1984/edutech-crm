@@ -8,7 +8,7 @@ export default defineConfig({
     // Specify the exact hostnames allowed to access the dev server
     allowedHosts: [
       'localhost:5173',
-      'https://tableware-ceramics-crimp.ngrok-free.dev'
+      'tableware-ceramics-crimp.ngrok-free.dev'
     ]
   }
 })
