@@ -65,10 +65,28 @@ export function Nav() {
             </span>
           )}
         </NavLink>
+        {me && me.user.role !== "counselor" && (
+          <>
+            <NavLink to="/escalations" style={linkStyle}>
+              Escalations
+            </NavLink>
+            <NavLink to="/follow-ups" style={linkStyle}>
+              Follow-ups
+            </NavLink>
+            <NavLink to="/workflow-rules" style={linkStyle}>
+              Workflow rules
+            </NavLink>
+          </>
+        )}
         {me?.user.role === "admin" && (
-          <NavLink to="/integrations" style={linkStyle}>
-            Integrations
-          </NavLink>
+          <>
+            <NavLink to="/sla-policies" style={linkStyle}>
+              SLA policies
+            </NavLink>
+            <NavLink to="/integrations" style={linkStyle}>
+              Integrations
+            </NavLink>
+          </>
         )}
       </div>
       {me && (
