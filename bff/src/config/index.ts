@@ -30,10 +30,15 @@ export const config = {
   get keycloakClientId(): string {
     return required("KEYCLOAK_CLIENT_ID");
   },
-  // Browser origin the SPA is served from — the BFF talks to the browser's
-  // auth session (CLAUDE.md rule 4), so it's the one service that needs to
-  // answer CORS preflights for it. Defaults to the local Vite dev origin.
-  get corsOrigin(): string {
-    return optional("CORS_ORIGIN", "http://localhost:5173");
+  // Browser origin(s) the SPA is served from — the BFF talks to the
+  // browser's auth session (CLAUDE.md rule 4), so it's the one service
+  // that needs to answer CORS preflights for it. Comma-separated so a
+  // tunnel (ngrok, etc.) can be allowed alongside the local Vite origin
+  // without dropping local dev — defaults to just the local origin.
+  get corsOrigins(): string[] {
+    return optional("CORS_ORIGIN", "http://localhost:5173")
+      .split(",")
+      .map((origin) => origin.trim())
+      .filter(Boolean);
   },
 };

@@ -17,7 +17,7 @@ export function createApp(): Express {
   app.use(stripForwardedHeaders);
   // The SPA sends `Authorization: Bearer <token>` (no cookies — CLAUDE.md
   // rule 4), so this only needs to allow that header, not credentials.
-  app.use(cors({ origin: config.corsOrigin, allowedHeaders: ["Authorization", "Content-Type"] }));
+  app.use(cors({ origin: config.corsOrigins, allowedHeaders: ["Authorization", "Content-Type"] }));
   app.use(requestContext);
 
   app.use(healthRouter);
