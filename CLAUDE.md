@@ -2,8 +2,8 @@
 
 Instructions for Claude Code working in this repository. Read
 `ARCHITECTURE.md`, `FEATURES_AND_PLAN.md`, `DATABASE_SCHEMA.md`,
-`API_CONVENTIONS.md`, and `REQUIREMENTS.md` before making structural
-changes.
+`API_CONVENTIONS.md`, `REQUIREMENTS.md`, and `PIPELINE_AND_REVENUE.md`
+before making structural changes.
 
 ## Project
 
