@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import {
   listConnections,
   setConnectionStatus,
+  setConversionTargetId,
   syncConnection,
   type LeadSourceConnection,
 } from "../api/leadSourceConnections";
@@ -69,6 +70,19 @@ export function IntegrationsPage() {
     }
   }
 
+  async function saveConversionTarget(connection: LeadSourceConnection, value: string) {
+    if (!token) return;
+    setBusyId(connection.id);
+    try {
+      const response = await setConversionTargetId(token, connection.id, value);
+      setConnections((current) =>
+        current.map((c) => (c.id === connection.id ? response.data : c)),
+      );
+    } finally {
+      setBusyId(undefined);
+    }
+  }
+
   return (
     <div style={{ maxWidth: 1120, margin: "0 auto", padding: "var(--space-6)" }}>
       <h1 style={{ marginBottom: "var(--space-5)" }}>Integrations</h1>
@@ -100,6 +114,7 @@ export function IntegrationsPage() {
                 <th style={{ padding: "var(--space-2)" }}>Source</th>
                 <th style={{ padding: "var(--space-2)" }}>Account</th>
                 <th style={{ padding: "var(--space-2)" }}>Status</th>
+                <th style={{ padding: "var(--space-2)" }}>Conversion target</th>
                 <th style={{ padding: "var(--space-2)" }}>Last synced</th>
                 <th style={{ padding: "var(--space-2)" }}></th>
               </tr>
@@ -121,6 +136,17 @@ export function IntegrationsPage() {
                           : { bg: "var(--surface)", fg: "var(--text-muted)", border: "var(--border)" }
                       }
                     />
+                  </td>
+                  <td style={{ padding: "var(--space-2)" }}>
+                    {connection.source === "meta" || connection.source === "google" ? (
+                      <ConversionTargetCell
+                        connection={connection}
+                        busy={busyId === connection.id}
+                        onSave={(value) => void saveConversionTarget(connection, value)}
+                      />
+                    ) : (
+                      <span style={{ color: "var(--text-muted)" }}>—</span>
+                    )}
                   </td>
                   <td style={{ padding: "var(--space-2)", color: "var(--text-muted)", fontSize: 13 }}>
                     {connection.last_synced_at
@@ -161,6 +187,69 @@ export function IntegrationsPage() {
           }}
         />
       )}
+    </div>
+  );
+}
+
+// Inline click-to-edit rather than a separate panel — a single optional
+// identifier per connection (the Meta Pixel/Dataset ID or Google
+// conversion action resource name, ARCHITECTURE.md §7d) doesn't warrant
+// its own form/panel the way connecting a whole new source does.
+function ConversionTargetCell({
+  connection,
+  busy,
+  onSave,
+}: {
+  connection: LeadSourceConnection;
+  busy: boolean;
+  onSave: (value: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(connection.conversion_target_id ?? "");
+
+  if (!editing) {
+    return (
+      <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+        <span style={{ fontFamily: "monospace", fontSize: 12 }}>
+          {connection.conversion_target_id ?? (
+            <span style={{ color: "var(--text-muted)", fontFamily: "inherit" }}>Not set</span>
+          )}
+        </span>
+        <Button
+          variant="text"
+          disabled={busy}
+          onClick={() => {
+            setValue(connection.conversion_target_id ?? "");
+            setEditing(true);
+          }}
+        >
+          Edit
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+      <input
+        value={value}
+        onChange={(event) => setValue(event.target.value)}
+        placeholder="Pixel/Dataset ID or conversion action"
+        style={{ fontSize: 12, width: 200 }}
+      />
+      <Button
+        variant="primary"
+        disabled={busy || !value.trim()}
+        onClick={() => {
+          onSave(value.trim());
+          setEditing(false);
+        }}
+      >
+        Save
+      </Button>
+      <Button variant="text" disabled={busy} onClick={() => setEditing(false)}>
+        Cancel
+      </Button>
     </div>
   );
 }

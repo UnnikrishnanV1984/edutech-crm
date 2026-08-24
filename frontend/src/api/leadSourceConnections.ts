@@ -11,6 +11,7 @@ export interface LeadSourceConnection {
   status: ConnectionStatus;
   token_expires_at: string | null;
   last_synced_at: string | null;
+  conversion_target_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -48,6 +49,18 @@ export async function setConnectionStatus(
     token,
     `/api/v1/lead-source-connections/${connectionId}`,
     { status },
+  );
+}
+
+export async function setConversionTargetId(
+  token: string,
+  connectionId: string,
+  conversionTargetId: string,
+): Promise<DataEnvelope<LeadSourceConnection>> {
+  return apiPatch<DataEnvelope<LeadSourceConnection>>(
+    token,
+    `/api/v1/lead-source-connections/${connectionId}`,
+    { conversion_target_id: conversionTargetId },
   );
 }
 
