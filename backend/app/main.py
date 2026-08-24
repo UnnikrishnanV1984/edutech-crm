@@ -19,6 +19,8 @@ from app.api import (
     invoices,
     lead_source_connections,
     me,
+    payments,
+    pipeline_stage_templates,
     pipeline_stages,
     reports,
     sla_policies,
@@ -80,8 +82,10 @@ def create_app() -> FastAPI:
     app.include_router(contacts.router)
     app.include_router(courses.router)
     app.include_router(pipeline_stages.router)
+    app.include_router(pipeline_stage_templates.router)
     app.include_router(deals.router)
     app.include_router(invoices.router)
+    app.include_router(payments.router)
     app.include_router(tasks.router)
     app.include_router(documents.router)
     app.include_router(users.router)

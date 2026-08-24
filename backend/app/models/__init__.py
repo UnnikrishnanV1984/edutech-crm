@@ -10,7 +10,9 @@ from app.models.escalation import Escalation
 from app.models.follow_up_flag import FollowUpFlag
 from app.models.invoice import Invoice
 from app.models.lead_source_connection import LeadSourceConnection
+from app.models.payment import Payment
 from app.models.pipeline_stage import PipelineStage
+from app.models.pipeline_stage_template import PipelineStageTemplate
 from app.models.sla_policy import SlaPolicy
 from app.models.sla_state import SlaState
 from app.models.task import Task
@@ -33,7 +35,9 @@ __all__ = [
     "FollowUpFlag",
     "Invoice",
     "LeadSourceConnection",
+    "Payment",
     "PipelineStage",
+    "PipelineStageTemplate",
     "SlaPolicy",
     "SlaState",
     "Task",
