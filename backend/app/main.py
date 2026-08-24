@@ -8,6 +8,7 @@ from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api import (
+    accounts,
     contacts,
     courses,
     deals,
@@ -74,6 +75,7 @@ def create_app() -> FastAPI:
 
     app.include_router(health.router)
     app.include_router(me.router)
+    app.include_router(accounts.router)
     app.include_router(contacts.router)
     app.include_router(courses.router)
     app.include_router(pipeline_stages.router)

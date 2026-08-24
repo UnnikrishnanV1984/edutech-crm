@@ -1,3 +1,4 @@
+from app.models.account import Account
 from app.models.activity import Activity
 from app.models.audit_log import AuditLog
 from app.models.contact import Contact
@@ -19,6 +20,7 @@ from app.models.workflow_rule import WorkflowRule
 from app.models.workflow_run import WorkflowRun
 
 __all__ = [
+    "Account",
     "Activity",
     "AuditLog",
     "Contact",
