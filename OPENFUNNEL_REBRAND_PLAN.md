@@ -399,11 +399,17 @@ Depends on 7a. Fully independent of every other phase.
   writes zero `workflow_runs` rows (regression-tested explicitly); the
   plain-English preview updates live with no save required.
 
-### Phase 7h — Branding / white-label — logo + header shipped, rest deferred (2026-08-25)
+### Phase 7h — Branding / white-label — logo + header shipped, rest planned (2026-08-26)
 Depends on 7a (the branding admin screen itself needs the restyled
-component set).
+component set). The remainder of this phase (draft/publish, versioning,
+palette/typeface, favicon, contrast check, live preview, custom domain,
+and honest preview-only handling of the Login/Email/PDF surfaces this app
+doesn't have yet) is planned in full in `BRANDING_FULL_SYSTEM_PLAN.md` —
+not built yet, and gated on an `architect` pass per that doc's own
+CLAUDE.md-required flag (schema change to a table already in production
+use, plus a new table).
 
-**Scope cut, confirmed with the user before starting**: this pass built
+**Scope cut, confirmed with the user before starting the first pass**: it built
 the part actually asked for — logo + header image upload, applied
 immediately — and explicitly skipped the wireframe's fuller system
 (color/typeface pickers, contrast check, custom domain, App/Login/Email
