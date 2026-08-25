@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 import { listConnections, type LeadSourceConnection } from "../api/leadSourceConnections";
 import { getForecast, getFunnel, getInvoiceSummary, getSourceAttribution } from "../api/reports";
@@ -11,11 +11,13 @@ import type {
 } from "../api/reports";
 import { useAuth } from "../auth/context";
 import { Badge } from "../components/Badge";
+import { Button } from "../components/Button";
 import { Card } from "../components/Card";
 import { EmptyState } from "../components/EmptyState";
 
 export function AdminDashboard() {
   const { token } = useAuth();
+  const navigate = useNavigate();
   const [funnel, setFunnel] = useState<FunnelRow[]>([]);
   const [sources, setSources] = useState<SourceAttributionRow[]>([]);
   const [forecast, setForecast] = useState<ForecastReport | undefined>(undefined);
@@ -35,10 +37,16 @@ export function AdminDashboard() {
   const pipelineValue = funnel.reduce((sum, row) => sum + Number(row.value), 0);
 
   const quickLinks = (
-    <div style={{ display: "flex", gap: "var(--space-4)", fontSize: "var(--text-sm)" }}>
-      <Link to="/sla-policies">SLA policies →</Link>
-      <Link to="/workflow-rules">Workflow rules →</Link>
-      <Link to="/integrations">Integrations →</Link>
+    <div style={{ display: "flex", gap: "var(--space-2)" }}>
+      <Button variant="secondary" onClick={() => navigate("/sla-policies")}>
+        SLA policies
+      </Button>
+      <Button variant="secondary" onClick={() => navigate("/workflow-rules")}>
+        Workflow rules
+      </Button>
+      <Button variant="secondary" onClick={() => navigate("/integrations")}>
+        Integrations
+      </Button>
     </div>
   );
 
@@ -57,6 +65,37 @@ export function AdminDashboard() {
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)" }}>
+        {invoiceSummary && (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "var(--space-5)" }}>
+            <Card title="Invoiced this month">
+              <p style={{ fontSize: "var(--text-xl)", margin: 0 }}>
+                {Number(invoiceSummary.invoiced_total).toLocaleString()}
+              </p>
+            </Card>
+            <Card title="Paid this month">
+              <p style={{ fontSize: "var(--text-xl)", margin: 0, color: "var(--success)" }}>
+                {Number(invoiceSummary.paid_total).toLocaleString()}
+              </p>
+            </Card>
+            <Card title="Outstanding">
+              <p style={{ fontSize: "var(--text-xl)", margin: 0, color: "var(--warning)" }}>
+                {Number(invoiceSummary.outstanding_total).toLocaleString()}
+              </p>
+            </Card>
+            <Card title="Invoice rework rate">
+              <p style={{ fontSize: "var(--text-xl)", margin: 0 }}>
+                {Math.round(invoiceSummary.invoice_rework_rate * 100)}%
+              </p>
+              {invoiceSummary.avg_minutes_in_invoice_stage !== null && (
+                <p style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", margin: 0 }}>
+                  Avg {Math.round(invoiceSummary.avg_minutes_in_invoice_stage)} min in an invoice
+                  stage right now
+                </p>
+              )}
+            </Card>
+          </div>
+        )}
+
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-5)" }}>
           <Card title={`Org funnel${pipelineValue > 0 ? ` — ${pipelineValue.toLocaleString()} pipeline value` : ""}`}>
             {funnel.length === 0 && <EmptyState headline="No deals yet" />}
@@ -124,37 +163,6 @@ export function AdminDashboard() {
               those per stage to refine this.
             </p>
           </Card>
-        )}
-
-        {invoiceSummary && (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "var(--space-5)" }}>
-            <Card title="Invoiced this month">
-              <p style={{ fontSize: "var(--text-xl)", margin: 0 }}>
-                {Number(invoiceSummary.invoiced_total).toLocaleString()}
-              </p>
-            </Card>
-            <Card title="Paid this month">
-              <p style={{ fontSize: "var(--text-xl)", margin: 0, color: "var(--success)" }}>
-                {Number(invoiceSummary.paid_total).toLocaleString()}
-              </p>
-            </Card>
-            <Card title="Outstanding">
-              <p style={{ fontSize: "var(--text-xl)", margin: 0, color: "var(--warning)" }}>
-                {Number(invoiceSummary.outstanding_total).toLocaleString()}
-              </p>
-            </Card>
-            <Card title="Invoice rework rate">
-              <p style={{ fontSize: "var(--text-xl)", margin: 0 }}>
-                {Math.round(invoiceSummary.invoice_rework_rate * 100)}%
-              </p>
-              {invoiceSummary.avg_minutes_in_invoice_stage !== null && (
-                <p style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", margin: 0 }}>
-                  Avg {Math.round(invoiceSummary.avg_minutes_in_invoice_stage)} min in an invoice
-                  stage right now
-                </p>
-              )}
-            </Card>
-          </div>
         )}
 
         <Card title="Integration health">
