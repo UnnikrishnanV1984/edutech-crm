@@ -37,7 +37,7 @@ if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 TENANTS = [
-    ("a1111111-1111-1111-1111-111111111111", "tenant-a", "Tenant A Academy"),
+    ("a1111111-1111-1111-1111-111111111111", "tenant-a", "Future Digital Inc"),
     ("b2222222-2222-2222-2222-222222222222", "tenant-b", "Tenant B Academy"),
 ]
 

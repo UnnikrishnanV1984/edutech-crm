@@ -31,7 +31,7 @@ Seed users (password `password` for both, see `keycloak/realm-export.json`):
 
 | Tenant | Username | Role |
 |---|---|---|
-| Tenant A Academy | `counselor.a` | counselor |
+| Future Digital Inc | `counselor.a` | counselor |
 | Tenant B Academy | `counselor.b` | counselor |
 
 Log in as `counselor.a`, then `counselor.b`, to see the tenant-isolation

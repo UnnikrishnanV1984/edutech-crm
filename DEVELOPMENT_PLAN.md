@@ -224,7 +224,7 @@ default and a future exemption is a visible diff.
     "tenant": {
       "id": "9f2e...",
       "slug": "tenant-a",
-      "name": "Tenant A Academy"
+      "name": "Future Digital Inc"
     }
   },
   "meta": { "request_id": "01J..." }
@@ -368,7 +368,7 @@ Phase 0 is done when all of these pass in CI on a clean checkout.
     reaches all-healthy with **zero** manual steps — no Keycloak console
     clicks, no manual migration command, no manually created realm or user.
 12. Browsing to the web app redirects to Keycloak, login as `counselor.a`
-    succeeds, and the shell renders "Asha Rao — Tenant A Academy" sourced from
+    succeeds, and the shell renders "Asha Rao — Future Digital Inc" sourced from
     `/api/v1/me`.
 13. `docker compose down -v && docker compose up` reproduces 11–12 identically
     from empty volumes.

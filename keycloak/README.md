@@ -28,9 +28,9 @@ the *same* row, not a duplicate.
 
 | Tenant | `tenants.id` / Keycloak `tenant_id` attribute | Username | Password | Role | Keycloak/user `id` (→ `sub`) |
 |---|---|---|---|---|---|
-| Tenant A Academy | `a1111111-1111-1111-1111-111111111111` | `counselor.a` | `password` | counselor | `ca111111-1111-1111-1111-111111111111` |
+| Future Digital Inc | `a1111111-1111-1111-1111-111111111111` | `counselor.a` | `password` | counselor | `ca111111-1111-1111-1111-111111111111` |
 | Tenant B Academy | `b2222222-2222-2222-2222-222222222222` | `counselor.b` | `password` | counselor | `cb222222-2222-2222-2222-222222222222` |
-| Tenant A Academy | `a1111111-1111-1111-1111-111111111111` | `admin.a` | `password` | admin | `da111111-1111-1111-1111-111111111111` |
+| Future Digital Inc | `a1111111-1111-1111-1111-111111111111` | `admin.a` | `password` | admin | `da111111-1111-1111-1111-111111111111` |
 | Tenant B Academy | `b2222222-2222-2222-2222-222222222222` | `admin.b` | `password` | admin | `db222222-2222-2222-2222-222222222222` |
 
 ## Token claims
