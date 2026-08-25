@@ -135,10 +135,38 @@ services:
       MINIO_ROOT_USER: ${S3_ACCESS_KEY}
       MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY}
     ports:
-      - "9000:9000"
-      - "9090:9090"
+      # Host-side ports moved to 9001/9091 — an unrelated local container
+      # on this dev machine already holds 9000/9090. The container's own
+      # internal ports stay MinIO's default (9000/9090); only the host
+      # mapping changed. S3_ENDPOINT in .env must be this host-mapped
+      # port (not the internal "minio:9000"), since presigned URLs are
+      # fetched directly by the browser, not proxied through the backend
+      # container.
+      - "9001:9000"
+      - "9091:9090"
     volumes:
       - minio-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # One-shot: creates the app's bucket if it doesn't exist yet, then
+  # exits. Talks to minio over the internal Docker network
+  # (unaffected by the host port remap above) — nothing else in this
+  # repo created the bucket automatically before this.
+  minio-init:
+    image: minio/mc
+    profiles: ["storage"]
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 ${S3_ACCESS_KEY} ${S3_SECRET_KEY} &&
+      mc mb --ignore-existing local/${S3_BUCKET}
+      "
 
 volumes:
   db-data:
