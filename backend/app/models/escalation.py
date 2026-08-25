@@ -1,7 +1,15 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, ForeignKeyConstraint, String, func
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    ForeignKeyConstraint,
+    String,
+    func,
+)
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -23,7 +31,7 @@ class Escalation(Base):
             name="ck_escalations_source",
         ),
         CheckConstraint(
-            "status IN ('open', 'acknowledged', 'resolved', 'reassigned')",
+            "status IN ('open', 'acknowledged', 'resolved', 'reassigned', 'snoozed')",
             name="ck_escalations_status",
         ),
     )
@@ -47,3 +55,5 @@ class Escalation(Base):
     )
     acknowledged_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    snoozed_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    was_reopened: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")

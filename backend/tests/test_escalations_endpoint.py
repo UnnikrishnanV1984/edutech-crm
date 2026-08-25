@@ -60,7 +60,9 @@ def scenario():
 
         manager_id = client.get("/api/v1/me", headers=manager_headers).json()["data"]["user"]["id"]
         staff_id = client.get("/api/v1/me", headers=staff_headers).json()["data"]["user"]["id"]
-        client.get("/api/v1/me", headers=other_manager_headers)
+        other_manager_id = client.get("/api/v1/me", headers=other_manager_headers).json()["data"][
+            "user"
+        ]["id"]
         client.get("/api/v1/me", headers=admin_headers)
 
         client.patch(
@@ -83,6 +85,7 @@ def scenario():
         "manager_headers": manager_headers,
         "staff_headers": staff_headers,
         "other_manager_headers": other_manager_headers,
+        "other_manager_id": other_manager_id,
         "admin_headers": admin_headers,
         "deal_id": deal_id,
     }
@@ -156,15 +159,123 @@ def test_unrelated_manager_does_not_see_it(scenario):
     assert response.json()["data"] == []
 
 
-def test_open_to_resolved_directly_is_rejected(scenario):
+def test_list_is_enriched_with_contact_name(scenario):
+    with TestClient(app) as client:
+        _raise(client, scenario["staff_headers"], scenario["deal_id"])
+        response = client.get("/api/v1/escalations", headers=scenario["manager_headers"])
+    row = response.json()["data"][0]
+    assert row["contact_name"] == "Escalation Contact"
+    assert row["assigned_to_name"] is not None
+
+
+def test_status_filter(scenario):
+    with TestClient(app) as client:
+        first = _raise(client, scenario["staff_headers"], scenario["deal_id"])
+        client.patch(
+            f"/api/v1/escalations/{first['id']}",
+            json={"status": "resolved"},
+            headers=scenario["manager_headers"],
+        )
+        _raise(client, scenario["staff_headers"], scenario["deal_id"], reason="stuck again")
+
+        open_response = client.get(
+            "/api/v1/escalations", params={"status": "open"}, headers=scenario["manager_headers"]
+        )
+        resolved_response = client.get(
+            "/api/v1/escalations",
+            params={"status": "resolved"},
+            headers=scenario["manager_headers"],
+        )
+    assert len(open_response.json()["data"]) == 1
+    assert len(resolved_response.json()["data"]) == 1
+    assert open_response.json()["data"][0]["status"] == "open"
+    assert resolved_response.json()["data"][0]["status"] == "resolved"
+
+
+def test_unknown_status_filter_is_rejected(scenario):
+    with TestClient(app) as client:
+        response = client.get(
+            "/api/v1/escalations", params={"status": "bogus"}, headers=scenario["manager_headers"]
+        )
+    assert response.status_code == 400
+
+
+def test_open_to_resolved_directly_succeeds_and_backfills_acknowledged_at(scenario):
+    # REQUIREMENTS.md §4.2: manager resolution should be a single action —
+    # OPENFUNNEL_REBRAND_PLAN.md Phase 7e's resolve drawer relies on this.
     with TestClient(app) as client:
         escalation = _raise(client, scenario["staff_headers"], scenario["deal_id"])
         response = client.patch(
             f"/api/v1/escalations/{escalation['id']}",
+            json={"status": "resolved", "resolution_note": "handled directly"},
+            headers=scenario["manager_headers"],
+        )
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["status"] == "resolved"
+    assert data["acknowledged_at"] is not None
+    assert data["resolved_at"] is not None
+
+
+def test_resolved_is_terminal(scenario):
+    with TestClient(app) as client:
+        escalation = _raise(client, scenario["staff_headers"], scenario["deal_id"])
+        client.patch(
+            f"/api/v1/escalations/{escalation['id']}",
             json={"status": "resolved"},
             headers=scenario["manager_headers"],
         )
+        response = client.patch(
+            f"/api/v1/escalations/{escalation['id']}",
+            json={"status": "acknowledged"},
+            headers=scenario["manager_headers"],
+        )
     assert response.status_code == 400
+
+
+def test_snooze_requires_snoozed_until(scenario):
+    with TestClient(app) as client:
+        escalation = _raise(client, scenario["staff_headers"], scenario["deal_id"])
+        response = client.patch(
+            f"/api/v1/escalations/{escalation['id']}",
+            json={"status": "snoozed"},
+            headers=scenario["manager_headers"],
+        )
+    assert response.status_code == 400
+
+
+def test_snooze_sets_status_and_snoozed_until(scenario):
+    with TestClient(app) as client:
+        escalation = _raise(client, scenario["staff_headers"], scenario["deal_id"])
+        response = client.patch(
+            f"/api/v1/escalations/{escalation['id']}",
+            json={"status": "snoozed", "snoozed_until": "2099-01-01T00:00:00Z"},
+            headers=scenario["manager_headers"],
+        )
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["status"] == "snoozed"
+    assert data["snoozed_until"] is not None
+
+
+def test_reassign_records_resolution_note(scenario):
+    """Regression test — resolution_note used to be silently dropped on a
+    reassign-only PATCH (it was nested under `if status is not None`)."""
+    with TestClient(app) as client:
+        escalation = _raise(client, scenario["staff_headers"], scenario["deal_id"])
+        response = client.patch(
+            f"/api/v1/escalations/{escalation['id']}",
+            json={
+                "reassign_to": scenario["other_manager_id"],
+                "resolution_note": "passing to someone else",
+            },
+            headers=scenario["manager_headers"],
+        )
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["resolution_note"] == "passing to someone else"
+    assert data["was_reopened"] is True
+    assert data["status"] == "open"
 
 
 def test_open_then_acknowledged_then_resolved_succeeds(scenario):
@@ -205,4 +316,47 @@ def test_unrelated_manager_cannot_act_on_it(scenario):
             json={"status": "acknowledged"},
             headers=scenario["other_manager_headers"],
         )
+    assert response.status_code == 403
+
+
+def test_summary_open_count(scenario):
+    with TestClient(app) as client:
+        _raise(client, scenario["staff_headers"], scenario["deal_id"])
+        response = client.get("/api/v1/reports/escalations", headers=scenario["manager_headers"])
+    assert response.status_code == 200
+    assert response.json()["data"]["open"] == 1
+
+
+def test_summary_scoped_to_assignee_not_visible_to_unrelated_manager(scenario):
+    with TestClient(app) as client:
+        _raise(client, scenario["staff_headers"], scenario["deal_id"])
+        response = client.get(
+            "/api/v1/reports/escalations", headers=scenario["other_manager_headers"]
+        )
+    assert response.json()["data"]["open"] == 0
+
+
+def test_summary_reopened_counts_a_reassigned_open_escalation(scenario):
+    with TestClient(app) as client:
+        escalation = _raise(client, scenario["staff_headers"], scenario["deal_id"])
+        client.patch(
+            f"/api/v1/escalations/{escalation['id']}",
+            json={"reassign_to": scenario["other_manager_id"]},
+            headers=scenario["manager_headers"],
+        )
+        response = client.get(
+            "/api/v1/reports/escalations", headers=scenario["other_manager_headers"]
+        )
+    assert response.json()["data"]["reopened"] == 1
+
+
+def test_summary_avg_resolve_minutes_is_zero_with_no_resolved_escalations(scenario):
+    with TestClient(app) as client:
+        response = client.get("/api/v1/reports/escalations", headers=scenario["manager_headers"])
+    assert response.json()["data"]["avg_resolve_minutes"] == 0.0
+
+
+def test_summary_is_403_for_staff(scenario):
+    with TestClient(app) as client:
+        response = client.get("/api/v1/reports/escalations", headers=scenario["staff_headers"])
     assert response.status_code == 403

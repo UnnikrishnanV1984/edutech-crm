@@ -3,10 +3,11 @@ import uuid
 from fastapi import APIRouter, Depends, Request
 
 from app.core.envelope import data_envelope
-from app.core.errors import FORBIDDEN, NOT_FOUND, ApiError
+from app.core.errors import FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, ApiError
 from app.deps.tenant import TenantContext, get_tenant_context
 from app.schemas.escalation import EscalationCreate, EscalationOut, EscalationUpdate
 from app.services.escalation_service import (
+    enrich_escalations,
     get_escalation,
     list_escalations,
     raise_manual_escalation,
@@ -15,18 +16,33 @@ from app.services.escalation_service import (
 
 router = APIRouter(prefix="/api/v1/escalations", tags=["escalations"])
 
+_VALID_STATUSES = {"open", "acknowledged", "resolved", "reassigned", "snoozed"}
 
-def _out(escalation) -> dict:
-    return EscalationOut.model_validate(escalation).model_dump(mode="json")
+
+def _out(escalation, enrichment: dict | None = None) -> dict:
+    data = {
+        column.name: getattr(escalation, column.name)
+        for column in escalation.__table__.columns
+    }
+    if enrichment:
+        data.update(enrichment)
+    return EscalationOut.model_validate(data).model_dump(mode="json")
 
 
 @router.get("")
 async def get_escalations(
-    request: Request, context: TenantContext = Depends(get_tenant_context)
+    request: Request,
+    status: str | None = None,
+    context: TenantContext = Depends(get_tenant_context),
 ) -> dict:
+    if status is not None and status not in _VALID_STATUSES:
+        raise ApiError(400, VALIDATION_ERROR, f"Unknown status: {status}")
     assigned_to = None if context.user_role == "admin" else context.user.id
-    escalations = await list_escalations(context.db, context.tenant.id, assigned_to)
-    return data_envelope([_out(e) for e in escalations], request.state.request_id)
+    escalations = await list_escalations(context.db, context.tenant.id, assigned_to, status)
+    enrichment = await enrich_escalations(context.db, context.tenant.id, escalations)
+    return data_envelope(
+        [_out(e, enrichment.get(e.id)) for e in escalations], request.state.request_id
+    )
 
 
 @router.post("")
@@ -56,6 +72,12 @@ async def patch_escalation(
     if context.user_role != "admin" and escalation.assigned_to != context.user.id:
         raise ApiError(403, FORBIDDEN, "Only the assigned manager or an admin can act on this")
     escalation = await update_escalation(
-        context.db, escalation, body.status, body.resolution_note, body.reassign_to, context.user.id
+        context.db,
+        escalation,
+        body.status,
+        body.resolution_note,
+        body.reassign_to,
+        context.user.id,
+        body.snoozed_until,
     )
     return data_envelope(_out(escalation), request.state.request_id)

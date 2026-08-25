@@ -9,12 +9,13 @@ import uuid
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.report_cache import get_or_compute
 from app.models.contact import Contact
 from app.models.deal import Deal
+from app.models.escalation import Escalation
 from app.models.invoice import Invoice
 from app.models.payment import Payment
 from app.models.pipeline_stage import PipelineStage
@@ -429,3 +430,83 @@ async def get_my_stats(
         return {"leads_worked": total, "won_count": won, "conversion_rate": conversion_rate}
 
     return await get_or_compute(tenant_id, f"my_stats:{period}", [user_id], compute)
+
+
+async def get_escalation_summary(
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+    owner_ids: list[uuid.UUID] | None,
+    assigned_to_ids: list[uuid.UUID] | None,
+) -> tuple[dict, str]:
+    """OPENFUNNEL_REBRAND_PLAN.md Phase 7e's Escalations-queue counters.
+    Two distinct scope axes, not one, deliberately kept separate rather
+    than collapsed into a single owner_ids param: `open`/
+    `avg_resolve_minutes`/`reopened` are escalations-table metrics scoped
+    by assigned_to (same as GET /escalations — a Manager only ever sees
+    escalations assigned directly to them, narrower than RowScope's
+    team-expansion, which would be a no-op here since assigned_to is never
+    a counselor id). `breaching_within_1h` is a leading indicator over
+    deals/sla_states, owner-scoped the same way get_sla_compliance already
+    scopes (RowScope: self + direct reports) — it's about the manager's
+    team's deals, a different axis entirely.
+
+    Cache-keyed on owner_ids (the RowScope list) rather than both inputs:
+    safe because assigned_to_ids is a deterministic function of the same
+    caller (always exactly [caller.id] for a non-admin, same "admin"
+    sentinel for admin), so no two distinct real callers can ever share a
+    cache entry with different assigned_to_ids for the same owner_ids."""
+
+    async def compute() -> dict:
+        open_stmt = select(func.count(Escalation.id)).where(
+            Escalation.tenant_id == tenant_id, Escalation.status == "open"
+        )
+        if assigned_to_ids is not None:
+            open_stmt = open_stmt.where(Escalation.assigned_to.in_(assigned_to_ids))
+        open_count = (await db.execute(open_stmt)).scalar_one()
+
+        resolve_stmt = select(
+            func.avg(func.extract("epoch", Escalation.resolved_at - Escalation.opened_at) / 60)
+        ).where(Escalation.tenant_id == tenant_id, Escalation.status == "resolved")
+        if assigned_to_ids is not None:
+            resolve_stmt = resolve_stmt.where(Escalation.assigned_to.in_(assigned_to_ids))
+        avg_resolve_minutes = (await db.execute(resolve_stmt)).scalar_one()
+
+        reopened_stmt = select(func.count(Escalation.id)).where(
+            Escalation.tenant_id == tenant_id,
+            Escalation.status.in_(("open", "acknowledged")),
+            Escalation.was_reopened.is_(True),
+        )
+        if assigned_to_ids is not None:
+            reopened_stmt = reopened_stmt.where(Escalation.assigned_to.in_(assigned_to_ids))
+        reopened_count = (await db.execute(reopened_stmt)).scalar_one()
+
+        # Deal-scoped only, same reading get_sla_compliance's own comment
+        # already documents for this codebase (task-scoped sla_states rows
+        # have a NULL deal_id and are naturally excluded by the join).
+        # Server-side now() to sidestep the clock-skew bug class
+        # resolve_period above already had to fix twice.
+        breaching_stmt = (
+            select(func.count(SlaState.id))
+            .select_from(SlaState)
+            .join(Deal, (Deal.id == SlaState.deal_id) & (Deal.tenant_id == SlaState.tenant_id))
+            .where(
+                SlaState.tenant_id == tenant_id,
+                SlaState.state != "breached",
+                SlaState.target_at > text("now()"),
+                SlaState.target_at <= text("now() + interval '1 hour'"),
+            )
+        )
+        if owner_ids is not None:
+            breaching_stmt = breaching_stmt.where(Deal.owner_id.in_(owner_ids))
+        breaching_within_1h = (await db.execute(breaching_stmt)).scalar_one()
+
+        return {
+            "open": open_count,
+            "breaching_within_1h": breaching_within_1h,
+            "avg_resolve_minutes": (
+                float(avg_resolve_minutes) if avg_resolve_minutes is not None else 0.0
+            ),
+            "reopened": reopened_count,
+        }
+
+    return await get_or_compute(tenant_id, "escalation_summary", owner_ids, compute)

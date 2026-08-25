@@ -5,21 +5,33 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import CONFLICT, VALIDATION_ERROR, ApiError
+from app.models.contact import Contact
 from app.models.deal import Deal
 from app.models.escalation import Escalation
+from app.models.sla_policy import SlaPolicy
+from app.models.sla_state import SlaState
 from app.models.task import Task
 from app.models.user import User
+from app.models.workflow_rule import WorkflowRule
+from app.models.workflow_run import WorkflowRun
 from app.schemas.escalation import EscalationCreate
 from app.services.audit_log_service import record as record_audit_log
 
-# open -> acknowledged -> resolved is the only forward path this service
-# drives; reassignment is handled separately (reassign_to on
-# EscalationUpdate), not as a transition into a status value
-# (PHASE_3_PLAN.md acceptance criterion 5).
+# open -> acknowledged -> resolved is the "worked it" path; open/acknowledged
+# -> resolved directly and -> snoozed are both also allowed — REQUIREMENTS.md
+# §4.2: "Manager acknowledgement should be fast to do... single action",
+# which the resolve drawer's single-submit "Contacted — close"/"Snooze
+# until..." outcomes both rely on (OPENFUNNEL_REBRAND_PLAN.md Phase 7e).
+# Reassignment is handled separately (reassign_to on EscalationUpdate), not
+# as a transition into a status value (PHASE_3_PLAN.md acceptance criterion
+# 5). snoozed -> open is not reachable through this table at all — only
+# app/workers/escalations.py's expiry scan sets it, directly, once
+# snoozed_until passes.
 _ALLOWED_TRANSITIONS: dict[str, set[str]] = {
-    "open": {"acknowledged"},
-    "acknowledged": {"resolved"},
+    "open": {"acknowledged", "resolved", "snoozed"},
+    "acknowledged": {"resolved", "snoozed"},
     "resolved": set(),
+    "snoozed": set(),
 }
 
 
@@ -142,7 +154,10 @@ async def create_rule_triggered_escalation(
 
 
 async def list_escalations(
-    db: AsyncSession, tenant_id: uuid.UUID, assigned_to: uuid.UUID | None
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+    assigned_to: uuid.UUID | None,
+    status: str | None = None,
 ) -> list[Escalation]:
     """assigned_to=None means unrestricted (Admin) — every other caller
     only ever sees escalations assigned to themselves, which is also
@@ -151,8 +166,112 @@ async def list_escalations(
     stmt = select(Escalation).where(Escalation.tenant_id == tenant_id)
     if assigned_to is not None:
         stmt = stmt.where(Escalation.assigned_to == assigned_to)
+    if status is not None:
+        stmt = stmt.where(Escalation.status == status)
     result = await db.execute(stmt.order_by(Escalation.opened_at.desc()))
     return list(result.scalars().all())
+
+
+async def enrich_escalations(
+    db: AsyncSession, tenant_id: uuid.UUID, escalations: list[Escalation]
+) -> dict[uuid.UUID, dict]:
+    """Batch-resolves display data the queue/drawer need but the row
+    itself doesn't carry: which contact this is about, a human-readable
+    rule/policy name, and the assignee's display name. Same batch-enrich
+    shape as contact_service's list-view enrichment — a handful of `IN`
+    queries against the small distinct-id sets collected below, not one
+    query per escalation. Returns {escalation_id: {contact_id,
+    contact_name, rule_name, assigned_to_name}}."""
+    if not escalations:
+        return {}
+
+    deal_ids = {e.deal_id for e in escalations if e.deal_id is not None}
+    task_ids = {e.task_id for e in escalations if e.task_id is not None}
+    sla_state_ids = {e.sla_state_id for e in escalations if e.sla_state_id is not None}
+    workflow_run_ids = {e.workflow_run_id for e in escalations if e.workflow_run_id is not None}
+    user_ids = {e.assigned_to for e in escalations}
+
+    deal_contact: dict[uuid.UUID, uuid.UUID] = {}
+    if deal_ids:
+        rows = await db.execute(
+            select(Deal.id, Deal.contact_id).where(
+                Deal.tenant_id == tenant_id, Deal.id.in_(deal_ids)
+            )
+        )
+        deal_contact = dict(rows.all())
+
+    task_contact: dict[uuid.UUID, uuid.UUID] = {}
+    if task_ids:
+        rows = await db.execute(
+            select(Task.id, Task.contact_id).where(
+                Task.tenant_id == tenant_id, Task.id.in_(task_ids)
+            )
+        )
+        task_contact = dict(rows.all())
+
+    contact_ids = set(deal_contact.values()) | set(task_contact.values())
+    contact_names: dict[uuid.UUID, str] = {}
+    if contact_ids:
+        rows = await db.execute(
+            select(Contact.id, Contact.full_name).where(
+                Contact.tenant_id == tenant_id, Contact.id.in_(contact_ids)
+            )
+        )
+        contact_names = dict(rows.all())
+
+    sla_policy_name: dict[uuid.UUID, str] = {}
+    if sla_state_ids:
+        rows = await db.execute(
+            select(SlaState.id, SlaPolicy.name)
+            .select_from(SlaState)
+            .join(
+                SlaPolicy,
+                (SlaPolicy.id == SlaState.sla_policy_id) & (SlaPolicy.tenant_id == tenant_id),
+            )
+            .where(SlaState.tenant_id == tenant_id, SlaState.id.in_(sla_state_ids))
+        )
+        sla_policy_name = dict(rows.all())
+
+    workflow_rule_name: dict[uuid.UUID, str] = {}
+    if workflow_run_ids:
+        rows = await db.execute(
+            select(WorkflowRun.id, WorkflowRule.name)
+            .select_from(WorkflowRun)
+            .join(
+                WorkflowRule,
+                (WorkflowRule.id == WorkflowRun.workflow_rule_id)
+                & (WorkflowRule.tenant_id == tenant_id),
+            )
+            .where(WorkflowRun.tenant_id == tenant_id, WorkflowRun.id.in_(workflow_run_ids))
+        )
+        workflow_rule_name = dict(rows.all())
+
+    users = await db.execute(
+        select(User).where(User.tenant_id == tenant_id, User.id.in_(user_ids))
+    )
+    user_names = {u.id: (u.full_name or u.email) for u in users.scalars().all()}
+
+    enrichment: dict[uuid.UUID, dict] = {}
+    for escalation in escalations:
+        contact_id = None
+        if escalation.deal_id is not None:
+            contact_id = deal_contact.get(escalation.deal_id)
+        elif escalation.task_id is not None:
+            contact_id = task_contact.get(escalation.task_id)
+
+        rule_name = None
+        if escalation.sla_state_id is not None:
+            rule_name = sla_policy_name.get(escalation.sla_state_id)
+        elif escalation.workflow_run_id is not None:
+            rule_name = workflow_rule_name.get(escalation.workflow_run_id)
+
+        enrichment[escalation.id] = {
+            "contact_id": contact_id,
+            "contact_name": contact_names.get(contact_id) if contact_id else None,
+            "rule_name": rule_name,
+            "assigned_to_name": user_names.get(escalation.assigned_to),
+        }
+    return enrichment
 
 
 async def get_escalation(
@@ -173,6 +292,7 @@ async def update_escalation(
     resolution_note: str | None,
     reassign_to: uuid.UUID | None,
     actor_id: uuid.UUID,
+    snoozed_until: datetime | None = None,
 ) -> Escalation:
     now = datetime.now(UTC)
     if status is not None:
@@ -186,12 +306,22 @@ async def update_escalation(
         if status == "acknowledged":
             escalation.acknowledged_at = now
         elif status == "resolved":
+            # A direct open->resolved skip shouldn't leave acknowledged_at
+            # NULL on a terminal row — backfill it to the same timestamp.
+            if escalation.acknowledged_at is None:
+                escalation.acknowledged_at = now
             escalation.resolved_at = now
-        if resolution_note is not None:
-            escalation.resolution_note = resolution_note
+        elif status == "snoozed":
+            escalation.snoozed_until = snoozed_until
         await record_audit_log(
             db, escalation.tenant_id, actor_id, f"escalation.{status}", "escalation", escalation.id
         )
+
+    # Applies regardless of which branch above fired — previously nested
+    # under `if status is not None`, so a reassign-only PATCH silently
+    # dropped its note (found while designing Phase 7e's resolve drawer).
+    if resolution_note is not None:
+        escalation.resolution_note = resolution_note
 
     if reassign_to is not None:
         if escalation.status == "resolved":
@@ -199,6 +329,7 @@ async def update_escalation(
         escalation.assigned_to = reassign_to
         escalation.status = "open"
         escalation.acknowledged_at = None
+        escalation.was_reopened = True
         await record_audit_log(
             db,
             escalation.tenant_id,

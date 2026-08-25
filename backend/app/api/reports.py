@@ -94,3 +94,19 @@ async def get_my_stats_report(
         context.db, context.tenant.id, context.user.id, period
     )
     return data_envelope(data, request.state.request_id, {"cached_at": cached_at})
+
+
+@router.get("/escalations")
+async def get_escalation_summary_report(
+    request: Request,
+    context: TenantContext = Depends(require_manager_or_admin),
+    scope: RowScope = Depends(get_row_scope),
+) -> dict:
+    # Same assigned_to-scoping GET /api/v1/escalations already uses —
+    # deliberately not scope.owner_ids, see get_escalation_summary's own
+    # docstring for why these are two different axes.
+    assigned_to_ids = None if context.user_role == "admin" else [context.user.id]
+    data, cached_at = await report_service.get_escalation_summary(
+        context.db, context.tenant.id, scope.owner_ids, assigned_to_ids
+    )
+    return data_envelope(data, request.state.request_id, {"cached_at": cached_at})

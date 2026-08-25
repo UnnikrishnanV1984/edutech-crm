@@ -40,7 +40,12 @@ celery_app = Celery(
     "edutech_crm",
     broker=_settings.redis_url,
     backend=_settings.redis_url,
-    include=["app.workers.sla", "app.workers.rules", "app.workers.conversions"],
+    include=[
+        "app.workers.sla",
+        "app.workers.rules",
+        "app.workers.conversions",
+        "app.workers.escalations",
+    ],
 )
 
 celery_app.conf.update(
@@ -65,6 +70,10 @@ celery_app.conf.beat_schedule = {
     },
     "dispatch-time-based-rule-scan": {
         "task": "app.workers.rules.dispatch_time_based_scan",
+        "schedule": 300.0,
+    },
+    "dispatch-snooze-expiry-scan": {
+        "task": "app.workers.escalations.dispatch_snooze_expiry_scan",
         "schedule": 300.0,
     },
 }
