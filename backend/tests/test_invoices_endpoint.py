@@ -65,6 +65,7 @@ def scenario():
             "activities",
             "deals",
             "contacts",
+            "pipeline_stage_default_snapshots",
             "pipeline_stages",
             "users",
         ):

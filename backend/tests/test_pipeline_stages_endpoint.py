@@ -36,7 +36,16 @@ def tenant_and_user():
     yield {"tenant_id": tenant_id, "user_sub": "sub-stage-test"}
     with psycopg.connect(MIGRATE_URL, autocommit=True) as conn, conn.cursor() as cur:
         cur.execute("SELECT set_config('app.tenant_id', %s, false)", (str(tenant_id),))
-        for table in ("activities", "deals", "contacts", "courses", "pipeline_stages", "users"):
+        for table in (
+            "activities",
+            "sla_policies",
+            "deals",
+            "contacts",
+            "courses",
+            "pipeline_stage_default_snapshots",
+            "pipeline_stages",
+            "users",
+        ):
             cur.execute(f"DELETE FROM {table} WHERE tenant_id = %s", (tenant_id,))
         cur.execute("RESET app.tenant_id")
         cur.execute("DELETE FROM tenants WHERE id = %s", (tenant_id,))
@@ -80,6 +89,38 @@ def test_list_seeds_default_stages_lazily(tenant_and_user):
     dropped = next(s for s in stages if s["name"] == "Dropped")
     assert enrolled["is_won"] is True
     assert dropped["is_lost"] is True
+
+
+def test_seeding_also_writes_default_snapshot(tenant_and_user):
+    """PIPELINE_CONFIG_RESET_PLAN.md §4.3 — the snapshot is written in the
+    same transaction as the initial 8 stages, not a separate step. No
+    public API reads this table directly (it's only ever consumed
+    internally by reset-to-default), so this checks the DB row directly."""
+    with TestClient(app) as client:
+        client.get("/api/v1/pipeline-stages", headers=_headers(tenant_and_user))
+    with psycopg.connect(MIGRATE_URL, autocommit=True) as conn, conn.cursor() as cur:
+        cur.execute(
+            "SELECT set_config('app.tenant_id', %s, false)", (str(tenant_and_user["tenant_id"]),)
+        )
+        cur.execute(
+            "SELECT name, sort_order, is_won, is_lost FROM pipeline_stage_default_snapshots "
+            "WHERE tenant_id = %s ORDER BY sort_order",
+            (tenant_and_user["tenant_id"],),
+        )
+        rows = cur.fetchall()
+        cur.execute("RESET app.tenant_id")
+    assert [r[0] for r in rows] == [
+        "Inquiry",
+        "Contacted",
+        "Demo scheduled",
+        "Demo attended",
+        "Application submitted",
+        "Fee paid",
+        "Enrolled",
+        "Dropped",
+    ]
+    assert rows[6] == ("Enrolled", 7, True, False)
+    assert rows[7] == ("Dropped", 8, False, True)
 
 
 def test_seeding_is_idempotent(tenant_and_user):
@@ -192,6 +233,10 @@ def test_two_tenants_get_independent_default_stages(tenant_and_user):
     finally:
         with psycopg.connect(MIGRATE_URL, autocommit=True) as conn, conn.cursor() as cur:
             cur.execute("SELECT set_config('app.tenant_id', %s, false)", (str(tenant_id_2),))
+            cur.execute(
+                "DELETE FROM pipeline_stage_default_snapshots WHERE tenant_id = %s",
+                (tenant_id_2,),
+            )
             cur.execute("DELETE FROM pipeline_stages WHERE tenant_id = %s", (tenant_id_2,))
             cur.execute("DELETE FROM users WHERE tenant_id = %s", (tenant_id_2,))
             cur.execute("RESET app.tenant_id")
@@ -450,6 +495,343 @@ def test_reorder_rejects_another_tenants_stage_id(tenant_and_user):
     finally:
         with psycopg.connect(MIGRATE_URL, autocommit=True) as conn, conn.cursor() as cur:
             cur.execute("SELECT set_config('app.tenant_id', %s, false)", (str(tenant_id_2),))
+            cur.execute(
+                "DELETE FROM pipeline_stage_default_snapshots WHERE tenant_id = %s",
+                (tenant_id_2,),
+            )
+            cur.execute("DELETE FROM pipeline_stages WHERE tenant_id = %s", (tenant_id_2,))
+            cur.execute("DELETE FROM users WHERE tenant_id = %s", (tenant_id_2,))
+            cur.execute("RESET app.tenant_id")
+            cur.execute("DELETE FROM tenants WHERE id = %s", (tenant_id_2,))
+
+
+# PIPELINE_CONFIG_RESET_PLAN.md §5.1/§7 task 3 — POST /pipeline-stages/batch.
+
+
+def test_batch_update_happy_path(tenant_and_user):
+    with TestClient(app) as client:
+        stages = client.get(
+            "/api/v1/pipeline-stages", headers=_headers(tenant_and_user)
+        ).json()["data"]
+        by_name = {s["name"]: s for s in stages}
+        # Keep every existing stage except "Fee paid" (dropped), rename
+        # "Contacted" -> "Reached", and add one brand-new stage — full
+        # final order given explicitly, new stage last.
+        payload = {
+            "stages": [
+                {"id": by_name["Inquiry"]["id"], "name": "Inquiry"},
+                {"id": by_name["Contacted"]["id"], "name": "Reached"},
+                {"id": by_name["Demo scheduled"]["id"], "name": "Demo scheduled"},
+                {"id": by_name["Demo attended"]["id"], "name": "Demo attended"},
+                {"id": by_name["Application submitted"]["id"], "name": "Application submitted"},
+                {"id": by_name["Enrolled"]["id"], "name": "Enrolled"},
+                {"id": by_name["Dropped"]["id"], "name": "Dropped"},
+                {"name": "Proposal Sent"},
+            ]
+        }
+        response = client.post(
+            "/api/v1/pipeline-stages/batch", json=payload, headers=_admin_headers(tenant_and_user)
+        )
+    assert response.status_code == 200
+    result = response.json()["data"]
+    assert [s["name"] for s in result] == [
+        "Inquiry",
+        "Reached",
+        "Demo scheduled",
+        "Demo attended",
+        "Application submitted",
+        "Enrolled",
+        "Dropped",
+        "Proposal Sent",
+    ]
+    assert [s["sort_order"] for s in result] == list(range(1, 9))
+    assert "Fee paid" not in [s["name"] for s in result]
+
+
+def test_batch_update_blocked_delete_rejects_whole_batch(tenant_and_user):
+    with TestClient(app) as client:
+        stages = client.get(
+            "/api/v1/pipeline-stages", headers=_headers(tenant_and_user)
+        ).json()["data"]
+        by_name = {s["name"]: s for s in stages}
+        _create_contact_and_deal(client, tenant_and_user, stage_id=by_name["Inquiry"]["id"])
+
+        # Drops "Inquiry" (in use by the deal above — must block the
+        # whole batch) while also renaming "Contacted", which must NOT
+        # take effect either.
+        payload = {
+            "stages": [
+                {"id": s["id"], "name": "Renamed" if s["name"] == "Contacted" else s["name"]}
+                for s in stages
+                if s["name"] != "Inquiry"
+            ]
+        }
+        response = client.post(
+            "/api/v1/pipeline-stages/batch", json=payload, headers=_admin_headers(tenant_and_user)
+        )
+        after = client.get(
+            "/api/v1/pipeline-stages", headers=_headers(tenant_and_user)
+        ).json()["data"]
+    assert response.status_code == 409
+    assert "Inquiry" in [s["name"] for s in after]
+    assert "Contacted" in [s["name"] for s in after]  # unrelated rename NOT applied
+    assert "Renamed" not in [s["name"] for s in after]
+
+
+def test_batch_update_blocked_by_sla_policy_in_use(tenant_and_user):
+    with TestClient(app) as client:
+        stages = client.get(
+            "/api/v1/pipeline-stages", headers=_headers(tenant_and_user)
+        ).json()["data"]
+        inquiry_id = next(s["id"] for s in stages if s["name"] == "Inquiry")
+        with psycopg.connect(MIGRATE_URL, autocommit=True) as conn, conn.cursor() as cur:
+            cur.execute(
+                "SELECT set_config('app.tenant_id', %s, false)",
+                (str(tenant_and_user["tenant_id"]),),
+            )
+            cur.execute(
+                "INSERT INTO sla_policies (tenant_id, name, applies_to, stage_id, target_minutes) "
+                "VALUES (%s, 'batch test policy', 'stage_entry', %s, 30)",
+                (tenant_and_user["tenant_id"], inquiry_id),
+            )
+            cur.execute("RESET app.tenant_id")
+
+        payload = {"stages": [s for s in stages if s["name"] != "Inquiry"]}
+        response = client.post(
+            "/api/v1/pipeline-stages/batch", json=payload, headers=_admin_headers(tenant_and_user)
+        )
+    assert response.status_code == 409
+
+
+def test_batch_update_rejects_final_list_without_won_stage(tenant_and_user):
+    with TestClient(app) as client:
+        stages = client.get(
+            "/api/v1/pipeline-stages", headers=_headers(tenant_and_user)
+        ).json()["data"]
+        payload = {"stages": [s for s in stages if s["name"] != "Enrolled"]}
+        response = client.post(
+            "/api/v1/pipeline-stages/batch", json=payload, headers=_admin_headers(tenant_and_user)
+        )
+    assert response.status_code == 400
+
+
+def test_batch_update_rejects_another_tenants_stage_id(tenant_and_user):
+    tenant_id_2 = uuid.uuid4()
+    with psycopg.connect(MIGRATE_URL, autocommit=True) as conn, conn.cursor() as cur:
+        cur.execute(
+            "INSERT INTO tenants (id, slug, name) VALUES (%s, %s, %s)",
+            (tenant_id_2, f"t-{tenant_id_2}", "Other Tenant"),
+        )
+    other_ctx = {"tenant_id": tenant_id_2, "user_sub": "sub-other-batch"}
+    try:
+        with TestClient(app) as client:
+            own_stages = client.get(
+                "/api/v1/pipeline-stages", headers=_headers(tenant_and_user)
+            ).json()["data"]
+            other_stages = client.get(
+                "/api/v1/pipeline-stages", headers=_headers(other_ctx)
+            ).json()["data"]
+            payload = {
+                "stages": [{"id": s["id"], "name": s["name"]} for s in own_stages[:-1]]
+                + [{"id": other_stages[0]["id"], "name": other_stages[0]["name"]}]
+            }
+            response = client.post(
+                "/api/v1/pipeline-stages/batch",
+                json=payload,
+                headers=_admin_headers(tenant_and_user),
+            )
+        assert response.status_code == 400
+    finally:
+        with psycopg.connect(MIGRATE_URL, autocommit=True) as conn, conn.cursor() as cur:
+            cur.execute("SELECT set_config('app.tenant_id', %s, false)", (str(tenant_id_2),))
+            cur.execute(
+                "DELETE FROM pipeline_stage_default_snapshots WHERE tenant_id = %s",
+                (tenant_id_2,),
+            )
+            cur.execute("DELETE FROM pipeline_stages WHERE tenant_id = %s", (tenant_id_2,))
+            cur.execute("DELETE FROM users WHERE tenant_id = %s", (tenant_id_2,))
+            cur.execute("RESET app.tenant_id")
+            cur.execute("DELETE FROM tenants WHERE id = %s", (tenant_id_2,))
+
+
+def test_batch_update_requires_admin(tenant_and_user):
+    with TestClient(app) as client:
+        stages = client.get(
+            "/api/v1/pipeline-stages", headers=_headers(tenant_and_user)
+        ).json()["data"]
+        response = client.post(
+            "/api/v1/pipeline-stages/batch",
+            json={"stages": stages},
+            headers=_headers(tenant_and_user),
+        )
+    assert response.status_code == 403
+
+
+# PIPELINE_CONFIG_RESET_PLAN.md §5.2/§7 task 4 — POST /pipeline-stages/reset-to-default.
+
+
+def test_reset_to_default_restores_snapshot_exactly(tenant_and_user):
+    with TestClient(app) as client:
+        stages = client.get(
+            "/api/v1/pipeline-stages", headers=_headers(tenant_and_user)
+        ).json()["data"]
+        inquiry_id = next(s["id"] for s in stages if s["name"] == "Inquiry")
+        client.patch(
+            f"/api/v1/pipeline-stages/{inquiry_id}",
+            json={"name": "Renamed Away"},
+            headers=_admin_headers(tenant_and_user),
+        )
+        client.delete(
+            f"/api/v1/pipeline-stages/{next(s['id'] for s in stages if s['name'] == 'Fee paid')}",
+            headers=_admin_headers(tenant_and_user),
+        )
+
+        response = client.post(
+            "/api/v1/pipeline-stages/reset-to-default",
+            json={"confirm": "RESET TO DEFAULT"},
+            headers=_admin_headers(tenant_and_user),
+        )
+    assert response.status_code == 200
+    result = response.json()["data"]
+    assert [s["name"] for s in result] == [
+        "Inquiry",
+        "Contacted",
+        "Demo scheduled",
+        "Demo attended",
+        "Application submitted",
+        "Fee paid",
+        "Enrolled",
+        "Dropped",
+    ]
+    enrolled = next(s for s in result if s["name"] == "Enrolled")
+    dropped = next(s for s in result if s["name"] == "Dropped")
+    assert enrolled["is_won"] is True
+    assert dropped["is_lost"] is True
+    # Fresh rows, not the renamed/deleted ones from before.
+    assert inquiry_id != next(s["id"] for s in result if s["name"] == "Inquiry")
+
+
+def test_reset_to_default_blocked_by_deal_in_use_leaves_config_unchanged(tenant_and_user):
+    with TestClient(app) as client:
+        stages = client.get(
+            "/api/v1/pipeline-stages", headers=_headers(tenant_and_user)
+        ).json()["data"]
+        inquiry_id = next(s["id"] for s in stages if s["name"] == "Inquiry")
+        _create_contact_and_deal(client, tenant_and_user, stage_id=inquiry_id)
+        client.patch(
+            f"/api/v1/pipeline-stages/{inquiry_id}",
+            json={"name": "Still In Use"},
+            headers=_admin_headers(tenant_and_user),
+        )
+
+        response = client.post(
+            "/api/v1/pipeline-stages/reset-to-default",
+            json={"confirm": "RESET TO DEFAULT"},
+            headers=_admin_headers(tenant_and_user),
+        )
+        after = client.get(
+            "/api/v1/pipeline-stages", headers=_headers(tenant_and_user)
+        ).json()["data"]
+    assert response.status_code == 409
+    assert "Still In Use" in [s["name"] for s in after]  # untouched, not partially reset
+
+
+def test_reset_to_default_blocked_by_sla_policy_in_use(tenant_and_user):
+    with TestClient(app) as client:
+        stages = client.get(
+            "/api/v1/pipeline-stages", headers=_headers(tenant_and_user)
+        ).json()["data"]
+        inquiry_id = next(s["id"] for s in stages if s["name"] == "Inquiry")
+        with psycopg.connect(MIGRATE_URL, autocommit=True) as conn, conn.cursor() as cur:
+            cur.execute(
+                "SELECT set_config('app.tenant_id', %s, false)",
+                (str(tenant_and_user["tenant_id"]),),
+            )
+            cur.execute(
+                "INSERT INTO sla_policies (tenant_id, name, applies_to, stage_id, target_minutes) "
+                "VALUES (%s, 'reset test policy', 'stage_entry', %s, 30)",
+                (tenant_and_user["tenant_id"], inquiry_id),
+            )
+            cur.execute("RESET app.tenant_id")
+
+        response = client.post(
+            "/api/v1/pipeline-stages/reset-to-default",
+            json={"confirm": "RESET TO DEFAULT"},
+            headers=_admin_headers(tenant_and_user),
+        )
+    assert response.status_code == 409
+
+
+def test_reset_to_default_rejects_wrong_confirm_phrase(tenant_and_user):
+    with TestClient(app) as client:
+        wrong = client.post(
+            "/api/v1/pipeline-stages/reset-to-default",
+            json={"confirm": "reset to default"},
+            headers=_admin_headers(tenant_and_user),
+        )
+        missing = client.post(
+            "/api/v1/pipeline-stages/reset-to-default",
+            json={},
+            headers=_admin_headers(tenant_and_user),
+        )
+    assert wrong.status_code == 400
+    assert missing.status_code == 400
+
+
+def test_reset_to_default_requires_admin(tenant_and_user):
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/v1/pipeline-stages/reset-to-default",
+            json={"confirm": "RESET TO DEFAULT"},
+            headers=_headers(tenant_and_user),
+        )
+    assert response.status_code == 403
+
+
+def test_reset_to_default_is_tenant_isolated(tenant_and_user):
+    tenant_id_2 = uuid.uuid4()
+    with psycopg.connect(MIGRATE_URL, autocommit=True) as conn, conn.cursor() as cur:
+        cur.execute(
+            "INSERT INTO tenants (id, slug, name) VALUES (%s, %s, %s)",
+            (tenant_id_2, f"t-{tenant_id_2}", "Other Tenant"),
+        )
+    other_ctx = {"tenant_id": tenant_id_2, "user_sub": "sub-other-reset"}
+    try:
+        with TestClient(app) as client:
+            client.get("/api/v1/pipeline-stages", headers=_headers(other_ctx))  # seed
+            stages = client.get(
+                "/api/v1/pipeline-stages", headers=_headers(tenant_and_user)
+            ).json()["data"]
+            inquiry_id = next(s["id"] for s in stages if s["name"] == "Inquiry")
+            client.patch(
+                f"/api/v1/pipeline-stages/{inquiry_id}",
+                json={"name": "Tenant A Only"},
+                headers=_admin_headers(tenant_and_user),
+            )
+
+            other_admin = {
+                "X-Tenant-Id": str(tenant_id_2),
+                "X-User-Id": "sub-other-reset-admin",
+                "X-User-Email": "other-admin@example.test",
+                "X-User-Role": "admin",
+            }
+            client.post(
+                "/api/v1/pipeline-stages/reset-to-default",
+                json={"confirm": "RESET TO DEFAULT"},
+                headers=other_admin,
+            )
+
+            tenant_a_after = client.get(
+                "/api/v1/pipeline-stages", headers=_headers(tenant_and_user)
+            ).json()["data"]
+        assert "Tenant A Only" in [s["name"] for s in tenant_a_after]
+    finally:
+        with psycopg.connect(MIGRATE_URL, autocommit=True) as conn, conn.cursor() as cur:
+            cur.execute("SELECT set_config('app.tenant_id', %s, false)", (str(tenant_id_2),))
+            cur.execute(
+                "DELETE FROM pipeline_stage_default_snapshots WHERE tenant_id = %s",
+                (tenant_id_2,),
+            )
             cur.execute("DELETE FROM pipeline_stages WHERE tenant_id = %s", (tenant_id_2,))
             cur.execute("DELETE FROM users WHERE tenant_id = %s", (tenant_id_2,))
             cur.execute("RESET app.tenant_id")

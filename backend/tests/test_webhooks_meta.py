@@ -82,6 +82,7 @@ def tenant_with_counselor_and_course():
             "contacts",
             "lead_source_connections",
             "courses",
+            "pipeline_stage_default_snapshots",
             "pipeline_stages",
             "users",
         )

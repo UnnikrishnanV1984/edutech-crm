@@ -118,6 +118,7 @@ def scenario():
             "deals",
             "contacts",
             "courses",
+            "pipeline_stage_default_snapshots",
             "pipeline_stages",
             "accounts",
             "users",
@@ -257,6 +258,10 @@ def test_cache_keys_do_not_collide_across_tenants(scenario):
         with psycopg.connect(MIGRATE_URL, autocommit=True) as conn, conn.cursor() as cur:
             cur.execute("SELECT set_config('app.tenant_id', %s, false)", (str(other_tenant_id),))
             cur.execute("DELETE FROM users WHERE tenant_id = %s", (other_tenant_id,))
+            cur.execute(
+                "DELETE FROM pipeline_stage_default_snapshots WHERE tenant_id = %s",
+                (other_tenant_id,),
+            )
             cur.execute("DELETE FROM pipeline_stages WHERE tenant_id = %s", (other_tenant_id,))
             cur.execute("RESET app.tenant_id")
             cur.execute("DELETE FROM tenants WHERE id = %s", (other_tenant_id,))

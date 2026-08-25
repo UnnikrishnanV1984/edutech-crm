@@ -147,6 +147,7 @@ def scenario():
             "tasks",
             "deals",
             "contacts",
+            "pipeline_stage_default_snapshots",
             "pipeline_stages",
             "courses",
             "users",

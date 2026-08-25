@@ -117,6 +117,7 @@ def scenario():
             "contacts",
             "lead_source_connections",
             "courses",
+            "pipeline_stage_default_snapshots",
             "pipeline_stages",
             "users",
         ):
@@ -267,6 +268,7 @@ async def test_tenant_b_deal_never_uses_tenant_a_connection(scenario):
                 "deals",
                 "contacts",
                 "courses",
+                "pipeline_stage_default_snapshots",
                 "pipeline_stages",
                 "users",
             )

@@ -8,17 +8,21 @@ from app.core.errors import CONFLICT, NOT_FOUND, ApiError
 from app.deps.roles import require_admin
 from app.deps.tenant import TenantContext, get_tenant_context
 from app.schemas.pipeline_stage import (
+    PipelineStageBatchUpdate,
     PipelineStageCreate,
     PipelineStageOut,
     PipelineStageReorder,
+    PipelineStageResetToDefault,
     PipelineStageUpdate,
 )
 from app.services.pipeline_stage_service import (
+    batch_update_stages,
     create_stage,
     delete_stage,
     get_stage,
     list_stages,
     reorder_stages,
+    reset_to_default,
     update_stage,
 )
 
@@ -60,6 +64,40 @@ async def patch_pipeline_stages_reorder(
     context: TenantContext = Depends(require_admin),
 ) -> dict:
     stages = await reorder_stages(context.db, context.tenant.id, body.stage_ids)
+    items = [PipelineStageOut.model_validate(s).model_dump(mode="json") for s in stages]
+    return data_envelope(items, request.state.request_id)
+
+
+# Same registration-order reasoning as "/reorder" above — both need to be
+# ahead of "/{stage_id}".
+@router.post("/batch")
+async def post_pipeline_stages_batch(
+    request: Request,
+    body: PipelineStageBatchUpdate,
+    context: TenantContext = Depends(require_admin),
+) -> dict:
+    """PIPELINE_CONFIG_RESET_PLAN.md §5.1 — the Save button's endpoint.
+    All-or-nothing: batch_update_stages either returns the full new list
+    or raises, nothing partial ever lands."""
+    try:
+        stages = await batch_update_stages(context.db, context.tenant.id, body)
+    except IntegrityError as exc:
+        await context.db.rollback()
+        raise ApiError(409, CONFLICT, "Another stage already uses that name") from exc
+    items = [PipelineStageOut.model_validate(s).model_dump(mode="json") for s in stages]
+    return data_envelope(items, request.state.request_id)
+
+
+@router.post("/reset-to-default")
+async def post_pipeline_stages_reset_to_default(
+    request: Request,
+    body: PipelineStageResetToDefault,
+    context: TenantContext = Depends(require_admin),
+) -> dict:
+    """PIPELINE_CONFIG_RESET_PLAN.md §5.2. body.confirm's exact-phrase
+    check already happened in PipelineStageResetToDefault's own validator
+    — by the time this runs, the phrase is confirmed correct."""
+    stages = await reset_to_default(context.db, context.tenant.id)
     items = [PipelineStageOut.model_validate(s).model_dump(mode="json") for s in stages]
     return data_envelope(items, request.state.request_id)
 

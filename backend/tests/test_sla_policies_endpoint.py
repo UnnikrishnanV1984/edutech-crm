@@ -46,6 +46,9 @@ def tenant():
     with psycopg.connect(MIGRATE_URL, autocommit=True) as conn, conn.cursor() as cur:
         cur.execute("SELECT set_config('app.tenant_id', %s, false)", (str(tenant_id),))
         cur.execute("DELETE FROM sla_policies WHERE tenant_id = %s", (tenant_id,))
+        cur.execute(
+            "DELETE FROM pipeline_stage_default_snapshots WHERE tenant_id = %s", (tenant_id,)
+        )
         cur.execute("DELETE FROM pipeline_stages WHERE tenant_id = %s", (tenant_id,))
         cur.execute("DELETE FROM users WHERE tenant_id = %s", (tenant_id,))
         cur.execute("RESET app.tenant_id")

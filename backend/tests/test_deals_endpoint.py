@@ -70,6 +70,9 @@ def scenario():
         cur.execute("DELETE FROM accounts WHERE tenant_id = %s", (tenant_id,))
         cur.execute("DELETE FROM contacts WHERE tenant_id = %s", (tenant_id,))
         cur.execute("DELETE FROM courses WHERE tenant_id = %s", (tenant_id,))
+        cur.execute(
+            "DELETE FROM pipeline_stage_default_snapshots WHERE tenant_id = %s", (tenant_id,)
+        )
         cur.execute("DELETE FROM pipeline_stages WHERE tenant_id = %s", (tenant_id,))
         cur.execute("DELETE FROM users WHERE tenant_id = %s", (tenant_id,))
         cur.execute("RESET app.tenant_id")

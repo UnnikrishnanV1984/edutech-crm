@@ -35,6 +35,45 @@ class PipelineStageReorder(BaseModel):
     stage_ids: list[uuid.UUID]
 
 
+# PIPELINE_CONFIG_RESET_PLAN.md §5.1 — full-replacement contract, not a
+# diff, deliberately mirroring PipelineStageReorder's "always send the
+# complete list" precedent. Array order is the new sort_order. An entry
+# with `id` is an existing stage (only `name` is read for it — the
+# won/lost/invoice/rework flags are creation-only, same rule as the
+# single-stage PATCH, so they're accepted-and-ignored here rather than
+# rejected outright); an entry with no `id` is a new stage, using the same
+# fields as PipelineStageCreate. Any current tenant stage whose id is
+# absent from the list is a delete.
+class PipelineStageBatchEntry(BaseModel):
+    id: uuid.UUID | None = None
+    name: str
+    is_won: bool = False
+    is_lost: bool = False
+    is_invoice_stage: bool = False
+    is_rework_stage: bool = False
+
+
+class PipelineStageBatchUpdate(BaseModel):
+    stages: list[PipelineStageBatchEntry]
+
+
+# PIPELINE_CONFIG_RESET_PLAN.md §5.2 — the exact phrase is checked here
+# too, not just disabled-until-typed-correctly on the frontend, so a
+# hand-crafted request without it is rejected the same way any other
+# malformed body is.
+RESET_TO_DEFAULT_CONFIRM_PHRASE = "RESET TO DEFAULT"
+
+
+class PipelineStageResetToDefault(BaseModel):
+    confirm: str
+
+    @model_validator(mode="after")
+    def _check_confirm_phrase(self) -> "PipelineStageResetToDefault":
+        if self.confirm != RESET_TO_DEFAULT_CONFIRM_PHRASE:
+            raise ValueError(f'confirm must be exactly "{RESET_TO_DEFAULT_CONFIRM_PHRASE}"')
+        return self
+
+
 class PipelineStageOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

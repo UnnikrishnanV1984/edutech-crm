@@ -80,7 +80,15 @@ def tenant_with_counselors():
     yield tid
     with psycopg.connect(MIGRATE_URL, autocommit=True) as conn, conn.cursor() as cur:
         cur.execute("SELECT set_config('app.tenant_id', %s, false)", (str(tid),))
-        for table in ("activities", "deals", "contacts", "courses", "pipeline_stages", "users"):
+        for table in (
+            "activities",
+            "deals",
+            "contacts",
+            "courses",
+            "pipeline_stage_default_snapshots",
+            "pipeline_stages",
+            "users",
+        ):
             cur.execute(f"DELETE FROM {table} WHERE tenant_id = %s", (tid,))
         cur.execute("RESET app.tenant_id")
         cur.execute("DELETE FROM tenants WHERE id = %s", (tid,))

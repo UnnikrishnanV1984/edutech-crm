@@ -118,6 +118,7 @@ def scenario():
             "tenant_sla_settings",
             "deals",
             "contacts",
+            "pipeline_stage_default_snapshots",
             "pipeline_stages",
             "courses",
             "users",
