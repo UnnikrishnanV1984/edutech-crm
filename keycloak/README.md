@@ -36,11 +36,24 @@ understands), read by `seed.py`'s own second pass to set `users.manager_id`
 after both rows exist, so `manager.a`'s RowScope actually has a direct
 report to see team data through, rather than an empty team.
 
+`manager.a`'s `id` is a genuine Keycloak-assigned UUID, not a hand-picked
+one like the others — it was added to an already-running realm via the
+Admin API (`--import-realm` only imports into a *new* realm; it silently
+no-ops against one that already exists, so editing this file and
+restarting the container does nothing for identities added after a
+realm's first boot), and the Admin API's user-create endpoint does not
+honor a caller-supplied `id`. This file's `id` was updated to match what
+Keycloak actually assigned so `seed.py`'s Postgres provisioning stays
+keyed on the same value the live token's `sub` claim carries — a fresh
+`docker compose down -v && up` imports this file from scratch and *will*
+honor the pinned `id` at that point, since realm import (unlike the
+Admin API) creates the whole realm in one shot.
+
 | Tenant | `tenants.id` / Keycloak `tenant_id` attribute | Username | Password | Role | Keycloak/user `id` (→ `sub`) |
 |---|---|---|---|---|---|
 | Future Digital Inc | `a1111111-1111-1111-1111-111111111111` | `counselor.a` | `password` | counselor (reports to `manager.a`) | `ca111111-1111-1111-1111-111111111111` |
 | Tenant B Academy | `b2222222-2222-2222-2222-222222222222` | `counselor.b` | `password` | counselor | `cb222222-2222-2222-2222-222222222222` |
-| Future Digital Inc | `a1111111-1111-1111-1111-111111111111` | `manager.a` | `password` | manager | `ea111111-1111-1111-1111-111111111111` |
+| Future Digital Inc | `a1111111-1111-1111-1111-111111111111` | `manager.a` | `password` | manager | `8bfb1ef2-eb6a-4d85-93fe-c0e4b9b6ce29` |
 | Future Digital Inc | `a1111111-1111-1111-1111-111111111111` | `admin.a` | `password` | admin | `da111111-1111-1111-1111-111111111111` |
 | Tenant B Academy | `b2222222-2222-2222-2222-222222222222` | `admin.b` | `password` | admin | `db222222-2222-2222-2222-222222222222` |
 
