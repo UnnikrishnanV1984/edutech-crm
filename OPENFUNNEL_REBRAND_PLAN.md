@@ -225,40 +225,84 @@ Depends on 7a. Independent of 7c.
 
 ### Phase 7e — Escalations: resolve drawer, counters, snooze
 Depends on 7a. This is a **schema change to a production table**
-(`escalations`) — per `CLAUDE.md`, run the snooze design through `architect`
-before writing that migration, don't treat this plan's sketch below as
-pre-approved.
+(`escalations`) — architect pass done (2026-08-25), design below is
+approved, not a sketch.
 
 - **Affected layers**: frontend (`EscalationsPage.tsx` gains counters,
-  status filter pills, and a resolve drawer with radio outcomes), backend
-  (`escalation_service.py` gains snooze; `reassign_to`/`resolution_note`
-  already exist and just need a frontend UI, no backend change there).
-- **Database (sketch, architect-gate before building)**: `escalations`
-  gains `snoozed_until TIMESTAMPTZ NULL`; `status` CHECK constraint gains
-  `'snoozed'`; a background job (same `worker`/`beat` pattern already used
-  for SLA clocks) flips `snoozed` rows back to `open` once `snoozed_until`
-  passes.
+  status filter pills, and a right-anchored resolve drawer with radio
+  outcomes — same `SlideOverPanel` pattern as create-contact/create-task),
+  backend (`escalation_service.py` gains snooze + a direct `open→resolved`
+  transition; `reassign_to`/`resolution_note` already exist and mostly just
+  need a frontend UI), a new small Celery module
+  (`app/workers/escalations.py`).
+- **Database** (migration `0028`): `escalations` gains
+  `snoozed_until TIMESTAMPTZ NULL` and `was_reopened BOOLEAN NOT NULL
+  DEFAULT false`; `escalations_status_check` gains `'snoozed'`; a partial
+  index `idx_escalations_snoozed_until ON escalations (tenant_id,
+  snoozed_until) WHERE status = 'snoozed'` serves the expiry scan (leads
+  with `tenant_id` per the standard rule, and the scan is per-tenant same
+  as `dispatch_sla_computation`). `was_reopened` exists because
+  `reassign_to`'s handler already clears `acknowledged_at` back to `NULL`
+  on reassignment, so there's no way to reconstruct "was this ever
+  reopened" from current columns alone — same shape as `invoices
+  .was_reworked` (migration `0026`).
+- **Transition logic**: `_ALLOWED_TRANSITIONS` gains a direct
+  `"open": {..., "resolved"}` edge (REQUIREMENTS.md §4.2: "Manager
+  acknowledgement should be fast... a single action" — the drawer's
+  "Contacted — close" outcome shouldn't force two round trips) and
+  `{"open", "acknowledged"}: {"snoozed"}`. If a `resolved` transition fires
+  while `acknowledged_at` is still `NULL`, set it to the same timestamp as
+  `resolved_at` so a resolved row is never missing that field. `snoozed →
+  open` is not exposed as a manual transition at all — only
+  `app/workers/escalations.py`'s expiry scan sets it, using
+  `WHERE snoozed_until <= now()` evaluated by Postgres, not Python's clock
+  (the clock-skew bug class `report_service.resolve_period` already hit
+  twice). Also fixes a real bug found while designing this: `resolution_note`
+  was only applied inside the `if status is not None` branch, so a
+  reassign-only PATCH silently dropped its note — moved outside that branch.
 - **API contract**: `EscalationUpdate` gains `snoozed_until: datetime |
-  None` as a third status-adjacent field alongside the existing
-  `status`/`reassign_to`/`resolution_note`; the counters (Open, Breaching
-  within 1h, Avg time to resolve, Reopened) likely want a new
-  `GET /api/v1/reports/escalations` aggregate, following the existing
-  `report_service.py` cache-aside pattern rather than computing client-side.
-- **Multi-tenancy check**: standard — no new trust path, the counters
-  endpoint scopes by `RowScope` exactly like every other report.
+  None`, required exactly when `status == "snoozed"` (mirrors
+  `EscalationCreate`'s existing exactly-one-of validator style);
+  `status` now also accepts `"snoozed"`. `EscalationOut` gains
+  `snoozed_until`, `was_reopened`. `GET /api/v1/escalations` gains an
+  optional `status` filter query param. New `GET /api/v1/reports/escalations`
+  (cache-aside, same pattern as every other `report_service.py` function)
+  returns `{open, breaching_within_1h, avg_resolve_minutes, reopened}`.
+- **Scope subtlety (why this needed an architect pass, not just a
+  migration)**: the counters endpoint needs *two different* scope axes,
+  not one. `open`/`avg_resolve_minutes`/`reopened` are escalations-table
+  metrics scoped the same way `GET /escalations` already scopes —
+  `assigned_to` equal to the caller (a manager only ever sees escalations
+  assigned directly to them; this is deliberately narrower than
+  `RowScope`'s team-expansion, since `assigned_to` is never a counselor
+  id, so broadening it the `RowScope` way would be a no-op that looks
+  like it does something). `breaching_within_1h` is a leading indicator
+  over `sla_states`/`deals` — a fundamentally different axis, owner-scoped
+  the way `get_sla_compliance` already scopes (`RowScope`: self + direct
+  reports), because it's about the manager's *team's* deals, not about
+  who an escalation happens to be assigned to. The endpoint takes both
+  scope inputs and applies each to its own sub-query.
 - **Task breakdown**:
-  1. `architect` pass on the snooze schema sketch above.
-  2. Migration + service + API for snooze, once approved.
-  3. `report_service.get_escalation_summary` (or similar) for the counters.
-  4. Frontend: counters row, status filter pills, resolve drawer (radio:
-     Contacted-close / Reassign / Snooze, note field, Cancel/Resolve).
+  1. ~~`architect` pass on the snooze schema sketch~~ — done, see above.
+  2. Migration `0028` + `escalation_service.py` changes (snooze,
+     direct-resolve transition, `was_reopened`, `resolution_note` fix).
+  3. `app/workers/escalations.py` (expiry scan) + beat schedule entry.
+  4. `report_service.get_escalation_summary` for the counters.
+  5. Frontend: counters row, status filter pills, resolve drawer (radio:
+     Contacted-close / Reassign owner / Snooze until…, note field,
+     Cancel/Resolve — button label reflects the chosen outcome).
 - **Acceptance criteria**:
-  - A snoozed escalation automatically reopens (status → `open`) once
-    `snoozed_until` passes, without any user action, verified via the
-    background job's own test.
+  - A snoozed escalation automatically reopens (status → `open`,
+    `snoozed_until` cleared) once `snoozed_until` passes, without any user
+    action, verified via the background job's own test.
   - The "Breaching within 1h" counter matches a direct query against
-    `sla_states`/`escalations` for the same tenant — no drift between the
-    displayed count and the underlying data.
+    `sla_states` for the same tenant/team — no drift between the displayed
+    count and the underlying data.
+  - A manager cannot see another manager's assigned escalations by any
+    combination of status filter or the new counters endpoint (tenant
+    isolation + scope test).
+  - Reassigning an escalation still records its note (regression test for
+    the `resolution_note` fix above).
 
 ### Phase 7f — Follow-ups: kanban queue
 Depends on 7a. Independent of 7e (confirmed **not** sharing a backend
