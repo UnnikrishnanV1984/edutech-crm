@@ -214,18 +214,11 @@ export function PipelineConfigPage() {
   }
 
   if (!loaded) {
-    return (
-      <div style={{ maxWidth: 1120, margin: "0 auto", padding: "var(--space-6)" }}>
-        <h1 style={{ marginBottom: "var(--space-5)" }}>Pipeline config</h1>
-        <PageSpinner />
-      </div>
-    );
+    return <PageSpinner />;
   }
 
   return (
-    <div style={{ maxWidth: 1120, margin: "0 auto", padding: "var(--space-6)" }}>
-      <h1 style={{ marginBottom: "var(--space-5)" }}>Pipeline config</h1>
-
+    <>
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)" }}>
         {error && (
           <p role="alert" style={{ color: "var(--danger)" }}>
@@ -422,7 +415,7 @@ export function PipelineConfigPage() {
           onCancel={() => setShowResetToDefault(false)}
         />
       )}
-    </div>
+    </>
   );
 }
 

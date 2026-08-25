@@ -124,8 +124,7 @@ export function IntegrationsPage() {
   }
 
   return (
-    <div style={{ maxWidth: 1120, margin: "0 auto", padding: "var(--space-6)" }}>
-      <h1 style={{ marginBottom: "var(--space-5)" }}>Integrations</h1>
+    <>
 
       <Card
         title="Connected sources"
@@ -250,7 +249,7 @@ export function IntegrationsPage() {
           }}
         />
       )}
-    </div>
+    </>
   );
 }
 

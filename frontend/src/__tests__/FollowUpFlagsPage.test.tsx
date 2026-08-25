@@ -137,7 +137,15 @@ describe("FollowUpFlagsPage", () => {
     setup("admin");
     mockedListFlags.mockResolvedValue({ data: [], meta: { request_id: "r1" } });
     mockedUseUsers.mockReturnValue([
-      { id: "u2", email: "b@example.test", full_name: "Beth Manager", role: "manager", status: "active" },
+      {
+        id: "u2",
+        email: "b@example.test",
+        full_name: "Beth Manager",
+        role: "manager",
+        manager_id: null,
+        status: "active",
+        territory: null,
+      },
     ]);
     mockedUserDisplayName.mockReturnValue("Beth Manager");
 

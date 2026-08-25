@@ -68,8 +68,24 @@ function setup(role: "manager" | "admin" | "counselor" = "manager") {
     error: undefined,
   });
   mockedUseUsers.mockReturnValue([
-    { id: "u1", email: "a@example.test", full_name: "Asha Manager", role: "manager", status: "active" },
-    { id: "u2", email: "b@example.test", full_name: "Beth Manager", role: "manager", status: "active" },
+    {
+      id: "u1",
+      email: "a@example.test",
+      full_name: "Asha Manager",
+      role: "manager",
+      manager_id: null,
+      status: "active",
+      territory: null,
+    },
+    {
+      id: "u2",
+      email: "b@example.test",
+      full_name: "Beth Manager",
+      role: "manager",
+      manager_id: null,
+      status: "active",
+      territory: null,
+    },
   ]);
   mockedGetEscalationSummary.mockResolvedValue({
     data: SUMMARY,

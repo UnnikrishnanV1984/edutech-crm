@@ -56,9 +56,7 @@ export function SlaPoliciesPage() {
   const stageName = (id: string | null) => stages.find((s) => s.id === id)?.name ?? "—";
 
   return (
-    <div style={{ maxWidth: 1120, margin: "0 auto", padding: "var(--space-6)" }}>
-      <h1 style={{ marginBottom: "var(--space-5)" }}>SLA policies</h1>
-
+    <>
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)" }}>
         {showCreate && (
           <CreatePolicyForm
@@ -130,7 +128,7 @@ export function SlaPoliciesPage() {
           )}
         </Card>
       </div>
-    </div>
+    </>
   );
 }
 

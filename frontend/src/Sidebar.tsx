@@ -6,6 +6,7 @@ import { useAuth } from "./auth/context";
 import { Avatar } from "./components/Avatar";
 import { Badge } from "./components/Badge";
 import { ThemeToggle } from "./components/ThemeToggle";
+import { useBranding } from "./useBranding";
 import { useMe } from "./useMe";
 
 interface NavItem {
@@ -28,11 +29,7 @@ const TEAM: NavItem[] = [
   { to: "/follow-ups", label: "Follow-ups" },
   { to: "/workflow-rules", label: "Workflow rules" },
 ];
-const ADMIN: NavItem[] = [
-  { to: "/sla-policies", label: "SLA policies" },
-  { to: "/integrations", label: "Integrations" },
-  { to: "/pipeline-config", label: "Config" },
-];
+const ADMIN: NavItem[] = [{ to: "/configurations", label: "Configurations" }];
 
 // Vertical nav's active state: a left accent stripe + tinted background,
 // not the horizontal tab bar's underline — color plus a second cue
@@ -74,6 +71,7 @@ function GroupLabel({ children }: { children: string }) {
 export function Sidebar() {
   const { logout, token } = useAuth();
   const { me } = useMe();
+  const { branding } = useBranding();
   const [openTaskCount, setOpenTaskCount] = useState(0);
 
   useEffect(() => {
@@ -101,7 +99,26 @@ export function Sidebar() {
       }}
     >
       <div style={{ padding: "var(--space-4) var(--space-3)" }}>
-        <strong style={{ fontSize: "var(--text-lg)", color: "var(--text-h)" }}>OpenFunnel</strong>
+        {branding?.header_image_url ? (
+          <img
+            src={branding.header_image_url}
+            alt={me?.tenant.name ?? "Tenant logo"}
+            style={{ maxWidth: "100%", maxHeight: 32, display: "block" }}
+          />
+        ) : branding?.logo_url ? (
+          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+            <img
+              src={branding.logo_url}
+              alt={me?.tenant.name ?? "Tenant logo"}
+              style={{ width: 28, height: 28, borderRadius: "var(--radius-sm)", objectFit: "cover" }}
+            />
+            <strong style={{ fontSize: "var(--text-lg)", color: "var(--text-h)" }}>
+              {me?.tenant.name ?? "OpenFunnel"}
+            </strong>
+          </div>
+        ) : (
+          <strong style={{ fontSize: "var(--text-lg)", color: "var(--text-h)" }}>OpenFunnel</strong>
+        )}
       </div>
 
       <div style={{ flex: 1, minHeight: 0, overflowY: "auto", paddingBottom: "var(--space-3)" }}>
