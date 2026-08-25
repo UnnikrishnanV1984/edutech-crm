@@ -18,7 +18,7 @@ from app.models.sla_policy import SlaPolicy
 from app.models.sla_state import SlaState
 from app.models.task import Task
 from app.models.tenant import Tenant
-from app.models.tenant_branding import TenantBranding
+from app.models.tenant_branding import TenantBranding, TenantBrandingVersion
 from app.models.tenant_sla_settings import TenantSlaSettings
 from app.models.user import User
 from app.models.workflow_rule import WorkflowRule
@@ -46,6 +46,7 @@ __all__ = [
     "Task",
     "Tenant",
     "TenantBranding",
+    "TenantBrandingVersion",
     "TenantSlaSettings",
     "User",
     "WorkflowRule",

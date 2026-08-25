@@ -109,13 +109,29 @@ Both tables: standard `tenant_id` + RLS pattern (`DATABASE_SCHEMA.md` §2).
 indexing rule (`idx_tenant_branding_versions_tenant_version` on
 `(tenant_id, version_number DESC)`).
 
-**Open question for the architect pass**: should `tenant_branding`'s
-existing unique-index-on-`tenant_id` one-row-per-tenant shape stay as is
-(the draft), or does making it explicitly "the draft" warrant renaming
-the table for clarity (e.g. `tenant_branding_draft`)? Sketch above keeps
-the existing name to avoid an unnecessary rename/migration-of-a-migration,
-but this is exactly the kind of naming call `architect` should confirm
-rather than the plan asserting unilaterally.
+**Architect decision (2026-08-26)**: keep `tenant_branding` as the
+mutable/current-working-copy table, no rename. This codebase already has
+a directly analogous pair — `pipeline_stages` (the tenant's live, editable
+config) and `pipeline_stage_default_snapshots` (an immutable
+point-in-time snapshot table, qualified name, write-once) — same relation
+`tenant_branding`/`tenant_branding_versions` needs. The "current working
+copy keeps its plain name, the snapshot-history table gets the qualifier"
+convention is already established, not a new one being invented for this
+feature, so `tenant_branding` stays as-is and only
+`tenant_branding_versions` is new. Rejected alternative: renaming to
+`tenant_branding_draft` — adds a migration-of-a-migration and a model
+rename for a clarity gain the existing precedent already achieves without
+it (the pattern reads correctly the same way `pipeline_stages` does).
+
+Rest of §5's column sketch confirmed sound as written: `accent_color`'s
+regex-validated hex-string `TEXT`, `header_background`'s `CHECK`-
+constrained enum, `typeface`'s `CHECK`-constrained closed set, and
+`tenant_branding_versions`' full-snapshot-not-a-diff shape (mirroring
+`pipeline_stage_default_snapshots` again) are all standard, low-risk
+patterns already used elsewhere in this schema — no changes to the
+sketch. `custom_domain` stays a plain nullable `TEXT` with no `CHECK`
+(format validation, if any, belongs at the API/schema layer, not the DB,
+since it's inert data with no routing behavior to protect).
 
 ## 6. API contract (sketch)
 
@@ -227,30 +243,52 @@ this codebase's established out-of-scope-looks-like-missing convention).
     unpublished draft both still render exactly like today (no partial
     theme leaks from draft edits into the live app).
 
-## 10. Acceptance criteria
+## 10. Acceptance criteria (met, 2026-08-26)
 
 - A tenant with no published version renders identically to the current
   (unbranded) app, even if that tenant has an in-progress, unpublished
   draft — editing the draft alone never affects any live session.
+  **Met** — `test_live_branding_default_when_unpublished`.
 - Publish is the only action that changes what `GET /api/v1/branding`
   (and therefore the live app shell) returns; the response before and
   after a draft-only edit is byte-identical.
+  **Met** — `test_draft_edits_dont_affect_live_until_published`,
+  `test_publish_makes_draft_live`.
 - Discard resets the draft to exactly the latest published version's
   values (or empty defaults pre-first-publish) — verified field-by-field,
   not just "form looks empty."
+  **Met** — `test_discard_resets_to_published_values`,
+  `test_discard_with_no_prior_publish_resets_to_defaults`; frontend
+  `BrandingTab.test.tsx` "discarding resets the draft to what the endpoint
+  returns" covers the form re-rendering with the reset values (the text
+  inputs are keyed on `updated_at` so they actually remount instead of
+  showing stale typed text).
 - Restore populates the draft from a chosen prior version without
   publishing it automatically — a second, explicit Publish is required,
   and the live app is unaffected until then.
+  **Met** — `test_restore_populates_draft_without_publishing`.
 - A tenant-A admin cannot restore or view a tenant-B version by id (404).
+  **Met** — `test_restore_rejects_cross_tenant_version_id`.
 - The contrast check reflects the *current draft's* accent/header-background
   pair, updates without a save, and never blocks Publish outright (warns).
+  **Met** — `BrandingTab.test.tsx` "warns when accent-on-header contrast is
+  below the WCAG AA threshold"; the Publish button has no disabled/guard
+  tied to the contrast result.
 - The Login and Email preview tabs are visibly labeled as preview-only in
   the rendered UI, not just in an internal comment — a screenshot of
   either must make the "not live" status obvious to whoever's looking at
   it.
+  **Met** — `PreviewOnlyNote` in `BrandingLivePreview.tsx` renders on both
+  tabs in `--danger` text; covered by "shows preview-only notes for the
+  login and email preview tabs".
 - `typeface` rejects any value outside the small vendored set server-side,
   not just hidden from the dropdown client-side.
+  **Met** — `ck_tenant_branding_typeface` CHECK constraint +
+  `test_invalid_typeface_rejected`.
 - Setting `custom_domain` saves and displays the value but has no
   observable effect on routing, auth, or any request's `Host` handling —
   verified by confirming no code path reads it outside the branding
   API/UI itself.
+  **Met** — `test_custom_domain_saves_but_never_live`; repo-wide grep for
+  `custom_domain` confirms zero references outside the branding stack
+  (schema/model/service/route/tests + `api/branding.ts`/`BrandingTab.tsx`).

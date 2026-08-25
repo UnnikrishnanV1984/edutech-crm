@@ -399,60 +399,87 @@ Depends on 7a. Fully independent of every other phase.
   writes zero `workflow_runs` rows (regression-tested explicitly); the
   plain-English preview updates live with no save required.
 
-### Phase 7h — Branding / white-label — logo + header shipped, rest planned (2026-08-26)
+### Phase 7h — Branding / white-label — fully shipped (2026-08-26)
 Depends on 7a (the branding admin screen itself needs the restyled
-component set). The remainder of this phase (draft/publish, versioning,
-palette/typeface, favicon, contrast check, live preview, custom domain,
-and honest preview-only handling of the Login/Email/PDF surfaces this app
-doesn't have yet) is planned in full in `BRANDING_FULL_SYSTEM_PLAN.md` —
-not built yet, and gated on an `architect` pass per that doc's own
-CLAUDE.md-required flag (schema change to a table already in production
-use, plus a new table).
+component set). The full system (draft/publish, versioning, palette/
+typeface, favicon, contrast check, live preview, custom domain, and honest
+preview-only handling of the Login/Email/PDF surfaces this app doesn't have
+yet) is now built per `BRANDING_FULL_SYSTEM_PLAN.md`, which records the
+`architect`-approved schema decision (kept `tenant_branding` as the mutable
+draft, matching the `pipeline_stages`/`pipeline_stage_default_snapshots`
+precedent — see that doc §5) and the full task breakdown/acceptance
+criteria, all now marked met.
 
-**Scope cut, confirmed with the user before starting the first pass**: it built
-the part actually asked for — logo + header image upload, applied
-immediately — and explicitly skipped the wireframe's fuller system
+**v1 scope cut, confirmed with the user before starting the first pass**: it
+built the part actually asked for first — logo + header image upload,
+applied immediately — and explicitly deferred the wireframe's fuller system
 (color/typeface pickers, contrast check, custom domain, App/Login/Email
 live-preview tabs, "where branding appears" checklist, draft/publish
-workflow, version history). None of those were requested, and the
-login-screen backdrop specifically still has nowhere real to plug into
-(this app has no in-app login screen — confirmed, PKCE redirect flow,
-`frontend/src/auth/` has no login page component — so a Keycloak
-login-theme customization stays a separate, later, architect-approved
-follow-up if ever picked up). No draft/publish step exists — an upload
-takes effect the moment it's confirmed.
+workflow, version history) to a later pass. That later pass (below) has
+since shipped. The login-screen backdrop still has nowhere real to render
+onto (this app has no in-app login screen — confirmed, PKCE redirect flow,
+`frontend/src/auth/` has no login page component), so it's stored and
+previewable but explicitly labeled preview-only rather than faked as live —
+a Keycloak login-theme customization consuming it stays a separate, later,
+architect-approved follow-up if ever picked up.
 
-- **Affected layers**: frontend (`BrandingTab.tsx` — two upload wells;
-  `Sidebar.tsx` renders the result: header lockup if set, else logo +
-  tenant name, else the plain "OpenFunnel" wordmark), backend (new
-  table + asset storage + fetch/upload/confirm endpoints), no BFF
-  change (the existing generic `/api/v1/*` proxy already covers it).
-- **Database** (migration `0029`): `tenant_branding` — same
-  one-row-per-tenant pattern as `tenant_sla_settings` (composite
-  `(id, tenant_id)` PK + unique index on `tenant_id`, not a different PK
-  shape), storing only `logo_s3_key`/`header_image_s3_key`. Asset bytes
-  reuse the same S3/MinIO bucket `documents` already uses, not a second
-  storage mechanism.
-- **API contract (built)**: `GET /api/v1/branding` (any authenticated
-  role, not admin-only — the sidebar needs it for everyone), `POST
+**v2 — full system (shipped 2026-08-26)**: draft/publish/version model,
+company display name, favicon, login backdrop, accent color + derived
+hover/subtle shades, header background (light/dark/accent), typeface
+(system/serif, constrained to this app's locally-vendored fonts), custom
+domain (stored, inert), WCAG AA contrast check (warns, never blocks
+Publish), App/Login/Email live preview tabs, "where branding appears"
+checklist, and version history with restore. Full design in
+`BRANDING_FULL_SYSTEM_PLAN.md`.
+
+- **Affected layers**: frontend (`BrandingTab.tsx` orchestrates upload
+  wells for all 4 asset types + the palette/type form + Discard/Publish;
+  `BrandingLivePreview.tsx` and `BrandingVersionHistory.tsx` split out as
+  their own components; `branding/colorUtils.ts` for contrast/shade math;
+  `branding/ApplyBranding.tsx` injects the accent CSS-variable override and
+  favicon; `Sidebar.tsx` renders the result), backend (`tenant_branding`
+  extended + new `tenant_branding_versions` table, service/route layer
+  rewritten for draft/publish/versions), no BFF change (the existing
+  generic `/api/v1/*` proxy already covers it).
+- **Database** (migrations `0029` + `0030`): `tenant_branding` is the
+  mutable *draft* (one row per tenant, same pattern as
+  `tenant_sla_settings`), now also carrying `company_display_name`,
+  `favicon_s3_key`, `login_backdrop_s3_key`, `accent_color` (hex-format
+  CHECK), `header_background`/`typeface` (enum CHECKs), `custom_domain`.
+  `tenant_branding_versions` is a write-once snapshot table — full copy of
+  every draft field per publish, same shape/spirit as
+  `pipeline_stage_default_snapshots` — and the row with the highest
+  `version_number` for a tenant is what `GET /api/v1/branding` actually
+  returns. Asset bytes still reuse the same S3/MinIO bucket `documents`
+  already uses.
+- **API contract (built)**: `GET /api/v1/branding` (live, any authenticated
+  role), `GET`/`PATCH /api/v1/branding/draft` (admin-only), `POST
   /api/v1/branding/upload-url` + `POST /api/v1/branding/confirm`
-  (admin-only, same presigned-PUT-then-confirm shape `documents.py`
-  already established, including the tenant/asset-type s3_key-prefix
-  tamper check). `GET /branding`'s image URLs use a 1-hour presigned
-  GET, not `documents`' 60-second one — a branding image is embedded as
-  a persistent `<img>` across every page load, not downloaded once.
-- **Multi-tenancy check**: standard RLS on the new table; upload/confirm
-  reuse `documents`' existing tenant-scoped s3_key validation.
-- **Acceptance criteria (met)**:
-  - A tenant with no branding configured renders identically to the
-    current app (no regression for the common case) — verified: the
-    Sidebar's fallback chain always resolves to the plain wordmark when
-    both URLs are null, including during the initial fetch.
-  - Tenant A's branding is never visible to Tenant B under any code
-    path, including the asset upload/serving path (tenant-isolation
-    test).
-  - An uploaded logo/header shows up in the sidebar without a page
-    reload once the upload confirms.
+  (admin-only, writes to the draft; same presigned-PUT-then-confirm shape
+  `documents.py` established, including the tenant/asset-type s3_key-prefix
+  tamper check), `POST /api/v1/branding/publish`, `POST
+  /api/v1/branding/discard`, `GET /api/v1/branding/versions`, `POST
+  /api/v1/branding/versions/{id}/restore` (admin-only, 404s on a
+  cross-tenant id). Branding image URLs use a 1-hour presigned GET, not
+  `documents`' 60-second one — a branding image is embedded as a
+  persistent `<img>` across every page load, not downloaded once.
+- **Multi-tenancy check**: RLS on both tables; upload/confirm reuse
+  `documents`' existing tenant-scoped s3_key validation; version restore is
+  tenant-scoped by lookup, not by trusting the id alone.
+- **Acceptance criteria**: see `BRANDING_FULL_SYSTEM_PLAN.md` §10 — all met
+  as of 2026-08-26, including the v1-era criteria below (still hold under
+  the draft/publish model — an unbranded/never-published tenant still
+  renders identically to today, and cross-tenant isolation holds for the
+  live surface, draft, and version history alike).
+  - A tenant with no published branding renders identically to the current
+    app (no regression for the common case) — verified: the Sidebar's
+    fallback chain always resolves to the plain wordmark when nothing has
+    been published, including during the initial fetch.
+  - Tenant A's branding is never visible to Tenant B under any code path,
+    including the asset upload/serving path and version history
+    (tenant-isolation tests).
+  - A published logo/header/accent shows up in the sidebar without a page
+    reload once Publish completes.
 
 ### Phase 7i — Responsive / phone layouts
 Depends on **every** other phase above — a mobile layout for a screen that

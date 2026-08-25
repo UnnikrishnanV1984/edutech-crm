@@ -1,6 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 
 import { AuthProvider } from "./auth/AuthProvider";
+import { ApplyBranding } from "./branding/ApplyBranding";
 import { ToastProvider } from "./components/ToastProvider";
 import { ConfigurationsPage } from "./pages/ConfigurationsPage";
 import { ContactDetailPage } from "./pages/ContactDetailPage";
@@ -16,6 +17,7 @@ import { Sidebar } from "./Sidebar";
 function AppRoutes() {
   return (
     <div style={{ display: "flex", height: "100svh" }}>
+      <ApplyBranding />
       <Sidebar />
       <main style={{ flex: 1, minWidth: 0, overflowY: "auto" }}>
         <Routes>
