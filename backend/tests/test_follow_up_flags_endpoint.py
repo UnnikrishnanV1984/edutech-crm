@@ -185,3 +185,146 @@ def test_resolve_flag(scenario):
         )
     assert response.status_code == 200
     assert response.json()["data"]["resolved_at"] is not None
+
+
+def test_list_is_enriched_with_contact_and_manager_name(scenario):
+    with TestClient(app) as client:
+        client.post(
+            "/api/v1/follow-up-flags",
+            json={
+                "contact_id": scenario["contact_id"],
+                "note": "check in",
+                "remind_on": str(date.today() + timedelta(days=7)),
+            },
+            headers=scenario["manager_headers"],
+        )
+        listed = client.get("/api/v1/follow-up-flags", headers=scenario["manager_headers"])
+    row = listed.json()["data"][0]
+    assert row["contact_name"] == "Follow-up Contact"
+    assert row["resolved_contact_id"] == scenario["contact_id"]
+    assert row["manager_name"] is not None
+
+
+def test_admin_can_filter_by_manager_id(scenario):
+    with TestClient(app) as client:
+        client.post(
+            "/api/v1/follow-up-flags",
+            json={
+                "contact_id": scenario["contact_id"],
+                "note": "check in",
+                "remind_on": str(date.today() + timedelta(days=7)),
+            },
+            headers=scenario["manager_headers"],
+        )
+        manager_id = client.get("/api/v1/me", headers=scenario["manager_headers"]).json()["data"][
+            "user"
+        ]["id"]
+        other_manager_id = client.get(
+            "/api/v1/me", headers=scenario["other_manager_headers"]
+        ).json()["data"]["user"]["id"]
+
+        scoped_to_manager = client.get(
+            "/api/v1/follow-up-flags",
+            params={"manager_id": manager_id},
+            headers=scenario["admin_headers"],
+        )
+        scoped_to_other = client.get(
+            "/api/v1/follow-up-flags",
+            params={"manager_id": other_manager_id},
+            headers=scenario["admin_headers"],
+        )
+    assert len(scoped_to_manager.json()["data"]) == 1
+    assert scoped_to_other.json()["data"] == []
+
+
+def test_manager_cannot_widen_scope_via_manager_id_param(scenario):
+    """REQUIREMENTS.md §4.3 — a manager's flag list is strictly their own;
+    manager_id is only ever honored for an Admin caller. Passing another
+    manager's id neither reveals that manager's flags nor hides the
+    caller's own — it's silently ignored, same as every other
+    role-scoped endpoint in this app."""
+    with TestClient(app) as client:
+        created = client.post(
+            "/api/v1/follow-up-flags",
+            json={
+                "contact_id": scenario["contact_id"],
+                "note": "check in",
+                "remind_on": str(date.today() + timedelta(days=7)),
+            },
+            headers=scenario["manager_headers"],
+        ).json()["data"]
+        other_manager_id = client.get(
+            "/api/v1/me", headers=scenario["other_manager_headers"]
+        ).json()["data"]["user"]["id"]
+        response = client.get(
+            "/api/v1/follow-up-flags",
+            params={"manager_id": other_manager_id},
+            headers=scenario["manager_headers"],
+        )
+    data = response.json()["data"]
+    assert len(data) == 1
+    assert data[0]["id"] == created["id"]
+
+
+def test_snooze_moves_remind_on_without_resolving(scenario):
+    with TestClient(app) as client:
+        created = client.post(
+            "/api/v1/follow-up-flags",
+            json={
+                "contact_id": scenario["contact_id"],
+                "note": "check in",
+                "remind_on": str(date.today() + timedelta(days=1)),
+            },
+            headers=scenario["manager_headers"],
+        ).json()["data"]
+        new_date = str(date.today() + timedelta(days=14))
+        response = client.patch(
+            f"/api/v1/follow-up-flags/{created['id']}",
+            json={"remind_on": new_date},
+            headers=scenario["manager_headers"],
+        )
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["remind_on"] == new_date
+    assert data["resolved_at"] is None
+
+
+def test_snooze_rejects_a_past_date(scenario):
+    with TestClient(app) as client:
+        created = client.post(
+            "/api/v1/follow-up-flags",
+            json={
+                "contact_id": scenario["contact_id"],
+                "note": "check in",
+                "remind_on": str(date.today() + timedelta(days=1)),
+            },
+            headers=scenario["manager_headers"],
+        ).json()["data"]
+        response = client.patch(
+            f"/api/v1/follow-up-flags/{created['id']}",
+            json={"remind_on": str(date.today() - timedelta(days=1))},
+            headers=scenario["manager_headers"],
+        )
+    assert response.status_code == 400
+
+
+def test_cannot_snooze_a_resolved_flag(scenario):
+    with TestClient(app) as client:
+        created = client.post(
+            "/api/v1/follow-up-flags",
+            json={
+                "contact_id": scenario["contact_id"],
+                "note": "check in",
+                "remind_on": str(date.today() + timedelta(days=1)),
+            },
+            headers=scenario["manager_headers"],
+        ).json()["data"]
+        client.patch(
+            f"/api/v1/follow-up-flags/{created['id']}", headers=scenario["manager_headers"]
+        )
+        response = client.patch(
+            f"/api/v1/follow-up-flags/{created['id']}",
+            json={"remind_on": str(date.today() + timedelta(days=14))},
+            headers=scenario["manager_headers"],
+        )
+    assert response.status_code == 400
