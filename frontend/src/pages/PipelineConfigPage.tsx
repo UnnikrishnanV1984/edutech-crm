@@ -2,10 +2,9 @@ import { useEffect, useState } from "react";
 
 import { ApiRequestError } from "../api/client";
 import {
-  createPipelineStage,
-  deletePipelineStage,
+  batchUpdatePipelineStages,
   listPipelineStages,
-  reorderPipelineStages,
+  resetPipelineStagesToDefault,
   type PipelineStage,
 } from "../api/pipelineStages";
 import {
@@ -28,21 +27,71 @@ interface StageSeed {
   isReworkStage: boolean;
 }
 
+// PIPELINE_CONFIG_RESET_PLAN.md §7 task 5 — the whole page now edits a
+// local draft; nothing hits the API until Save. `id` is absent for a
+// stage the admin added this session (not yet saved) — `clientKey` gives
+// every row (saved or not) a stable React key and drag/rename identity
+// that doesn't depend on a server id existing yet.
+interface DraftStage {
+  clientKey: string;
+  id?: string;
+  name: string;
+  is_won: boolean;
+  is_lost: boolean;
+  is_invoice_stage: boolean;
+  is_rework_stage: boolean;
+}
+
+function toDraft(stage: PipelineStage): DraftStage {
+  return {
+    clientKey: stage.id,
+    id: stage.id,
+    name: stage.name,
+    is_won: stage.is_won,
+    is_lost: stage.is_lost,
+    is_invoice_stage: stage.is_invoice_stage,
+    is_rework_stage: stage.is_rework_stage,
+  };
+}
+
+// Order-sensitive on purpose — array position is what "changed" means
+// for a reorder, same as the batch/reorder endpoints themselves.
+function draftSignature(stages: DraftStage[]): string {
+  return JSON.stringify(
+    stages.map((s) => [
+      s.id ?? null,
+      s.name,
+      s.is_won,
+      s.is_lost,
+      s.is_invoice_stage,
+      s.is_rework_stage,
+    ]),
+  );
+}
+
+const RESET_TO_DEFAULT_PHRASE = "RESET TO DEFAULT";
+
 export function PipelineConfigPage() {
   const { token } = useAuth();
   const { me } = useMe();
-  const [stages, setStages] = useState<PipelineStage[]>([]);
+  const [savedStages, setSavedStages] = useState<PipelineStage[]>([]);
+  const [draftStages, setDraftStages] = useState<DraftStage[]>([]);
   const [templates, setTemplates] = useState<PipelineStageTemplate[]>([]);
   const [showTemplates, setShowTemplates] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [createSeed, setCreateSeed] = useState<StageSeed | undefined>(undefined);
-  const [busyId, setBusyId] = useState<string | undefined>(undefined);
-  const [draggingId, setDraggingId] = useState<string | undefined>(undefined);
+  const [draggingKey, setDraggingKey] = useState<string | undefined>(undefined);
   const [error, setError] = useState<string | undefined>(undefined);
+  const [saving, setSaving] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [showResetToDefault, setShowResetToDefault] = useState(false);
 
   function load() {
     if (!token) return;
-    listPipelineStages(token).then((response) => setStages(response.data));
+    listPipelineStages(token).then((response) => {
+      setSavedStages(response.data);
+      setDraftStages(response.data.map(toDraft));
+    });
   }
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -52,6 +101,8 @@ export function PipelineConfigPage() {
     if (!token || me?.user.role !== "admin") return;
     listPipelineStageTemplates(token).then((response) => setTemplates(response.data));
   }, [token, me?.user.role]);
+
+  const dirty = draftSignature(draftStages) !== draftSignature(savedStages.map(toDraft));
 
   function applyTemplate(template: PipelineStageTemplate) {
     setCreateSeed({
@@ -73,48 +124,90 @@ export function PipelineConfigPage() {
     );
   }
 
-  async function remove(stage: PipelineStage) {
+  function addDraftStage(seed: StageSeed) {
+    setDraftStages((current) => [
+      ...current,
+      {
+        clientKey: `new-${crypto.randomUUID()}`,
+        name: seed.name,
+        is_won: seed.isWon,
+        is_lost: seed.isLost,
+        is_invoice_stage: seed.isInvoiceStage,
+        is_rework_stage: seed.isReworkStage,
+      },
+    ]);
+  }
+
+  function removeDraftStage(clientKey: string) {
+    setDraftStages((current) => current.filter((s) => s.clientKey !== clientKey));
+  }
+
+  function renameDraftStage(clientKey: string, name: string) {
+    setDraftStages((current) =>
+      current.map((s) => (s.clientKey === clientKey ? { ...s, name } : s)),
+    );
+  }
+
+  function handleDrop(targetKey: string) {
+    if (!draggingKey || draggingKey === targetKey) {
+      setDraggingKey(undefined);
+      return;
+    }
+    const fromIndex = draftStages.findIndex((s) => s.clientKey === draggingKey);
+    const toIndex = draftStages.findIndex((s) => s.clientKey === targetKey);
+    setDraggingKey(undefined);
+    if (fromIndex === -1 || toIndex === -1) return;
+    const reordered = [...draftStages];
+    const [moved] = reordered.splice(fromIndex, 1);
+    reordered.splice(toIndex, 0, moved!);
+    setDraftStages(reordered);
+  }
+
+  async function handleSave() {
     if (!token) return;
-    setBusyId(stage.id);
+    setSaving(true);
     setError(undefined);
     try {
-      await deletePipelineStage(token, stage.id);
-      setStages((current) => current.filter((s) => s.id !== stage.id));
+      const response = await batchUpdatePipelineStages(
+        token,
+        draftStages.map((s) => ({
+          id: s.id,
+          name: s.name,
+          is_won: s.is_won,
+          is_lost: s.is_lost,
+          is_invoice_stage: s.is_invoice_stage,
+          is_rework_stage: s.is_rework_stage,
+        })),
+      );
+      setSavedStages(response.data);
+      setDraftStages(response.data.map(toDraft));
     } catch (err) {
-      // Surface the backend's own message rather than guessing ahead of
-      // time which stages are deletable (409 for in-use / last
-      // won-lost-open stage — ADMIN_UX_IMPROVEMENTS_PLAN.md Sec4.3).
-      setError(err instanceof ApiRequestError ? err.message : "Couldn't delete stage");
+      // Batch is all-or-nothing server-side — nothing was applied, so
+      // the draft is left exactly as the admin had it, not reset.
+      setError(err instanceof ApiRequestError ? err.message : "Couldn't save changes");
     } finally {
-      setBusyId(undefined);
+      setSaving(false);
     }
   }
 
-  function handleDrop(targetStage: PipelineStage) {
-    if (!token || !draggingId || draggingId === targetStage.id) {
-      setDraggingId(undefined);
-      return;
-    }
-    const fromIndex = stages.findIndex((s) => s.id === draggingId);
-    const toIndex = stages.findIndex((s) => s.id === targetStage.id);
-    setDraggingId(undefined);
-    if (fromIndex === -1 || toIndex === -1) return;
-
-    const reordered = [...stages];
-    const [moved] = reordered.splice(fromIndex, 1);
-    reordered.splice(toIndex, 0, moved!);
-    const previous = stages;
-    setStages(reordered);
+  function handleResetConfirmed() {
+    setDraftStages(savedStages.map(toDraft));
+    setShowResetConfirm(false);
     setError(undefined);
-    reorderPipelineStages(
-      token,
-      reordered.map((s) => s.id),
-    )
-      .then((response) => setStages(response.data))
-      .catch((err) => {
-        setStages(previous);
-        setError(err instanceof ApiRequestError ? err.message : "Couldn't reorder stages");
-      });
+  }
+
+  async function handleResetToDefaultConfirmed() {
+    if (!token) return;
+    setError(undefined);
+    try {
+      const response = await resetPipelineStagesToDefault(token);
+      setSavedStages(response.data);
+      setDraftStages(response.data.map(toDraft));
+    } catch (err) {
+      setError(err instanceof ApiRequestError ? err.message : "Couldn't reset to default");
+    } finally {
+      setShowResetToDefault(false);
+    }
   }
 
   return (
@@ -129,7 +222,14 @@ export function PipelineConfigPage() {
         )}
 
         {showTemplates && (
-          <Card title="Start from a template" action={<Button variant="text" onClick={() => setShowTemplates(false)}>Close</Button>}>
+          <Card
+            title="Start from a template"
+            action={
+              <Button variant="text" onClick={() => setShowTemplates(false)}>
+                Close
+              </Button>
+            }
+          >
             {templates.length === 0 && <EmptyState headline="No templates available" />}
             {templates.length > 0 && (
               <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
@@ -173,10 +273,10 @@ export function PipelineConfigPage() {
         {showCreate && (
           <CreateStageForm
             initial={createSeed}
-            onCreated={() => {
+            onCreated={(seed) => {
+              addDraftStage(seed);
               setShowCreate(false);
               setCreateSeed(undefined);
-              load();
             }}
             onCancel={() => {
               setShowCreate(false);
@@ -204,59 +304,231 @@ export function PipelineConfigPage() {
             </div>
           }
         >
-          {stages.length === 0 && <EmptyState headline="No pipeline stages yet" />}
+          {draftStages.length === 0 && <EmptyState headline="No pipeline stages yet" />}
 
-          {stages.length > 0 && (
+          {draftStages.length > 0 && (
             <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-              {stages.map((stage, index) => {
-                const tone = stageColor(stage, index);
-                return (
-                  <li
-                    key={stage.id}
-                    draggable
-                    onDragStart={() => setDraggingId(stage.id)}
-                    onDragEnd={() => setDraggingId(undefined)}
-                    onDragOver={(event) => event.preventDefault()}
-                    onDrop={() => handleDrop(stage)}
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      padding: "var(--space-3) var(--space-2)",
-                      borderTop: index === 0 ? "none" : "1px solid var(--border)",
-                      cursor: "grab",
-                      opacity: draggingId === stage.id ? 0.5 : 1,
-                    }}
-                  >
-                    <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
-                      <span style={{ color: "var(--text-muted)" }}>::</span>
-                      <Badge label={stage.name} tone={tone} icon={stageIcon(stage)} />
-                      {stage.is_won && (
-                        <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Won</span>
-                      )}
-                      {stage.is_lost && (
-                        <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Lost</span>
-                      )}
-                      {stage.is_invoice_stage && (
-                        <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Invoice</span>
-                      )}
-                      {stage.is_rework_stage && (
-                        <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Rework</span>
-                      )}
-                    </div>
-                    <Button
-                      variant="text"
-                      disabled={busyId === stage.id}
-                      onClick={() => void remove(stage)}
-                    >
-                      Delete
-                    </Button>
-                  </li>
-                );
-              })}
+              {draftStages.map((stage, index) => (
+                <li
+                  key={stage.clientKey}
+                  draggable
+                  onDragStart={() => setDraggingKey(stage.clientKey)}
+                  onDragEnd={() => setDraggingKey(undefined)}
+                  onDragOver={(event) => event.preventDefault()}
+                  onDrop={() => handleDrop(stage.clientKey)}
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    padding: "var(--space-3) var(--space-2)",
+                    borderTop: index === 0 ? "none" : "1px solid var(--border)",
+                    cursor: "grab",
+                    opacity: draggingKey === stage.clientKey ? 0.5 : 1,
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
+                    <span style={{ color: "var(--text-muted)" }}>::</span>
+                    <StageNameEditor
+                      stage={stage}
+                      index={index}
+                      onRename={(name) => renameDraftStage(stage.clientKey, name)}
+                    />
+                    {!stage.id && (
+                      <span style={{ fontSize: 12, color: "var(--accent)" }}>New</span>
+                    )}
+                    {stage.is_won && (
+                      <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Won</span>
+                    )}
+                    {stage.is_lost && (
+                      <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Lost</span>
+                    )}
+                    {stage.is_invoice_stage && (
+                      <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Invoice</span>
+                    )}
+                    {stage.is_rework_stage && (
+                      <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Rework</span>
+                    )}
+                  </div>
+                  <Button variant="text" onClick={() => removeDraftStage(stage.clientKey)}>
+                    Delete
+                  </Button>
+                </li>
+              ))}
             </ul>
           )}
         </Card>
+
+        <div style={{ display: "flex", gap: "var(--space-3)" }}>
+          <Button variant="primary" disabled={!dirty || saving} onClick={() => void handleSave()}>
+            {saving ? "Saving…" : "Save"}
+          </Button>
+          <Button variant="secondary" disabled={!dirty} onClick={() => setShowResetConfirm(true)}>
+            Reset
+          </Button>
+          <Button variant="secondary" onClick={() => setShowResetToDefault(true)}>
+            Reset to Default
+          </Button>
+        </div>
+      </div>
+
+      {showResetConfirm && (
+        <div
+          style={{
+            position: "fixed",
+            bottom: 24,
+            left: "50%",
+            transform: "translateX(-50%)",
+            background: "var(--elevation-2)",
+            border: "1px solid var(--border)",
+            borderRadius: "var(--radius-lg)",
+            boxShadow: "var(--shadow-md)",
+            padding: "var(--space-4)",
+            display: "flex",
+            gap: "var(--space-3)",
+            alignItems: "center",
+          }}
+        >
+          <span>Discard your unsaved pipeline changes?</span>
+          <Button variant="primary" onClick={handleResetConfirmed}>
+            Discard changes
+          </Button>
+          <Button variant="secondary" onClick={() => setShowResetConfirm(false)}>
+            Cancel
+          </Button>
+        </div>
+      )}
+
+      {showResetToDefault && (
+        <ResetToDefaultModal
+          onConfirm={() => void handleResetToDefaultConfirmed()}
+          onCancel={() => setShowResetToDefault(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+function StageNameEditor({
+  stage,
+  index,
+  onRename,
+}: {
+  stage: DraftStage;
+  index: number;
+  onRename: (name: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(stage.name);
+  const tone = stageColor(stage, index);
+
+  function commit() {
+    setEditing(false);
+    const trimmed = draft.trim();
+    if (trimmed && trimmed !== stage.name) onRename(trimmed);
+    else setDraft(stage.name);
+  }
+
+  if (editing) {
+    return (
+      <input
+        autoFocus
+        value={draft}
+        onChange={(event) => setDraft(event.target.value)}
+        onBlur={commit}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") commit();
+          if (event.key === "Escape") {
+            setDraft(stage.name);
+            setEditing(false);
+          }
+        }}
+        style={{ fontSize: "var(--text-sm)" }}
+      />
+    );
+  }
+
+  return (
+    <span
+      onClick={() => {
+        setDraft(stage.name);
+        setEditing(true);
+      }}
+      style={{ cursor: "text" }}
+    >
+      <Badge label={stage.name} tone={tone} icon={stageIcon(stage)} />
+    </span>
+  );
+}
+
+function ResetToDefaultModal({
+  onConfirm,
+  onCancel,
+}: {
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  const [typed, setTyped] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,0.3)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+      onClick={onCancel}
+    >
+      <div
+        onClick={(event) => event.stopPropagation()}
+        style={{
+          width: 440,
+          background: "var(--elevation-2)",
+          border: "1px solid var(--border)",
+          borderRadius: "var(--radius-lg)",
+          boxShadow: "var(--shadow-md)",
+          padding: "var(--space-5)",
+          display: "flex",
+          flexDirection: "column",
+          gap: "var(--space-3)",
+        }}
+      >
+        <h2 style={{ fontSize: "var(--text-lg)", lineHeight: "var(--line-lg)", margin: 0 }}>
+          Reset pipeline to default?
+        </h2>
+        <p style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)", margin: 0 }}>
+          This replaces every current stage with this tenant's original default
+          set — including any unsaved changes you haven't saved yet. This can't
+          be undone.
+        </p>
+        <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          Type <strong>{RESET_TO_DEFAULT_PHRASE}</strong> to confirm
+          <input
+            autoFocus
+            value={typed}
+            onChange={(event) => setTyped(event.target.value)}
+            onPaste={(event) => event.preventDefault()}
+            style={{ width: "100%", marginTop: 4 }}
+          />
+        </label>
+        <div style={{ display: "flex", gap: "var(--space-2)" }}>
+          <Button
+            variant="primary"
+            disabled={typed !== RESET_TO_DEFAULT_PHRASE || submitting}
+            onClick={() => {
+              setSubmitting(true);
+              onConfirm();
+            }}
+          >
+            {submitting ? "Resetting…" : "Reset to default"}
+          </Button>
+          <Button variant="text" onClick={onCancel} disabled={submitting}>
+            Cancel
+          </Button>
+        </div>
       </div>
     </div>
   );
@@ -268,44 +540,24 @@ function CreateStageForm({
   onCancel,
 }: {
   initial?: StageSeed;
-  onCreated: () => void;
+  onCreated: (seed: StageSeed) => void;
   onCancel: () => void;
 }) {
-  const { token } = useAuth();
   const [name, setName] = useState(initial?.name ?? "");
   const [isWon, setIsWon] = useState(initial?.isWon ?? false);
   const [isLost, setIsLost] = useState(initial?.isLost ?? false);
   const [isInvoiceStage, setIsInvoiceStage] = useState(initial?.isInvoiceStage ?? false);
   const [isReworkStage, setIsReworkStage] = useState(initial?.isReworkStage ?? false);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | undefined>(undefined);
 
-  async function handleSubmit(event: React.FormEvent) {
+  function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
-    if (!token) return;
-    setSubmitting(true);
-    setError(undefined);
-    try {
-      await createPipelineStage(token, {
-        name,
-        is_won: isWon,
-        is_lost: isLost,
-        is_invoice_stage: isInvoiceStage,
-        is_rework_stage: isReworkStage,
-      });
-      onCreated();
-    } catch (err) {
-      setError(err instanceof ApiRequestError ? err.message : "Couldn't create stage");
-    } finally {
-      setSubmitting(false);
-    }
+    if (!name.trim()) return;
+    onCreated({ name: name.trim(), isWon, isLost, isInvoiceStage, isReworkStage });
   }
 
   return (
     <form
-      onSubmit={(event) => {
-        void handleSubmit(event);
-      }}
+      onSubmit={handleSubmit}
       style={{
         display: "flex",
         flexDirection: "column",
@@ -372,16 +624,11 @@ function CreateStageForm({
       <p style={{ fontSize: 12, color: "var(--text-muted)" }}>
         Also fixed at creation — same reason as won/lost above.
       </p>
-      {error && (
-        <p role="alert" style={{ color: "var(--danger)" }}>
-          {error}
-        </p>
-      )}
       <div style={{ display: "flex", gap: "var(--space-2)" }}>
-        <Button variant="primary" type="submit" disabled={submitting}>
-          {submitting ? "Creating…" : "Create stage"}
+        <Button variant="primary" type="submit">
+          Add stage
         </Button>
-        <Button variant="text" onClick={onCancel} disabled={submitting}>
+        <Button variant="text" onClick={onCancel}>
           Cancel
         </Button>
       </div>

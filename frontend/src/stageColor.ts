@@ -1,5 +1,3 @@
-import type { PipelineStage } from "./api/pipelineStages";
-
 export interface ColorTone {
   bg: string;
   fg: string;
@@ -42,11 +40,20 @@ export function toneByIndex(index: number): ColorTone {
 
 export const STAGE_HUE_COUNT = STAGE_COLOR_SEQUENCE.length;
 
+// Only these two fields matter for coloring — accepting the minimal
+// shape (rather than the full PipelineStage) lets callers pass an
+// unsaved draft stage (e.g. PipelineConfigPage.tsx's DraftStage, which
+// has no id/sort_order/timestamps yet) without an artificial cast.
+interface StageFlags {
+  is_won: boolean;
+  is_lost: boolean;
+}
+
 /** Returns the {bg, fg, border} pastel-chip triple for a stage — is_won/
  * is_lost override the position color entirely (DESIGN_SYSTEM_REFRESH.md
  * §8), since those two flags carry fixed meaning regardless of what the
  * tenant named/ordered the stage. */
-export function stageColor(stage: PipelineStage, index: number): ColorTone {
+export function stageColor(stage: StageFlags, index: number): ColorTone {
   const dark = prefersDark();
   if (stage.is_won) return dark ? WON_TONE.dark : WON_TONE.light;
   if (stage.is_lost) return dark ? LOST_TONE.dark : LOST_TONE.light;
@@ -54,7 +61,7 @@ export function stageColor(stage: PipelineStage, index: number): ColorTone {
   return dark ? entry!.dark : entry!.light;
 }
 
-export function stageIcon(stage: PipelineStage): string | undefined {
+export function stageIcon(stage: StageFlags): string | undefined {
   if (stage.is_won) return "✓";
   if (stage.is_lost) return "–";
   return undefined;
