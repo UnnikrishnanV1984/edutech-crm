@@ -1,4 +1,4 @@
-# EdTech CRM — Architecture
+# OpenFunnel — Architecture
 
 ## 1. Overview
 

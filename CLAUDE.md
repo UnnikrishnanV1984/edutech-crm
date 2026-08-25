@@ -7,7 +7,7 @@ before making structural changes.
 
 ## Project
 
-Multi-tenant EdTech CRM. React frontend, Node/Express BFF, Python/FastAPI
+Multi-tenant OpenFunnel CRM. React frontend, Node/Express BFF, Python/FastAPI
 backend, PostgreSQL, Redis. Ships as pooled SaaS by default, single-tenant
 deployable to a client VPC using the same Docker images.
 

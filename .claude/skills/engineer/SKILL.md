@@ -1,6 +1,6 @@
 ---
 name: engineer
-description: General-purpose day-to-day coding on the EdTech CRM - bug fixes, refactors, small non-structural changes, dependency bumps, test fixes. Use when the work is too small to need feature-planner or architect. Trigger on "fix this bug", "refactor X", "why is this test failing".
+description: General-purpose day-to-day coding on OpenFunnel - bug fixes, refactors, small non-structural changes, dependency bumps, test fixes. Use when the work is too small to need feature-planner or architect. Trigger on "fix this bug", "refactor X", "why is this test failing".
 ---
 
 # Engineer

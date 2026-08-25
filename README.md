@@ -1,4 +1,4 @@
-# EdTech CRM
+# OpenFunnel
 
 Multi-tenant CRM for EdTech admissions teams. See `ARCHITECTURE.md`,
 `FEATURES_AND_PLAN.md`, `DATABASE_SCHEMA.md`, and `API_CONVENTIONS.md` for

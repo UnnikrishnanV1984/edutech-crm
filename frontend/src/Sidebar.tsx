@@ -101,7 +101,7 @@ export function Sidebar() {
       }}
     >
       <div style={{ padding: "var(--space-4) var(--space-3)" }}>
-        <strong style={{ fontSize: "var(--text-lg)", color: "var(--text-h)" }}>EdTech CRM</strong>
+        <strong style={{ fontSize: "var(--text-lg)", color: "var(--text-h)" }}>OpenFunnel</strong>
       </div>
 
       <div style={{ flex: 1, minHeight: 0, overflowY: "auto", paddingBottom: "var(--space-3)" }}>

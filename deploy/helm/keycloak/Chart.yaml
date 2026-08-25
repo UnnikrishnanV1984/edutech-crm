@@ -1,6 +1,6 @@
 apiVersion: v2
 name: keycloak
-description: EdTech CRM — Keycloak identity provider
+description: OpenFunnel — Keycloak identity provider
 type: application
 version: 0.1.0
 appVersion: "0.1.0"

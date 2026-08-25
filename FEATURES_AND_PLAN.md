@@ -1,4 +1,4 @@
-# EdTech CRM — Features & Development Plan
+# OpenFunnel — Features & Development Plan
 
 ## 1. Feature set
 

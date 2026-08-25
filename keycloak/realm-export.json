@@ -17,7 +17,7 @@
   "clients": [
     {
       "clientId": "web",
-      "name": "EdTech CRM web app",
+      "name": "OpenFunnel web app",
       "enabled": true,
       "publicClient": true,
       "protocol": "openid-connect",

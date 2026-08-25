@@ -1,6 +1,6 @@
 ---
 name: feature-planner
-description: Use before writing any code for a new feature or user story on the EdTech CRM. Turns a feature request into a scoped implementation plan across frontend, BFF, backend, and database before any code is written. Trigger on requests like "let's build X", "plan out Y", or when picking up the next item from FEATURES_AND_PLAN.md.
+description: Use before writing any code for a new feature or user story on OpenFunnel. Turns a feature request into a scoped implementation plan across frontend, BFF, backend, and database before any code is written. Trigger on requests like "let's build X", "plan out Y", or when picking up the next item from FEATURES_AND_PLAN.md.
 ---
 
 # Feature planner

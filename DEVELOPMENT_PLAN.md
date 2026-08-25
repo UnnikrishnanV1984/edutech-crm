@@ -1,4 +1,4 @@
-# Development plan — EdTech CRM
+# Development plan — OpenFunnel
 
 Produced by the `feature-planner` skill. **No application code is written by
 this document.** Hand to `feature-builder` (or a human reviewer) before
