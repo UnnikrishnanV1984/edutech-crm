@@ -410,6 +410,23 @@ draft, matching the `pipeline_stages`/`pipeline_stage_default_snapshots`
 precedent — see that doc §5) and the full task breakdown/acceptance
 criteria, all now marked met.
 
+**Post-ship layout fix (2026-08-26)**: user feedback on the first shipped
+pass — the Palette & type card's Accent row overlapped Header background,
+there was no way back to the platform default accent, and (the bigger one)
+`header_background: "accent"` was painting the *entire* `<nav>` — logo,
+every nav link, the footer — because the brand slot lived inside
+`Sidebar.tsx` and `header_background` was applied to that whole element.
+Split it: new `TopBar.tsx` is now a full-width bar above the Sidebar+main
+row and owns everything `header_background`/logo/company name should
+scope to, plus the account avatar+logout menu (moved out of Sidebar's
+footer). `Sidebar.tsx` now renders only nav groups + `ThemeToggle`, with a
+plain `var(--surface)` background — accent color's only remaining
+footprint there is the existing per-link "selected" treatment
+(`accent-subtle` background + accent left border, `Sidebar.tsx`'s
+`linkStyle`), which was already correct and untouched. `BrandingTab.tsx`'s
+accent picker gained a "+" swatch (opens a native `<input type="color">`)
+and a "Reset to default" control that clears `accent_color` to `null`.
+
 **v1 scope cut, confirmed with the user before starting the first pass**: it
 built the part actually asked for first — logo + header image upload,
 applied immediately — and explicitly deferred the wireframe's fuller system
@@ -437,7 +454,9 @@ checklist, and version history with restore. Full design in
   `BrandingLivePreview.tsx` and `BrandingVersionHistory.tsx` split out as
   their own components; `branding/colorUtils.ts` for contrast/shade math;
   `branding/ApplyBranding.tsx` injects the accent CSS-variable override and
-  favicon; `Sidebar.tsx` renders the result), backend (`tenant_branding`
+  favicon; `TopBar.tsx` renders logo/company name/header background/avatar,
+  `Sidebar.tsx` renders nav only — see the post-ship layout fix note
+  above), backend (`tenant_branding`
   extended + new `tenant_branding_versions` table, service/route layer
   rewritten for draft/publish/versions), no BFF change (the existing
   generic `/api/v1/*` proxy already covers it).

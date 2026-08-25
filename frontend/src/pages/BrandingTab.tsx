@@ -17,12 +17,7 @@ import {
 import { ApiRequestError } from "../api/client";
 import { uploadFileToS3 } from "../api/documents";
 import { useAuth } from "../auth/context";
-import {
-  contrastRatio,
-  isValidHexColor,
-  WCAG_AA_CONTRAST,
-  HEADER_BACKGROUND_COLORS,
-} from "../branding/colorUtils";
+import { contrastRatio, WCAG_AA_CONTRAST, HEADER_BACKGROUND_COLORS } from "../branding/colorUtils";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
 import { PageSpinner, Spinner } from "../components/Spinner";
@@ -210,7 +205,7 @@ export function BrandingTab() {
   const { token } = useAuth();
   const [draft, setDraft] = useState<BrandingDraft | undefined>(undefined);
   const [versions, setVersions] = useState<BrandingVersion[] | undefined>(undefined);
-  const [customColorInput, setCustomColorInput] = useState("");
+  const customColorInputRef = useRef<HTMLInputElement>(null);
   const [publishing, setPublishing] = useState(false);
   const [discarding, setDiscarding] = useState(false);
   const [actionError, setActionError] = useState<string | undefined>(undefined);
@@ -229,10 +224,6 @@ export function BrandingTab() {
   useEffect(loadDraft, [token]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(loadVersions, [token]);
-
-  useEffect(() => {
-    setCustomColorInput(draft?.accent_color ?? "");
-  }, [draft?.accent_color]);
 
   async function saveDraftFields(
     updates: Partial<{
@@ -366,48 +357,95 @@ export function BrandingTab() {
         </Card>
 
         <Card title="Palette & type">
-          <div style={{ display: "flex", gap: 14, marginTop: 4, flexWrap: "wrap" }}>
-            <div style={{ flex: 1, minWidth: 160 }}>
-              <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>Accent</span>
-              <div style={{ display: "flex", gap: 7, marginTop: 8, alignItems: "center" }}>
-                {ACCENT_PRESETS.map((color) => (
-                  <button
-                    key={color}
-                    type="button"
-                    aria-label={`Use accent ${color}`}
-                    onClick={() => void saveDraftFields({ accent_color: color })}
-                    style={{
-                      width: 30,
-                      height: 30,
-                      background: color,
-                      border: "1px solid var(--border)",
-                      outline: draft.accent_color === color ? "2px solid var(--text-h)" : "none",
-                      outlineOffset: 2,
-                      cursor: "pointer",
-                      borderRadius: 4,
-                    }}
-                  />
-                ))}
-                <input
-                  aria-label="Custom accent color"
-                  value={customColorInput}
-                  placeholder="#RRGGBB"
-                  onChange={(event) => setCustomColorInput(event.target.value)}
-                  onBlur={() => {
-                    if (customColorInput && isValidHexColor(customColorInput)) {
-                      void saveDraftFields({ accent_color: customColorInput });
-                    }
+          <div>
+            <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>Accent</span>
+            <div style={{ display: "flex", gap: 7, marginTop: 8, alignItems: "center", flexWrap: "wrap" }}>
+              {ACCENT_PRESETS.map((color) => (
+                <button
+                  key={color}
+                  type="button"
+                  aria-label={`Use accent ${color}`}
+                  onClick={() => void saveDraftFields({ accent_color: color })}
+                  style={{
+                    width: 30,
+                    height: 30,
+                    background: color,
+                    border: "1px solid var(--border)",
+                    outline: draft.accent_color === color ? "2px solid var(--text-h)" : "none",
+                    outlineOffset: 2,
+                    cursor: "pointer",
+                    borderRadius: 4,
                   }}
-                  style={{ width: 84, fontSize: "var(--text-xs)" }}
                 />
-              </div>
-              {customColorInput && !isValidHexColor(customColorInput) && (
-                <p style={{ fontSize: "var(--text-xs)", color: "var(--danger)", margin: "4px 0 0" }}>
-                  Must be a 6-digit hex color, e.g. #B68235
-                </p>
+              ))}
+              {draft.accent_color && !ACCENT_PRESETS.includes(draft.accent_color) && (
+                <button
+                  type="button"
+                  aria-label={`Custom accent ${draft.accent_color}`}
+                  onClick={() => customColorInputRef.current?.click()}
+                  style={{
+                    width: 30,
+                    height: 30,
+                    background: draft.accent_color,
+                    border: "1px solid var(--border)",
+                    outline: "2px solid var(--text-h)",
+                    outlineOffset: 2,
+                    cursor: "pointer",
+                    borderRadius: 4,
+                  }}
+                />
+              )}
+              <button
+                type="button"
+                aria-label="Pick a custom accent color"
+                title="Pick a custom color"
+                onClick={() => customColorInputRef.current?.click()}
+                style={{
+                  width: 30,
+                  height: 30,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  background: "transparent",
+                  border: "1px dashed var(--border)",
+                  color: "var(--text-muted)",
+                  cursor: "pointer",
+                  borderRadius: 4,
+                  fontSize: "var(--text-base)",
+                  lineHeight: 1,
+                }}
+              >
+                +
+              </button>
+              <input
+                ref={customColorInputRef}
+                aria-label="Custom accent color"
+                type="color"
+                value={draft.accent_color ?? "#b68235"}
+                onChange={(event) => void saveDraftFields({ accent_color: event.target.value })}
+                style={{ width: 0, height: 0, padding: 0, border: "none", opacity: 0 }}
+              />
+              {draft.accent_color && (
+                <button
+                  type="button"
+                  onClick={() => void saveDraftFields({ accent_color: null })}
+                  style={{
+                    fontSize: "var(--text-xs)",
+                    color: "var(--text-muted)",
+                    background: "transparent",
+                    border: "none",
+                    cursor: "pointer",
+                    textDecoration: "underline",
+                    padding: 0,
+                  }}
+                >
+                  Reset to default
+                </button>
               )}
             </div>
+          </div>
 
+          <div style={{ display: "flex", gap: 14, marginTop: 16, flexWrap: "wrap" }}>
             <div style={{ flex: 1, minWidth: 160 }}>
               <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
                 Header background

@@ -86,7 +86,7 @@ describe("BrandingTab", () => {
     setup();
     render(<BrandingTab />);
 
-    await waitFor(() => expect(mockedGetDraft).toHaveBeenCalled());
+    await screen.findByText("Company identity");
     expect(screen.getByText("Company identity")).toBeInTheDocument();
     expect(screen.getByText("Palette & type")).toBeInTheDocument();
     expect(screen.getByText("Live preview")).toBeInTheDocument();
@@ -97,7 +97,7 @@ describe("BrandingTab", () => {
     setup();
     render(<BrandingTab />);
 
-    await waitFor(() => expect(mockedGetDraft).toHaveBeenCalled());
+    await screen.findByText("Company identity");
     expect(screen.getByText(/not yet active/)).toBeInTheDocument();
   });
 
@@ -105,7 +105,7 @@ describe("BrandingTab", () => {
     setup();
     render(<BrandingTab />);
 
-    await waitFor(() => expect(mockedGetDraft).toHaveBeenCalled());
+    await screen.findByText("Company identity");
     fireEvent.click(screen.getByText("Login"));
     expect(screen.getAllByText(/Preview only/).length).toBeGreaterThan(0);
   });
@@ -114,7 +114,7 @@ describe("BrandingTab", () => {
     setup();
     render(<BrandingTab />);
 
-    await waitFor(() => expect(mockedGetDraft).toHaveBeenCalled());
+    await screen.findByText("Company identity");
     fireEvent.click(screen.getByLabelText("Use accent #b68235"));
 
     await waitFor(() =>
@@ -122,24 +122,39 @@ describe("BrandingTab", () => {
     );
   });
 
-  it("flags an invalid custom hex color without saving", async () => {
+  it("picking a custom color via the + swatch saves it immediately", async () => {
     setup();
     render(<BrandingTab />);
 
     await screen.findByText("Company identity");
     const input = screen.getByLabelText("Custom accent color");
-    fireEvent.change(input, { target: { value: "not-a-color" } });
-    fireEvent.blur(input);
+    fireEvent.change(input, { target: { value: "#4287f5" } });
 
-    expect(screen.getByText(/Must be a 6-digit hex color/)).toBeInTheDocument();
-    expect(mockedUpdateDraft).not.toHaveBeenCalled();
+    await waitFor(() =>
+      expect(mockedUpdateDraft).toHaveBeenCalledWith("test-token", { accent_color: "#4287f5" }),
+    );
+  });
+
+  it("shows a Reset to default control once an accent is set, which clears it", async () => {
+    setup();
+    render(<BrandingTab />);
+
+    await screen.findByText("Company identity");
+    expect(screen.queryByText("Reset to default")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByLabelText("Use accent #b68235"));
+    fireEvent.click(await screen.findByText("Reset to default"));
+
+    await waitFor(() =>
+      expect(mockedUpdateDraft).toHaveBeenCalledWith("test-token", { accent_color: null }),
+    );
   });
 
   it("warns when accent-on-header contrast is below the WCAG AA threshold", async () => {
     setup(draft({ accent_color: "#f5f0e6", header_background: "light" }));
     render(<BrandingTab />);
 
-    await waitFor(() => expect(mockedGetDraft).toHaveBeenCalled());
+    await screen.findByText("Company identity");
     expect(screen.getByText("Low contrast")).toBeInTheDocument();
   });
 
@@ -147,7 +162,7 @@ describe("BrandingTab", () => {
     setup();
     render(<BrandingTab />);
 
-    await waitFor(() => expect(mockedGetDraft).toHaveBeenCalled());
+    await screen.findByText("Company identity");
     const input = screen.getByLabelText("Company display name");
     fireEvent.change(input, { target: { value: "Acme Prep" } });
     fireEvent.blur(input);
@@ -163,7 +178,7 @@ describe("BrandingTab", () => {
     setup();
     render(<BrandingTab />);
 
-    await waitFor(() => expect(mockedGetDraft).toHaveBeenCalled());
+    await screen.findByText("Company identity");
     fireEvent.click(screen.getByText("Publish branding"));
 
     await waitFor(() => expect(mockedPublish).toHaveBeenCalledWith("test-token"));
@@ -174,7 +189,7 @@ describe("BrandingTab", () => {
     setup(draft({ company_display_name: "Unsaved Name" }));
     render(<BrandingTab />);
 
-    await waitFor(() => expect(mockedGetDraft).toHaveBeenCalled());
+    await screen.findByText("Company identity");
     fireEvent.click(screen.getByText("Discard"));
 
     await waitFor(() => expect(mockedDiscard).toHaveBeenCalledWith("test-token"));

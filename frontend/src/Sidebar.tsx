@@ -3,11 +3,8 @@ import { NavLink } from "react-router-dom";
 
 import { listTasks } from "./api/tasks";
 import { useAuth } from "./auth/context";
-import { HEADER_BACKGROUND_COLORS } from "./branding/colorUtils";
-import { Avatar } from "./components/Avatar";
 import { Badge } from "./components/Badge";
 import { ThemeToggle } from "./components/ThemeToggle";
-import { useBranding } from "./useBranding";
 import { useMe } from "./useMe";
 
 interface NavItem {
@@ -70,9 +67,8 @@ function GroupLabel({ children }: { children: string }) {
 }
 
 export function Sidebar() {
-  const { logout, token } = useAuth();
+  const { token } = useAuth();
   const { me } = useMe();
-  const { branding } = useBranding();
   const [openTaskCount, setOpenTaskCount] = useState(0);
 
   useEffect(() => {
@@ -87,25 +83,6 @@ export function Sidebar() {
   const showTeam = me && me.user.role !== "counselor";
   const showAdmin = me?.user.role === "admin";
 
-  // Only ever overrides the plain "OpenFunnel" wordmark when branding
-  // explicitly sets it — an unbranded tenant renders identically to the
-  // platform default, never silently switches to the tenant's raw
-  // Keycloak-registered name (BRANDING_FULL_SYSTEM_PLAN.md acceptance
-  // criteria: no branding configured = renders exactly like today).
-  const displayName = branding?.company_display_name ?? undefined;
-  // branding.updated_at is only ever set once a version has actually been
-  // published — an unbranded tenant (or branding still loading) must keep
-  // the app's normal theme-aware var(--surface), not a hardcoded color,
-  // or every unbranded tenant's dark-mode sidebar would break (the API's
-  // own "nothing published" response still has to send *some*
-  // header_background string, so that value alone can't be trusted as an
-  // intentional choice).
-  const headerBackground = branding?.updated_at
-    ? branding.header_background === "accent"
-      ? (branding.accent_color ?? "var(--surface)")
-      : (HEADER_BACKGROUND_COLORS[branding.header_background] ?? "var(--surface)")
-    : "var(--surface)";
-
   return (
     <nav
       style={{
@@ -113,37 +90,12 @@ export function Sidebar() {
         flexShrink: 0,
         display: "flex",
         flexDirection: "column",
-        height: "100svh",
-        background: headerBackground,
+        height: "100%",
+        background: "var(--surface)",
         borderRight: "1px solid var(--border)",
       }}
     >
-      <div style={{ padding: "var(--space-4) var(--space-3)" }}>
-        {branding?.header_image_url ? (
-          <img
-            src={branding.header_image_url}
-            alt={displayName ?? "Tenant logo"}
-            style={{ maxWidth: "100%", maxHeight: 32, display: "block" }}
-          />
-        ) : branding?.logo_url ? (
-          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
-            <img
-              src={branding.logo_url}
-              alt={displayName ?? "Tenant logo"}
-              style={{ width: 28, height: 28, borderRadius: "var(--radius-sm)", objectFit: "cover" }}
-            />
-            <strong style={{ fontSize: "var(--text-lg)", color: "var(--text-h)" }}>
-              {displayName ?? "OpenFunnel"}
-            </strong>
-          </div>
-        ) : (
-          <strong style={{ fontSize: "var(--text-lg)", color: "var(--text-h)" }}>
-            {displayName ?? "OpenFunnel"}
-          </strong>
-        )}
-      </div>
-
-      <div style={{ flex: 1, minHeight: 0, overflowY: "auto", paddingBottom: "var(--space-3)" }}>
+      <div style={{ flex: 1, minHeight: 0, overflowY: "auto", paddingBottom: "var(--space-3)", paddingTop: "var(--space-3)" }}>
         <GroupLabel>Workspace</GroupLabel>
         {PRIMARY.map((item) => (
           <NavLink key={item.to} to={item.to} style={linkStyle}>
@@ -179,43 +131,16 @@ export function Sidebar() {
         )}
       </div>
 
-      {me && (
-        <div
-          style={{
-            padding: "var(--space-3)",
-            borderTop: "1px solid var(--border)",
-            display: "flex",
-            flexDirection: "column",
-            gap: "var(--space-3)",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
-            <Avatar name={me.user.full_name ?? me.user.email} />
-            <div style={{ minWidth: 0 }}>
-              <div
-                style={{
-                  fontSize: "var(--text-sm)",
-                  color: "var(--text-h)",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {me.user.full_name ?? me.user.email}
-              </div>
-              <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
-                {me.tenant.name}
-              </div>
-            </div>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <ThemeToggle />
-            <button type="button" onClick={logout} style={{ border: "none" }}>
-              Log out
-            </button>
-          </div>
-        </div>
-      )}
+      <div
+        style={{
+          padding: "var(--space-3)",
+          borderTop: "1px solid var(--border)",
+          display: "flex",
+          justifyContent: "center",
+        }}
+      >
+        <ThemeToggle />
+      </div>
     </nav>
   );
 }
