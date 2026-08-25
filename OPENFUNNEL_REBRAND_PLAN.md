@@ -104,10 +104,27 @@ applies here — this can run independently of both.
   - A visual pass confirms accent is never used as a solid fill on a
     primary button (stroke/outline only, per the design system's own rule).
 
-### Phase 7b — Configurations shell + Users & roles
+### Phase 7b — Configurations shell + Users & roles — shell done, role/status editing deferred (2026-08-25)
 Depends on 7a (visual). Backend work (Users & roles) has no visual
 dependency and could be built in parallel with 7a if useful, but the tab
 shell needs 7a's component restyle to look right.
+
+**Built**: the tabbed `ConfigurationsPage.tsx` shell (SLA/Integrations/
+Pipelines/Branding/Users & roles, tab state in the `?tab=` query param),
+`Sidebar.tsx`'s Admin group collapsed to one "Configurations" link, and
+the three old routes now redirect (`/sla-policies` → `?tab=sla`, etc.).
+`SlaPoliciesPage`/`IntegrationsPage`/`PipelineConfigPage` moved in with
+only their outer `<h1>`/wrapper stripped (the shell owns that once) —
+no other functional change. Users & roles ships **read-only** (name,
+email, role, manager, territory, status) — product decision, explicitly
+deferring the section below rather than silently skipping it.
+
+**Deferred, not built**: role/status editing, and the `backend-admin`
+Keycloak confidential client + secrets it requires. Confirmed with the
+user before starting (2026-08-25): provisioning new credentials is a
+big enough decision to not fold into a shell-consolidation pass. The
+design below is still the plan for when that's picked up — nothing here
+was invalidated, just not started.
 
 - **Affected layers**: frontend (new tabbed `ConfigurationsPage.tsx`
   replacing the four separate `/sla-policies`, `/integrations`,
@@ -146,7 +163,7 @@ shell needs 7a's component restyle to look right.
      `Sidebar.tsx`'s Admin group to one link. `PipelineConfigPage`'s
      recently-built Save/Reset/Reset-to-Default UI (this session) moves in
      as-is — no functional change, just relocated under the Pipelines tab.
-- **Acceptance criteria**:
+- **Acceptance criteria (role/status editing — still pending, not started)**:
   - An admin can change another user's role and see it reflected
     immediately, without waiting for that user's next login.
   - If the Keycloak Admin API call fails, the local `users.role`/`status`
@@ -155,9 +172,10 @@ shell needs 7a's component restyle to look right.
   - A tenant-A admin cannot change a tenant-B user's role/status by id
     (404, not 403 — consistent with this codebase's established
     out-of-scope-looks-like-missing convention).
-  - All five Configurations tabs (SLA, Integrations, Pipelines, Branding
-    placeholder until 7h, Users & roles) are reachable from one nav entry;
-    the four old standalone routes redirect or are removed.
+- **Acceptance criteria (shell — met)**:
+  - All five Configurations tabs (SLA, Integrations, Pipelines, Branding,
+    Users & roles) are reachable from one nav entry; the three old
+    standalone routes redirect rather than 404.
 
 ### Phase 7c — Pipeline: Table view + filters
 Depends on 7a.
@@ -381,77 +399,54 @@ Depends on 7a. Fully independent of every other phase.
   writes zero `workflow_runs` rows (regression-tested explicitly); the
   plain-English preview updates live with no save required.
 
-### Phase 7h — Branding / white-label
+### Phase 7h — Branding / white-label — logo + header shipped, rest deferred (2026-08-25)
 Depends on 7a (the branding admin screen itself needs the restyled
-component set). Largest, riskiest, most novel phase — sequenced near the
-end deliberately, not first, despite being the wireframe's flagship screen.
-**New RLS-scoped table + new external-facing rendering paths** — run the
-schema and the login-branding scope decision below through `architect`
-before building, per `CLAUDE.md`.
+component set).
 
-- **Affected layers**: frontend (new Branding tab: two upload wells, color/
-  typeface pickers, live preview with App/Login/Email tabs, "where branding
-  appears" checklist, version history), backend (new table + asset storage
-  + draft/publish/version endpoints), BFF (branding config needs to reach
-  the app shell early — probably fetched alongside `/api/v1/me` or a
-  dedicated `GET /api/v1/branding` the shell calls before first paint),
-  possibly outbound-email templates and PDF/invoice generation (both need
-  to read published branding, not draft).
-- **Database (sketch, architect-gate before building)**: a new
-  `tenant_branding` table (or `tenant_branding_versions` if versioning is
-  modeled as one-row-per-version rather than a `published`/`draft` pair
-  of JSONB blobs) — standard `tenant_id NOT NULL` + RLS pattern; asset
-  files (logo/header-lockup/favicon/login-backdrop) stored via the
-  existing `documents` upload path, not a second storage mechanism.
-- **Scope decision needed before this phase starts** (flagged, not
-  resolved here): the wireframe's login-backdrop branding requires a
-  **Keycloak login-theme customization** — this app has no in-app login
-  screen (confirmed: PKCE redirect flow, `frontend/src/auth/` has no login
-  page component). Recommend scoping Phase 7h's actual build to **app
-  shell + outbound email + PDF/invoice** branding only, and treating the
-  Keycloak login backdrop as an explicitly separate, later, architect-
-  approved follow-up (different mechanism entirely — a Keycloak theme, not
-  a React change) — don't let it block shipping the rest of this phase.
-- **API contract (sketch)**: `GET /api/v1/branding` (published, cached
-  alongside `/me` for the app shell), `GET /api/v1/branding/draft` +
-  `PUT /api/v1/branding/draft` (admin-only, edits the working draft),
-  `POST /api/v1/branding/publish` (draft → published, snapshots a version),
-  `GET /api/v1/branding/versions` + `POST /api/v1/branding/versions/{id}/
-  restore` (copies an old version back into draft, doesn't publish it
-  automatically — matches the wireframe's "Restore" vs. "Publish" being
-  distinct actions).
-- **Multi-tenancy check**: standard RLS on the new table; the contrast-check
-  and live-preview logic run entirely client-side against the draft, no
-  new trust path. Asset uploads reuse `documents`' existing tenant-scoped
-  upload validation.
-- **Task breakdown**:
-  1. `architect` pass: table shape (JSONB draft/published pair vs.
-     versioned rows), and the login-branding scope decision above.
-  2. Migration + schema/service/API for draft/publish/versions.
-  3. Asset upload wiring (logo, header lockup, favicon) via the existing
-     document-upload path.
-  4. Frontend: upload wells, color/typeface pickers, contrast check,
-     App/Login/Email preview tabs (Login tab shows what *would* render if
-     the Keycloak theme were built — a mockup, not live, given the scope
-     decision above), "where branding appears" checklist, version history.
-  5. App shell: fetch published branding on load, apply logo/accent/
-     typeface; confirm this doesn't regress unbranded (default) tenants —
-     no branding configured must render exactly like today, not a broken
-     partial theme.
-  6. Outbound email + PDF/invoice: read published branding at render time.
-- **Acceptance criteria**:
+**Scope cut, confirmed with the user before starting**: this pass built
+the part actually asked for — logo + header image upload, applied
+immediately — and explicitly skipped the wireframe's fuller system
+(color/typeface pickers, contrast check, custom domain, App/Login/Email
+live-preview tabs, "where branding appears" checklist, draft/publish
+workflow, version history). None of those were requested, and the
+login-screen backdrop specifically still has nowhere real to plug into
+(this app has no in-app login screen — confirmed, PKCE redirect flow,
+`frontend/src/auth/` has no login page component — so a Keycloak
+login-theme customization stays a separate, later, architect-approved
+follow-up if ever picked up). No draft/publish step exists — an upload
+takes effect the moment it's confirmed.
+
+- **Affected layers**: frontend (`BrandingTab.tsx` — two upload wells;
+  `Sidebar.tsx` renders the result: header lockup if set, else logo +
+  tenant name, else the plain "OpenFunnel" wordmark), backend (new
+  table + asset storage + fetch/upload/confirm endpoints), no BFF
+  change (the existing generic `/api/v1/*` proxy already covers it).
+- **Database** (migration `0029`): `tenant_branding` — same
+  one-row-per-tenant pattern as `tenant_sla_settings` (composite
+  `(id, tenant_id)` PK + unique index on `tenant_id`, not a different PK
+  shape), storing only `logo_s3_key`/`header_image_s3_key`. Asset bytes
+  reuse the same S3/MinIO bucket `documents` already uses, not a second
+  storage mechanism.
+- **API contract (built)**: `GET /api/v1/branding` (any authenticated
+  role, not admin-only — the sidebar needs it for everyone), `POST
+  /api/v1/branding/upload-url` + `POST /api/v1/branding/confirm`
+  (admin-only, same presigned-PUT-then-confirm shape `documents.py`
+  already established, including the tenant/asset-type s3_key-prefix
+  tamper check). `GET /branding`'s image URLs use a 1-hour presigned
+  GET, not `documents`' 60-second one — a branding image is embedded as
+  a persistent `<img>` across every page load, not downloaded once.
+- **Multi-tenancy check**: standard RLS on the new table; upload/confirm
+  reuse `documents`' existing tenant-scoped s3_key validation.
+- **Acceptance criteria (met)**:
   - A tenant with no branding configured renders identically to the
-    current app (no regression for the common case).
-  - Publishing a draft is the *only* thing that changes what the app shell/
-    emails/PDFs render — editing the draft alone never affects a live
-    session.
-  - Restore populates the draft from a prior version without publishing it
-    automatically — a second, explicit Publish is required.
-  - The contrast check correctly flags an accent-on-header combination
-    under 3:1 before Publish is allowed (or at least surfaces a clear
-    warning — decide "warns" vs. "blocks" at implementation time).
-  - Tenant A's branding is never visible to Tenant B under any code path,
-    including the asset upload/serving path.
+    current app (no regression for the common case) — verified: the
+    Sidebar's fallback chain always resolves to the plain wordmark when
+    both URLs are null, including during the initial fetch.
+  - Tenant A's branding is never visible to Tenant B under any code
+    path, including the asset upload/serving path (tenant-isolation
+    test).
+  - An uploaded logo/header shows up in the sidebar without a page
+    reload once the upload confirms.
 
 ### Phase 7i — Responsive / phone layouts
 Depends on **every** other phase above — a mobile layout for a screen that
