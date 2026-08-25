@@ -9,6 +9,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api import (
     accounts,
+    branding,
     contacts,
     courses,
     deals,
@@ -95,6 +96,7 @@ def create_app() -> FastAPI:
     app.include_router(follow_up_flags.router)
     app.include_router(workflow_rules.router)
     app.include_router(reports.router)
+    app.include_router(branding.router)
 
     # Public — bypass the BFF entirely, PHASE_2_PLAN.md §4.2.
     app.include_router(meta_webhooks.router)
