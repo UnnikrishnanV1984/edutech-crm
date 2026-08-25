@@ -5,6 +5,7 @@ import { createTask, type Task } from "../api/tasks";
 import { useAuth } from "../auth/context";
 import { Button } from "../components/Button";
 import { SlideOverPanel } from "../components/SlideOverPanel";
+import { Spinner } from "../components/Spinner";
 import { useUsers } from "../useUsers";
 
 interface CreateTaskPanelProps {
@@ -174,7 +175,13 @@ export function CreateTaskPanel({
             Cancel
           </Button>
           <Button variant="primary" type="submit" disabled={submitting || !selectedContact}>
-            {submitting ? "Creating…" : "Create Task"}
+            {submitting ? (
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                <Spinner size={12} /> Creating…
+              </span>
+            ) : (
+              "Create Task"
+            )}
           </Button>
         </div>
       </form>

@@ -7,6 +7,7 @@ import { listTasks, updateTask, type Task } from "../api/tasks";
 import { Badge } from "../components/Badge";
 import { Card } from "../components/Card";
 import { EmptyState } from "../components/EmptyState";
+import { Spinner } from "../components/Spinner";
 
 // Shared widgets for the role dashboards, matching
 // design_handoff_crm_wireframes/ screen 1a's "Pipeline by stage" and
@@ -200,7 +201,7 @@ function dueBucket(dueAt: string | null): { label: string; accent?: boolean } {
 // dashboard preview rather than the task list itself.
 export function MyQueueTodayCard({ token, meId }: { token: string; meId: string }) {
   const navigate = useNavigate();
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [tasks, setTasks] = useState<Task[] | undefined>(undefined);
 
   function load() {
     listTasks(token, { assignee_id: meId, status: "open", page_size: 100 }).then((response) => {
@@ -214,7 +215,7 @@ export function MyQueueTodayCard({ token, meId }: { token: string; meId: string 
   useEffect(load, [token, meId]);
 
   async function complete(task: Task) {
-    setTasks((current) => current.filter((t) => t.id !== task.id));
+    setTasks((current) => current?.filter((t) => t.id !== task.id));
     try {
       await updateTask(token, task.id, { status: "done" });
     } catch {
@@ -224,7 +225,11 @@ export function MyQueueTodayCard({ token, meId }: { token: string; meId: string 
 
   return (
     <Card title="My queue today">
-      {tasks.length === 0 ? (
+      {tasks === undefined ? (
+        <div style={{ display: "flex", justifyContent: "center", padding: "var(--space-4)" }}>
+          <Spinner size={18} />
+        </div>
+      ) : tasks.length === 0 ? (
         <EmptyState headline="You're all caught up" />
       ) : (
         <div>

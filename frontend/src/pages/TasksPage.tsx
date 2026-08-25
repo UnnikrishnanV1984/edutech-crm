@@ -5,6 +5,7 @@ import { useAuth } from "../auth/context";
 import { Button } from "../components/Button";
 import { EmptyState } from "../components/EmptyState";
 import { OwnerFilter } from "../components/OwnerFilter";
+import { PageSpinner } from "../components/Spinner";
 import { defaultOwnerFilterValue } from "../ownerFilter";
 import { useMe } from "../useMe";
 import { useUsers } from "../useUsers";
@@ -47,7 +48,7 @@ export function TasksPage() {
   // A counselor's requests never set this (OwnerFilter renders nothing
   // for them, and their view is always "mine" regardless).
   const [assigneeId, setAssigneeId] = useState<string | undefined>(undefined);
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [tasks, setTasks] = useState<Task[] | undefined>(undefined);
   // Only fetched when the Board view is open — the List view has no use
   // for it, so this stays empty (and un-requested) otherwise.
   const [doneTasks, setDoneTasks] = useState<Task[]>([]);
@@ -87,12 +88,12 @@ export function TasksPage() {
   }, [view, token, assigneeId, me]);
 
   async function complete(task: Task) {
-    setTasks((current) => current.filter((t) => t.id !== task.id));
+    setTasks((current) => current?.filter((t) => t.id !== task.id));
     setPendingUndo(task);
     try {
       await updateTask(token!, task.id, { status: "done" });
     } catch {
-      setTasks((current) => [...current, task]);
+      setTasks((current) => [...(current ?? []), task]);
       setPendingUndo(undefined);
       return;
     }
@@ -103,7 +104,7 @@ export function TasksPage() {
   async function undo(task: Task) {
     if (undoTimer.current) clearTimeout(undoTimer.current);
     setPendingUndo(undefined);
-    setTasks((current) => [task, ...current]);
+    setTasks((current) => [task, ...(current ?? [])]);
     try {
       await updateTask(token!, task.id, { status: "open" });
     } catch {
@@ -111,7 +112,7 @@ export function TasksPage() {
     }
   }
 
-  const groups = groupTasks(tasks);
+  const groups = groupTasks(tasks ?? []);
   const now = Date.now();
 
   function TaskRow({ task }: { task: Task }) {
@@ -182,7 +183,9 @@ export function TasksPage() {
         </div>
       )}
 
-      {tasks.length === 0 && (
+      {tasks === undefined && <PageSpinner />}
+
+      {tasks && tasks.length === 0 && (
         <EmptyState
           headline={
             me?.user.role === "counselor" || assigneeId === me?.user.id
@@ -192,7 +195,7 @@ export function TasksPage() {
         />
       )}
 
-      {tasks.length > 0 && view === "list" && (
+      {tasks && tasks.length > 0 && view === "list" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           {groups.overdue.length > 0 && (
             <div>
@@ -227,7 +230,7 @@ export function TasksPage() {
         </div>
       )}
 
-      {tasks.length > 0 && view === "board" && (
+      {tasks && tasks.length > 0 && view === "board" && (
         <div style={{ display: "flex", gap: 16 }}>
           <div style={{ flex: 1 }}>
             <h2 style={{ fontSize: 14 }}>Open</h2>

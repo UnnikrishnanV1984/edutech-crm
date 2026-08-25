@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { listTasks, updateTask, type Task } from "../api/tasks";
 import { useAuth } from "../auth/context";
 import { Button } from "../components/Button";
+import { Spinner } from "../components/Spinner";
 import { CreateTaskPanel } from "./CreateTaskPanel";
 
 interface TasksSectionProps {
@@ -12,7 +13,7 @@ interface TasksSectionProps {
 
 export function TasksSection({ contactId, contactName }: TasksSectionProps) {
   const { token } = useAuth();
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [tasks, setTasks] = useState<Task[] | undefined>(undefined);
   const [showDone, setShowDone] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
 
@@ -27,7 +28,7 @@ export function TasksSection({ contactId, contactName }: TasksSectionProps) {
     if (!token) return;
     const nextStatus = task.status === "open" ? "done" : "open";
     setTasks((current) =>
-      current.map((t) => (t.id === task.id ? { ...t, status: nextStatus } : t)),
+      current?.map((t) => (t.id === task.id ? { ...t, status: nextStatus } : t)),
     );
     try {
       await updateTask(token, task.id, { status: nextStatus });
@@ -36,8 +37,8 @@ export function TasksSection({ contactId, contactName }: TasksSectionProps) {
     }
   }
 
-  const openTasks = tasks.filter((t) => t.status === "open");
-  const doneTasks = tasks.filter((t) => t.status === "done");
+  const openTasks = tasks?.filter((t) => t.status === "open") ?? [];
+  const doneTasks = tasks?.filter((t) => t.status === "done") ?? [];
   // Reading the clock for a display-only overdue flag, not for
   // reconciliation identity — safe to call during render here.
   // oxlint-disable-next-line react/purity
@@ -53,8 +54,13 @@ export function TasksSection({ contactId, contactName }: TasksSectionProps) {
           + Add task
         </Button>
       </div>
+      {tasks === undefined && (
+        <div style={{ padding: 8 }}>
+          <Spinner size={16} />
+        </div>
+      )}
       <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-        {openTasks.length === 0 && (
+        {tasks && openTasks.length === 0 && (
           <li style={{ color: "var(--text-muted)", padding: 8 }}>No open tasks</li>
         )}
         {openTasks.map((task) => {

@@ -6,6 +6,7 @@ import { Badge } from "../components/Badge";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
 import { EmptyState } from "../components/EmptyState";
+import { PageSpinner } from "../components/Spinner";
 import { useMe } from "../useMe";
 
 const STATUS_TONE: Record<string, { bg: string; fg: string; border: string }> = {
@@ -25,7 +26,7 @@ const SOURCE_LABELS: Record<string, string> = {
 export function EscalationsPage() {
   const { token } = useAuth();
   const { me } = useMe();
-  const [escalations, setEscalations] = useState<Escalation[]>([]);
+  const [escalations, setEscalations] = useState<Escalation[] | undefined>(undefined);
   const [busyId, setBusyId] = useState<string | undefined>(undefined);
 
   function load() {
@@ -53,7 +54,7 @@ export function EscalationsPage() {
     try {
       const response = await updateEscalation(token, escalation.id, { status });
       setEscalations((current) =>
-        current.map((e) => (e.id === escalation.id ? response.data : e)),
+        current?.map((e) => (e.id === escalation.id ? response.data : e)),
       );
     } finally {
       setBusyId(undefined);
@@ -65,11 +66,13 @@ export function EscalationsPage() {
       <h1 style={{ marginBottom: "var(--space-5)" }}>Escalations</h1>
 
       <Card>
-        {escalations.length === 0 && (
+        {escalations === undefined && <PageSpinner />}
+
+        {escalations && escalations.length === 0 && (
           <EmptyState headline="Nothing escalated" subtext="Open escalations assigned to you will show up here." />
         )}
 
-        {escalations.length > 0 && (
+        {escalations && escalations.length > 0 && (
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr style={{ textAlign: "left", borderBottom: "1px solid var(--border)" }}>

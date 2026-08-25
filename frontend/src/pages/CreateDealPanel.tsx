@@ -6,6 +6,7 @@ import { listPipelineStages, type PipelineStage } from "../api/pipelineStages";
 import { useAuth } from "../auth/context";
 import { Button } from "../components/Button";
 import { SlideOverPanel } from "../components/SlideOverPanel";
+import { Spinner } from "../components/Spinner";
 
 interface CreateDealPanelProps {
   contactId: string;
@@ -107,7 +108,13 @@ export function CreateDealPanel({ contactId, onClose, onCreated }: CreateDealPan
               Cancel
             </Button>
             <Button variant="primary" type="submit" disabled={submitting}>
-              {submitting ? "Creating…" : "Create Deal"}
+              {submitting ? (
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  <Spinner size={12} /> Creating…
+                </span>
+              ) : (
+                "Create Deal"
+              )}
             </Button>
           </div>
         </form>

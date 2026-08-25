@@ -16,6 +16,7 @@ import { Badge } from "../components/Badge";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
 import { EmptyState } from "../components/EmptyState";
+import { PageSpinner, Spinner } from "../components/Spinner";
 import { stageColor, stageIcon } from "../stageColor";
 import { useMe } from "../useMe";
 
@@ -76,6 +77,7 @@ export function PipelineConfigPage() {
   const { me } = useMe();
   const [savedStages, setSavedStages] = useState<PipelineStage[]>([]);
   const [draftStages, setDraftStages] = useState<DraftStage[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [templates, setTemplates] = useState<PipelineStageTemplate[]>([]);
   const [showTemplates, setShowTemplates] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
@@ -91,6 +93,7 @@ export function PipelineConfigPage() {
     listPipelineStages(token).then((response) => {
       setSavedStages(response.data);
       setDraftStages(response.data.map(toDraft));
+      setLoaded(true);
     });
   }
 
@@ -208,6 +211,15 @@ export function PipelineConfigPage() {
     } finally {
       setShowResetToDefault(false);
     }
+  }
+
+  if (!loaded) {
+    return (
+      <div style={{ maxWidth: 1120, margin: "0 auto", padding: "var(--space-6)" }}>
+        <h1 style={{ marginBottom: "var(--space-5)" }}>Pipeline config</h1>
+        <PageSpinner />
+      </div>
+    );
   }
 
   return (
@@ -360,7 +372,13 @@ export function PipelineConfigPage() {
 
         <div style={{ display: "flex", gap: "var(--space-3)" }}>
           <Button variant="primary" disabled={!dirty || saving} onClick={() => void handleSave()}>
-            {saving ? "Saving…" : "Save"}
+            {saving ? (
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                <Spinner size={12} /> Saving…
+              </span>
+            ) : (
+              "Save"
+            )}
           </Button>
           <Button variant="secondary" disabled={!dirty} onClick={() => setShowResetConfirm(true)}>
             Reset
@@ -523,7 +541,13 @@ function ResetToDefaultModal({
               onConfirm();
             }}
           >
-            {submitting ? "Resetting…" : "Reset to default"}
+            {submitting ? (
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                <Spinner size={12} /> Resetting…
+              </span>
+            ) : (
+              "Reset to default"
+            )}
           </Button>
           <Button variant="text" onClick={onCancel} disabled={submitting}>
             Cancel

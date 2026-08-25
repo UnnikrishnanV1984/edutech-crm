@@ -10,6 +10,7 @@ import {
 } from "../api/documents";
 import { useAuth } from "../auth/context";
 import { Button } from "../components/Button";
+import { Spinner } from "../components/Spinner";
 
 type UploadStatus = "uploading" | "uploaded" | "failed-start" | "failed-put" | "failed-confirm";
 
@@ -36,7 +37,7 @@ interface DocumentsSectionProps {
 
 export function DocumentsSection({ contactId }: DocumentsSectionProps) {
   const { token } = useAuth();
-  const [documents, setDocuments] = useState<Document[]>([]);
+  const [documents, setDocuments] = useState<Document[] | undefined>(undefined);
   const [uploads, setUploads] = useState<UploadItem[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -62,7 +63,7 @@ export function DocumentsSection({ contactId }: DocumentsSectionProps) {
         size_bytes: item.size,
         s3_key: s3Key,
       });
-      setDocuments((current) => [confirmed.data, ...current]);
+      setDocuments((current) => [confirmed.data, ...(current ?? [])]);
       setUploads((current) => current.filter((u) => u.localId !== item.localId));
     } catch {
       if (attempt < 3) {
@@ -142,6 +143,11 @@ export function DocumentsSection({ contactId }: DocumentsSectionProps) {
           onChange={(event) => handleFilesSelected(event.target.files)}
         />
       </div>
+      {documents === undefined && (
+        <div style={{ padding: 8 }}>
+          <Spinner size={16} />
+        </div>
+      )}
       <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
         {uploads.map((item) => (
           <li
@@ -170,7 +176,7 @@ export function DocumentsSection({ contactId }: DocumentsSectionProps) {
             )}
           </li>
         ))}
-        {documents.map((doc) => (
+        {documents?.map((doc) => (
           <li
             key={doc.id}
             style={{ padding: 8, borderBottom: "1px solid var(--border)" }}
@@ -186,7 +192,7 @@ export function DocumentsSection({ contactId }: DocumentsSectionProps) {
             </div>
           </li>
         ))}
-        {uploads.length === 0 && documents.length === 0 && (
+        {uploads.length === 0 && documents && documents.length === 0 && (
           <li style={{ color: "var(--text-muted)", padding: 8 }}>No documents yet</li>
         )}
       </ul>

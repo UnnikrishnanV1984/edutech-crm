@@ -20,6 +20,7 @@ import { useAuth } from "../auth/context";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
 import { EmptyState } from "../components/EmptyState";
+import { PageSpinner } from "../components/Spinner";
 import { DashboardTopBar, MetricCard, MyQueueTodayCard, PipelineByStageCard } from "./DashboardWidgets";
 import { useMe } from "../useMe";
 
@@ -33,10 +34,18 @@ export function AdminDashboard() {
   const [sources, setSources] = useState<SourceAttributionRow[]>([]);
   const [invoiceSummary, setInvoiceSummary] = useState<InvoiceSummary | undefined>(undefined);
   const [compliance, setCompliance] = useState<SlaComplianceRow[]>([]);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     if (!token) return;
-    getFunnel(token, period).then((response) => setFunnel(response.data));
+    // Deliberate — re-shows the spinner on every period change, not just
+    // the first load.
+    // oxlint-disable-next-line react/set-state-in-effect
+    setLoaded(false);
+    getFunnel(token, period).then((response) => {
+      setFunnel(response.data);
+      setLoaded(true);
+    });
     listPipelineStages(token).then((response) => setStages(response.data));
     getSourceAttribution(token, period).then((response) => setSources(response.data));
     getInvoiceSummary(token, period).then((response) => setInvoiceSummary(response.data));
@@ -77,6 +86,9 @@ export function AdminDashboard() {
         {quickLinks}
       </DashboardTopBar>
 
+      {!loaded && <PageSpinner />}
+
+      {loaded && (
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)" }}>
         <div style={{ display: "flex", gap: "var(--space-4)" }}>
           <MetricCard label="Open deals" value={openDeals} />
@@ -234,6 +246,7 @@ export function AdminDashboard() {
         </div>
 
       </div>
+      )}
     </div>
   );
 }

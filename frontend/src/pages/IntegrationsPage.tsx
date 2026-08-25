@@ -12,6 +12,7 @@ import { Badge } from "../components/Badge";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
 import { EmptyState } from "../components/EmptyState";
+import { PageSpinner } from "../components/Spinner";
 import { config } from "../config";
 import { useMe } from "../useMe";
 import { ConnectSourcePanel } from "./ConnectSourcePanel";
@@ -63,7 +64,7 @@ const SOURCE_LABELS: Record<string, string> = {
 export function IntegrationsPage() {
   const { token } = useAuth();
   const { me } = useMe();
-  const [connections, setConnections] = useState<LeadSourceConnection[]>([]);
+  const [connections, setConnections] = useState<LeadSourceConnection[] | undefined>(undefined);
   const [showConnect, setShowConnect] = useState(false);
   const [busyId, setBusyId] = useState<string | undefined>(undefined);
   const [expandedEmbedId, setExpandedEmbedId] = useState<string | undefined>(undefined);
@@ -91,7 +92,7 @@ export function IntegrationsPage() {
     try {
       const response = await setConnectionStatus(token, connection.id, nextStatus);
       setConnections((current) =>
-        current.map((c) => (c.id === connection.id ? response.data : c)),
+        current?.map((c) => (c.id === connection.id ? response.data : c)),
       );
     } finally {
       setBusyId(undefined);
@@ -115,7 +116,7 @@ export function IntegrationsPage() {
     try {
       const response = await setConversionTargetId(token, connection.id, value);
       setConnections((current) =>
-        current.map((c) => (c.id === connection.id ? response.data : c)),
+        current?.map((c) => (c.id === connection.id ? response.data : c)),
       );
     } finally {
       setBusyId(undefined);
@@ -134,7 +135,9 @@ export function IntegrationsPage() {
           </Button>
         }
       >
-        {connections.length === 0 && (
+        {connections === undefined && <PageSpinner />}
+
+        {connections && connections.length === 0 && (
           <EmptyState
             headline="No lead sources connected"
             subtext="Connect Meta, Google, WhatsApp, or a web form to start capturing leads automatically."
@@ -146,7 +149,7 @@ export function IntegrationsPage() {
           />
         )}
 
-        {connections.length > 0 && (
+        {connections && connections.length > 0 && (
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr style={{ textAlign: "left", borderBottom: "1px solid var(--border)" }}>

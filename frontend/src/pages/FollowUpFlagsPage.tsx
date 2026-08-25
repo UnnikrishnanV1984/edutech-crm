@@ -9,13 +9,14 @@ import { useAuth } from "../auth/context";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
 import { EmptyState } from "../components/EmptyState";
+import { PageSpinner } from "../components/Spinner";
 import { useMe } from "../useMe";
 import { CreateFollowUpFlagPanel } from "./CreateFollowUpFlagPanel";
 
 export function FollowUpFlagsPage() {
   const { token } = useAuth();
   const { me } = useMe();
-  const [flags, setFlags] = useState<FollowUpFlag[]>([]);
+  const [flags, setFlags] = useState<FollowUpFlag[] | undefined>(undefined);
   const [showCreate, setShowCreate] = useState(false);
   const [busyId, setBusyId] = useState<string | undefined>(undefined);
 
@@ -40,13 +41,13 @@ export function FollowUpFlagsPage() {
     setBusyId(flag.id);
     try {
       await resolveFollowUpFlag(token, flag.id);
-      setFlags((current) => current.filter((f) => f.id !== flag.id));
+      setFlags((current) => current?.filter((f) => f.id !== flag.id));
     } finally {
       setBusyId(undefined);
     }
   }
 
-  const openFlags = flags.filter((f) => !f.resolved_at);
+  const openFlags = flags?.filter((f) => !f.resolved_at);
 
   return (
     <div style={{ maxWidth: 1120, margin: "0 auto", padding: "var(--space-6)" }}>
@@ -59,14 +60,16 @@ export function FollowUpFlagsPage() {
           </Button>
         }
       >
-        {openFlags.length === 0 && (
+        {openFlags === undefined && <PageSpinner />}
+
+        {openFlags && openFlags.length === 0 && (
           <EmptyState
             headline="No follow-ups scheduled"
             subtext="A personal reminder tool — separate from escalations, never notifies the counselor."
           />
         )}
 
-        {openFlags.length > 0 && (
+        {openFlags && openFlags.length > 0 && (
           <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
             {openFlags.map((flag, index) => (
               <li

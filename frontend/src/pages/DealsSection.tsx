@@ -15,6 +15,7 @@ import { listPipelineStages, type PipelineStage } from "../api/pipelineStages";
 import { useAuth } from "../auth/context";
 import { Badge } from "../components/Badge";
 import { Button } from "../components/Button";
+import { Spinner } from "../components/Spinner";
 import { stageColor } from "../stageColor";
 import { CreateDealPanel } from "./CreateDealPanel";
 
@@ -45,7 +46,7 @@ interface DealsSectionProps {
 
 export function DealsSection({ contactId }: DealsSectionProps) {
   const { token } = useAuth();
-  const [deals, setDeals] = useState<Deal[]>([]);
+  const [deals, setDeals] = useState<Deal[] | undefined>(undefined);
   const [stages, setStages] = useState<PipelineStage[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
   const [showCreate, setShowCreate] = useState(false);
@@ -75,16 +76,21 @@ export function DealsSection({ contactId }: DealsSectionProps) {
   return (
     <section>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <h2 style={{ fontSize: 15 }}>Deals ({deals.length})</h2>
+        <h2 style={{ fontSize: 15 }}>Deals {deals && `(${deals.length})`}</h2>
         <Button variant="text" onClick={() => setShowCreate(true)}>
           + New Deal
         </Button>
       </div>
+      {deals === undefined && (
+        <div style={{ padding: 8 }}>
+          <Spinner size={16} />
+        </div>
+      )}
       <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-        {deals.length === 0 && (
+        {deals && deals.length === 0 && (
           <li style={{ color: "var(--text-muted)", padding: 8 }}>No deals yet</li>
         )}
-        {deals.map((deal) => {
+        {deals?.map((deal) => {
           const stageInfo = stageFor(deal.stage_id);
           const expanded = expandedDealId === deal.id;
           return (
@@ -285,7 +291,13 @@ function CreateInvoiceForm({
         />
       </label>
       <Button variant="primary" type="submit" disabled={submitting}>
-        {submitting ? "Creating…" : "Create"}
+        {submitting ? (
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+            <Spinner size={12} /> Creating…
+          </span>
+        ) : (
+          "Create"
+        )}
       </Button>
       <Button variant="text" onClick={onCancel} disabled={submitting}>
         Cancel
@@ -494,7 +506,13 @@ function RecordPaymentForm({
         style={{ width: 140 }}
       />
       <Button variant="secondary" type="submit" disabled={submitting}>
-        {submitting ? "Recording…" : "Record payment"}
+        {submitting ? (
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+            <Spinner size={12} /> Recording…
+          </span>
+        ) : (
+          "Record payment"
+        )}
       </Button>
       {error && (
         <p role="alert" style={{ color: "var(--danger)", width: "100%", margin: 0 }}>

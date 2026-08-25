@@ -5,6 +5,7 @@ import { createContact, getContact, type Contact } from "../api/contacts";
 import { useAuth } from "../auth/context";
 import { Button } from "../components/Button";
 import { SlideOverPanel } from "../components/SlideOverPanel";
+import { Spinner } from "../components/Spinner";
 import { useUsers } from "../useUsers";
 
 interface CreateContactPanelProps {
@@ -161,7 +162,13 @@ export function CreateContactPanel({ onClose, onCreated }: CreateContactPanelPro
             Cancel
           </Button>
           <Button variant="primary" type="submit" disabled={submitting}>
-            {submitting ? "Creating…" : "Create Contact"}
+            {submitting ? (
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                <Spinner size={12} /> Creating…
+              </span>
+            ) : (
+              "Create Contact"
+            )}
           </Button>
         </div>
       </form>

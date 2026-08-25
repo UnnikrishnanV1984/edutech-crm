@@ -13,12 +13,13 @@ import { Badge } from "../components/Badge";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
 import { EmptyState } from "../components/EmptyState";
+import { PageSpinner, Spinner } from "../components/Spinner";
 import { useMe } from "../useMe";
 
 export function SlaPoliciesPage() {
   const { token } = useAuth();
   const { me } = useMe();
-  const [policies, setPolicies] = useState<SlaPolicy[]>([]);
+  const [policies, setPolicies] = useState<SlaPolicy[] | undefined>(undefined);
   const [stages, setStages] = useState<PipelineStage[]>([]);
   const [showCreate, setShowCreate] = useState(false);
   const [busyId, setBusyId] = useState<string | undefined>(undefined);
@@ -46,7 +47,7 @@ export function SlaPoliciesPage() {
     const next = policy.status === "active" ? "disabled" : "active";
     try {
       const response = await setSlaPolicyStatus(token, policy.id, next);
-      setPolicies((current) => current.map((p) => (p.id === policy.id ? response.data : p)));
+      setPolicies((current) => current?.map((p) => (p.id === policy.id ? response.data : p)));
     } finally {
       setBusyId(undefined);
     }
@@ -77,9 +78,11 @@ export function SlaPoliciesPage() {
             </Button>
           }
         >
-          {policies.length === 0 && <EmptyState headline="No SLA policies yet" />}
+          {policies === undefined && <PageSpinner />}
 
-          {policies.length > 0 && (
+          {policies && policies.length === 0 && <EmptyState headline="No SLA policies yet" />}
+
+          {policies && policies.length > 0 && (
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr style={{ textAlign: "left", borderBottom: "1px solid var(--border)" }}>
@@ -240,7 +243,13 @@ function CreatePolicyForm({
         </p>
       )}
       <Button variant="primary" type="submit" disabled={submitting}>
-        {submitting ? "Creating…" : "Create policy"}
+        {submitting ? (
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+            <Spinner size={12} /> Creating…
+          </span>
+        ) : (
+          "Create policy"
+        )}
       </Button>
     </form>
   );

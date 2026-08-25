@@ -4,6 +4,7 @@ import { createFollowUpFlag, type FollowUpFlag } from "../api/followUpFlags";
 import { useAuth } from "../auth/context";
 import { Button } from "../components/Button";
 import { SlideOverPanel } from "../components/SlideOverPanel";
+import { Spinner } from "../components/Spinner";
 
 interface CreateFollowUpFlagPanelProps {
   onClose: () => void;
@@ -83,7 +84,13 @@ export function CreateFollowUpFlagPanel({ onClose, onCreated }: CreateFollowUpFl
             Cancel
           </Button>
           <Button variant="primary" type="submit" disabled={submitting}>
-            {submitting ? "Saving…" : "Save"}
+            {submitting ? (
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                <Spinner size={12} /> Saving…
+              </span>
+            ) : (
+              "Save"
+            )}
           </Button>
         </div>
       </form>

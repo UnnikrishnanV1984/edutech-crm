@@ -11,6 +11,7 @@ import {
 } from "../api/reports";
 import { listPipelineStages, type PipelineStage } from "../api/pipelineStages";
 import { useAuth } from "../auth/context";
+import { PageSpinner } from "../components/Spinner";
 import { DashboardTopBar, MetricCard, MyQueueTodayCard, PipelineByStageCard } from "./DashboardWidgets";
 import { useMe } from "../useMe";
 
@@ -22,10 +23,18 @@ export function StaffDashboard() {
   const [stages, setStages] = useState<PipelineStage[]>([]);
   const [queue, setQueue] = useState<MyQueueItem[]>([]);
   const [stats, setStats] = useState<MyStats | undefined>(undefined);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     if (!token || !me) return;
-    getFunnel(token, period).then((response) => setFunnel(response.data));
+    // Deliberate — re-shows the spinner on every period change, not just
+    // the first load.
+    // oxlint-disable-next-line react/set-state-in-effect
+    setLoaded(false);
+    getFunnel(token, period).then((response) => {
+      setFunnel(response.data);
+      setLoaded(true);
+    });
     listPipelineStages(token).then((response) => setStages(response.data));
     getMyQueue(token).then((response) => setQueue(response.data));
     getMyStats(token, period).then((response) => setStats(response.data));
@@ -46,6 +55,9 @@ export function StaffDashboard() {
     <div style={{ maxWidth: 1120, margin: "0 auto", padding: "var(--space-6)" }}>
       <DashboardTopBar roleLabel="My view" period={period} onPeriodChange={setPeriod} />
 
+      {!loaded && <PageSpinner />}
+
+      {loaded && (
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)" }}>
         <div style={{ display: "flex", gap: "var(--space-4)" }}>
           <MetricCard label="Open deals" value={openDeals} />
@@ -62,6 +74,7 @@ export function StaffDashboard() {
           {token && me && <MyQueueTodayCard token={token} meId={me.user.id} />}
         </div>
       </div>
+      )}
     </div>
   );
 }

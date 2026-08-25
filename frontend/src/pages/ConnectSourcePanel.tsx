@@ -8,6 +8,7 @@ import {
 import { useAuth } from "../auth/context";
 import { Button } from "../components/Button";
 import { SlideOverPanel } from "../components/SlideOverPanel";
+import { Spinner } from "../components/Spinner";
 
 interface ConnectSourcePanelProps {
   onClose: () => void;
@@ -127,7 +128,13 @@ export function ConnectSourcePanel({ onClose, onCreated }: ConnectSourcePanelPro
             Cancel
           </Button>
           <Button variant="primary" type="submit" disabled={submitting}>
-            {submitting ? "Connecting…" : "Connect"}
+            {submitting ? (
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                <Spinner size={12} /> Connecting…
+              </span>
+            ) : (
+              "Connect"
+            )}
           </Button>
         </div>
       </form>

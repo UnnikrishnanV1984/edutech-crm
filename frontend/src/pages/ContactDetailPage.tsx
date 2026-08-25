@@ -4,6 +4,7 @@ import { useParams } from "react-router-dom";
 import { getContact, updateContact, type Contact } from "../api/contacts";
 import { useAuth } from "../auth/context";
 import { Badge } from "../components/Badge";
+import { PageSpinner } from "../components/Spinner";
 import { leadSourceColor, leadSourceLabel } from "../leadSource";
 import { userDisplayName, useUsers } from "../useUsers";
 import { ActivitySection } from "./ActivitySection";
@@ -62,7 +63,7 @@ export function ContactDetailPage() {
   }
 
   if (!contact || !contactId) {
-    return <p style={{ padding: 24 }}>Loading…</p>;
+    return <PageSpinner />;
   }
 
   return (

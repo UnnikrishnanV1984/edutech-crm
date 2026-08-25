@@ -285,3 +285,9 @@ a {
   overflow-x: auto;
   padding-bottom: var(--space-4);
 }
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

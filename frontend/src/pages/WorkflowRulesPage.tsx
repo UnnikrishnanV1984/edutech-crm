@@ -10,6 +10,7 @@ import { Badge } from "../components/Badge";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
 import { EmptyState } from "../components/EmptyState";
+import { PageSpinner } from "../components/Spinner";
 import { useMe } from "../useMe";
 import { CreateWorkflowRulePanel } from "./CreateWorkflowRulePanel";
 
@@ -23,7 +24,7 @@ const STATUS_TONE: Record<string, { bg: string; fg: string; border: string }> = 
 export function WorkflowRulesPage() {
   const { token } = useAuth();
   const { me } = useMe();
-  const [rules, setRules] = useState<WorkflowRule[]>([]);
+  const [rules, setRules] = useState<WorkflowRule[] | undefined>(undefined);
   const [showCreate, setShowCreate] = useState(false);
   const [busyId, setBusyId] = useState<string | undefined>(undefined);
 
@@ -50,7 +51,7 @@ export function WorkflowRulesPage() {
     setBusyId(rule.id);
     try {
       const response = await decideWorkflowRule(token, rule.id, status);
-      setRules((current) => current.map((r) => (r.id === rule.id ? response.data : r)));
+      setRules((current) => current?.map((r) => (r.id === rule.id ? response.data : r)));
     } finally {
       setBusyId(undefined);
     }
@@ -68,9 +69,11 @@ export function WorkflowRulesPage() {
           </Button>
         }
       >
-        {rules.length === 0 && <EmptyState headline="No workflow rules yet" />}
+        {rules === undefined && <PageSpinner />}
 
-        {rules.length > 0 && (
+        {rules && rules.length === 0 && <EmptyState headline="No workflow rules yet" />}
+
+        {rules && rules.length > 0 && (
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr style={{ textAlign: "left", borderBottom: "1px solid var(--border)" }}>

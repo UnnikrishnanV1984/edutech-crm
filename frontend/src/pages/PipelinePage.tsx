@@ -10,6 +10,7 @@ import { Avatar } from "../components/Avatar";
 import { Badge } from "../components/Badge";
 import { Button } from "../components/Button";
 import { OwnerFilter } from "../components/OwnerFilter";
+import { PageSpinner } from "../components/Spinner";
 import { useToast } from "../components/toastContext";
 import { defaultOwnerFilterValue } from "../ownerFilter";
 import { stageColor, stageIcon } from "../stageColor";
@@ -102,6 +103,7 @@ export function PipelinePage() {
     undefined,
   );
   const [showCreate, setShowCreate] = useState(false);
+  const [loaded, setLoaded] = useState(false);
 
   function load() {
     if (!token) return;
@@ -115,6 +117,7 @@ export function PipelinePage() {
     }).then(
       (response) => {
         setDeals(response.data);
+        setLoaded(true);
         const missing = [...new Set(response.data.map((d) => d.contact_id))].filter(
           (id) => !(id in contactsById),
         );
@@ -271,7 +274,9 @@ export function PipelinePage() {
       </div>
 
       <div style={{ padding: "var(--space-4) var(--space-5)" }}>
-        {view === "board" && (
+        {!loaded && <PageSpinner />}
+
+        {loaded && view === "board" && (
           <>
             <div className="pipeline-columns">
               {stages.map((stage, index) => {
@@ -428,7 +433,7 @@ export function PipelinePage() {
           </>
         )}
 
-        {view === "table" && (
+        {loaded && view === "table" && (
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr style={{ textAlign: "left", color: "var(--text-muted)", fontSize: 13 }}>
