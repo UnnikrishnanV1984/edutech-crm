@@ -165,10 +165,9 @@ specific person, and any Manager or Admin can select any of those (revised
 framing). A per-contact indicator (the Contact Detail page's follow-up flag
 card) is the exception — it stays scoped to the viewing Manager's own flag
 on that contact specifically, since it's a personal "did I flag this"
-signal rather than the team queue. Acting on a flag (resolve/snooze) is
-still restricted to its own Manager or an Admin regardless of who can see
-it — broader visibility doesn't grant edit rights to someone else's
-reminder.
+signal rather than the team queue. Acting on a flag (resolve/snooze) follows
+the same team-wide rule as viewing it: any Manager or Admin can resolve or
+snooze any flag, not just its own owner.
 
 ## 5. Dashboards by role
 

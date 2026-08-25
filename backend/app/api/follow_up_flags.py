@@ -3,7 +3,7 @@ import uuid
 from fastapi import APIRouter, Depends, Request
 
 from app.core.envelope import data_envelope
-from app.core.errors import FORBIDDEN, NOT_FOUND, ApiError
+from app.core.errors import NOT_FOUND, ApiError
 from app.deps.roles import require_manager_or_admin
 from app.deps.tenant import TenantContext
 from app.schemas.follow_up_flag import FollowUpFlagCreate, FollowUpFlagOut, FollowUpFlagUpdate
@@ -38,9 +38,8 @@ async def get_follow_up_flags(
     # a full team-visibility tool by product decision, superseding
     # REQUIREMENTS.md §4.3's original "manager's own personal tracking
     # list" framing. Omitted entirely means unrestricted ("Everyone").
-    # Acting on a flag (resolve/snooze below) is still restricted to its
-    # own manager or an Admin — broader visibility doesn't grant edit
-    # rights to someone else's reminder.
+    # Acting on a flag (resolve/snooze below) follows the same team-wide
+    # rule — any Manager or Admin can act on any flag, not just its owner.
     flags = await list_flags(context.db, context.tenant.id, manager_id, contact_id)
     enrichment = await enrich_flags(context.db, context.tenant.id, flags)
     return data_envelope(
@@ -68,8 +67,6 @@ async def patch_follow_up_flag(
     flag = await get_flag(context.db, context.tenant.id, flag_id)
     if flag is None:
         raise ApiError(404, NOT_FOUND, "Follow-up flag not found")
-    if context.user_role != "admin" and flag.manager_id != context.user.id:
-        raise ApiError(403, FORBIDDEN, "Not your follow-up flag")
     if body.remind_on is not None:
         flag = await snooze_flag(context.db, flag, body.remind_on)
     else:

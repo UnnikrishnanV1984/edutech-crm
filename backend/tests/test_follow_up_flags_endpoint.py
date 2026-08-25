@@ -291,9 +291,10 @@ def test_manager_sees_everyone_when_manager_id_omitted(scenario):
     assert len(response.json()["data"]) == 2
 
 
-def test_manager_cannot_resolve_another_managers_flag(scenario):
-    """Broader read visibility doesn't grant edit rights — resolving is
-    still restricted to the flag's own manager or an Admin."""
+def test_manager_can_resolve_another_managers_flag(scenario):
+    """REQUIREMENTS.md §4.3 (revised) — acting on a flag follows the same
+    team-wide rule as viewing it: any Manager or Admin can resolve or
+    snooze any flag, not just its own owner."""
     with TestClient(app) as client:
         created = client.post(
             "/api/v1/follow-up-flags",
@@ -307,7 +308,29 @@ def test_manager_cannot_resolve_another_managers_flag(scenario):
         response = client.patch(
             f"/api/v1/follow-up-flags/{created['id']}", headers=scenario["manager_headers"]
         )
-    assert response.status_code == 403
+    assert response.status_code == 200
+    assert response.json()["data"]["resolved_at"] is not None
+
+
+def test_manager_can_snooze_another_managers_flag(scenario):
+    with TestClient(app) as client:
+        created = client.post(
+            "/api/v1/follow-up-flags",
+            json={
+                "contact_id": scenario["contact_id"],
+                "note": "check in",
+                "remind_on": str(date.today() + timedelta(days=1)),
+            },
+            headers=scenario["other_manager_headers"],
+        ).json()["data"]
+        new_date = str(date.today() + timedelta(days=14))
+        response = client.patch(
+            f"/api/v1/follow-up-flags/{created['id']}",
+            json={"remind_on": new_date},
+            headers=scenario["manager_headers"],
+        )
+    assert response.status_code == 200
+    assert response.json()["data"]["remind_on"] == new_date
 
 
 def test_snooze_moves_remind_on_without_resolving(scenario):
