@@ -1,11 +1,16 @@
 import uuid
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import exists, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
 from app.core.errors import CONFLICT, ApiError
 from app.models.contact import Contact
+from app.models.deal import Deal
+from app.models.follow_up_flag import FollowUpFlag
+from app.models.pipeline_stage import PipelineStage
+from app.models.sla_state import SlaState
 from app.schemas.contact import ContactCreate, ContactUpdate
 
 
@@ -120,17 +125,47 @@ async def list_contacts(
     page_size: int,
     sort: str | None = None,
     scoped_owner_ids: list[uuid.UUID] | None = None,
-) -> tuple[list[Contact], int]:
+    stage_id: uuid.UUID | None = None,
+    has_follow_up_flag: bool | None = None,
+) -> tuple[list[dict], int]:
     """owner_id is the caller-supplied ?owner_id= filter; scoped_owner_ids
     is the RowScope enforcement (PHASE_3_PLAN.md §4) — the two compose:
     a Manager can still filter to one teammate via owner_id, but can
-    never widen past scoped_owner_ids."""
-    stmt = select(Contact).where(Contact.tenant_id == tenant_id)
+    never widen past scoped_owner_ids.
+
+    Each contact is enriched with its most-recently-updated deal's stage
+    and SLA state — a contact can have zero or many deals, so "most
+    recently updated" is this list view's own definition of "current"
+    (design_handoff_crm_wireframes/README.md screen 3's Stage/SLA
+    columns and Stage filter), plus whether it has an unresolved
+    follow-up flag (the Follow-up filter). The latest-deal join uses
+    Postgres DISTINCT ON, one row per contact, so it never multiplies
+    the contact row count — the outerjoins after it stay 1:1."""
+    latest_deal = (
+        select(Deal.id.label("deal_id"), Deal.contact_id.label("contact_id"))
+        .where(Deal.tenant_id == tenant_id)
+        .order_by(Deal.contact_id, Deal.updated_at.desc())
+        .distinct(Deal.contact_id)
+        .subquery()
+    )
+    deal = aliased(Deal)
+
+    joined = (
+        select(Contact)
+        .where(Contact.tenant_id == tenant_id)
+        .outerjoin(latest_deal, latest_deal.c.contact_id == Contact.id)
+        .outerjoin(deal, (deal.id == latest_deal.c.deal_id) & (deal.tenant_id == tenant_id))
+        .outerjoin(
+            PipelineStage,
+            (PipelineStage.id == deal.stage_id) & (PipelineStage.tenant_id == tenant_id),
+        )
+        .outerjoin(SlaState, (SlaState.deal_id == deal.id) & (SlaState.tenant_id == tenant_id))
+    )
     if scoped_owner_ids is not None:
-        stmt = stmt.where(Contact.owner_id.in_(scoped_owner_ids))
+        joined = joined.where(Contact.owner_id.in_(scoped_owner_ids))
     if search:
         pattern = f"%{search.lower()}%"
-        stmt = stmt.where(
+        joined = joined.where(
             or_(
                 func.lower(Contact.full_name).like(pattern),
                 func.lower(Contact.email).like(pattern),
@@ -138,16 +173,53 @@ async def list_contacts(
             )
         )
     if lead_source:
-        stmt = stmt.where(Contact.lead_source == lead_source)
+        joined = joined.where(Contact.lead_source == lead_source)
     if owner_id:
-        stmt = stmt.where(Contact.owner_id == owner_id)
+        joined = joined.where(Contact.owner_id == owner_id)
+    if stage_id is not None:
+        joined = joined.where(deal.stage_id == stage_id)
+    if has_follow_up_flag:
+        joined = joined.where(
+            exists().where(
+                FollowUpFlag.tenant_id == tenant_id,
+                FollowUpFlag.contact_id == Contact.id,
+                FollowUpFlag.resolved_at.is_(None),
+            )
+        )
 
-    count_result = await db.execute(select(func.count()).select_from(stmt.subquery()))
+    count_result = await db.execute(select(func.count()).select_from(joined.subquery()))
     total = count_result.scalar_one()
 
+    stmt = joined.add_columns(
+        PipelineStage.id.label("stage_id"),
+        PipelineStage.name.label("stage_name"),
+        SlaState.state.label("sla_state"),
+    )
     stmt = _apply_sort(stmt, sort).offset((page - 1) * page_size).limit(page_size)
-    result = await db.execute(stmt)
-    return list(result.scalars().all()), total
+    rows = (await db.execute(stmt)).all()
+
+    open_flag_contact_ids: set[uuid.UUID] = set()
+    if rows:
+        contact_ids = [contact.id for contact, *_ in rows]
+        flagged = await db.execute(
+            select(FollowUpFlag.contact_id).where(
+                FollowUpFlag.tenant_id == tenant_id,
+                FollowUpFlag.contact_id.in_(contact_ids),
+                FollowUpFlag.resolved_at.is_(None),
+            )
+        )
+        open_flag_contact_ids = {cid for (cid,) in flagged}
+
+    return [
+        {
+            "contact": contact,
+            "stage_id": stage_id_,
+            "stage_name": stage_name,
+            "sla_state": sla_state,
+            "has_open_follow_up": contact.id in open_flag_contact_ids,
+        }
+        for contact, stage_id_, stage_name, sla_state in rows
+    ], total
 
 
 async def update_contact(db: AsyncSession, contact: Contact, data: ContactUpdate) -> Contact:

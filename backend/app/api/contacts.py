@@ -40,13 +40,15 @@ async def get_contacts(
     search: str | None = None,
     lead_source: str | None = None,
     owner_id: uuid.UUID | None = None,
+    stage_id: uuid.UUID | None = None,
+    has_follow_up_flag: bool | None = None,
     sort: str | None = None,
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=25, ge=1, le=100),
     context: TenantContext = Depends(get_tenant_context),
     scope: RowScope = Depends(get_row_scope),
 ) -> dict:
-    contacts, total = await list_contacts(
+    rows, total = await list_contacts(
         context.db,
         context.tenant.id,
         search=search,
@@ -56,8 +58,22 @@ async def get_contacts(
         page_size=page_size,
         sort=sort,
         scoped_owner_ids=scope.owner_ids,
+        stage_id=stage_id,
+        has_follow_up_flag=has_follow_up_flag,
     )
-    items = [ContactOut.model_validate(c).model_dump(mode="json") for c in contacts]
+    items = [
+        ContactOut.model_validate(row["contact"])
+        .model_copy(
+            update={
+                "stage_id": row["stage_id"],
+                "stage_name": row["stage_name"],
+                "sla_state": row["sla_state"],
+                "has_open_follow_up": row["has_open_follow_up"],
+            }
+        )
+        .model_dump(mode="json")
+        for row in rows
+    ]
     return collection_envelope(items, request.state.request_id, page, page_size, total)
 
 
