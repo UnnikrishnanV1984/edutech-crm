@@ -12,6 +12,7 @@ import { Badge } from "../components/Badge";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
 import { Spinner } from "../components/Spinner";
+import { useMe } from "../useMe";
 
 const ACCENT_TINT = { bg: "var(--accent-subtle)", fg: "var(--accent-hover)", border: "var(--accent)" };
 
@@ -24,6 +25,7 @@ interface FollowUpFlagCardProps {
 
 export function FollowUpFlagCard({ contactId }: FollowUpFlagCardProps) {
   const { token } = useAuth();
+  const { me } = useMe();
   const [flags, setFlags] = useState<FollowUpFlag[] | undefined>(undefined);
   const [showCreate, setShowCreate] = useState(false);
   const [note, setNote] = useState("");
@@ -31,13 +33,22 @@ export function FollowUpFlagCard({ contactId }: FollowUpFlagCardProps) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | undefined>(undefined);
 
+  // The Follow-ups queue page's "Everyone" filter is intentionally broad
+  // (product decision), but this card is a single manager's quick "did I
+  // flag this contact" indicator, not a shared team view — so a Manager
+  // stays scoped to their own flag here regardless of that broader
+  // queue-page visibility change; only an Admin sees every manager's.
+  const scopedManagerId = me?.user.role === "manager" ? me.user.id : undefined;
+
   function load() {
     if (!token) return;
-    listFollowUpFlags(token, { contact_id: contactId }).then((response) => setFlags(response.data));
+    listFollowUpFlags(token, { contact_id: contactId, manager_id: scopedManagerId }).then(
+      (response) => setFlags(response.data),
+    );
   }
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(load, [token, contactId]);
+  useEffect(load, [token, contactId, scopedManagerId]);
 
   const openFlag = flags?.find((f) => !f.resolved_at);
 

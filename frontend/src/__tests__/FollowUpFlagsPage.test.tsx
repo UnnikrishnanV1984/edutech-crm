@@ -115,6 +115,42 @@ describe("FollowUpFlagsPage", () => {
 
     await waitFor(() => expect(screen.getByText("Mine")).toBeInTheDocument());
     expect(screen.getByLabelText("Filter by owner")).toBeInTheDocument();
+    expect(screen.getByText("Everyone")).toBeInTheDocument();
+  });
+
+  it("shows the same Mine + Everyone + resource-list control for a manager, not a Mine/My-team toggle", async () => {
+    // REQUIREMENTS.md §4.3 (revised) — Follow-ups is team-wide visibility
+    // for any Manager or Admin, unlike the shared OwnerFilter's manager
+    // branch used elsewhere in the app.
+    setup("manager");
+    mockedListFlags.mockResolvedValue({ data: [], meta: { request_id: "r1" } });
+
+    renderPage();
+
+    await waitFor(() => expect(screen.getByText("Mine")).toBeInTheDocument());
+    expect(screen.getByLabelText("Filter by owner")).toBeInTheDocument();
+    expect(screen.getByText("Everyone")).toBeInTheDocument();
+    expect(screen.queryByText("My team")).not.toBeInTheDocument();
+  });
+
+  it("re-fetches with the selected resource when the dropdown changes", async () => {
+    setup("admin");
+    mockedListFlags.mockResolvedValue({ data: [], meta: { request_id: "r1" } });
+    mockedUseUsers.mockReturnValue([
+      { id: "u2", email: "b@example.test", full_name: "Beth Manager", role: "manager", status: "active" },
+    ]);
+    mockedUserDisplayName.mockReturnValue("Beth Manager");
+
+    renderPage();
+    await waitFor(() =>
+      expect(mockedListFlags).toHaveBeenCalledWith("test-token", { manager_id: undefined }),
+    );
+
+    fireEvent.change(screen.getByLabelText("Filter by owner"), { target: { value: "u2" } });
+
+    await waitFor(() =>
+      expect(mockedListFlags).toHaveBeenLastCalledWith("test-token", { manager_id: "u2" }),
+    );
   });
 
   it("resolving a flag via Done removes it from the queue", async () => {

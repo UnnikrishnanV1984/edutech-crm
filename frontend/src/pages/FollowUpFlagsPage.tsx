@@ -8,16 +8,62 @@ import {
   type FollowUpFlag,
 } from "../api/followUpFlags";
 import { useAuth } from "../auth/context";
+import type { TenantUser } from "../api/users";
 import { Badge } from "../components/Badge";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
 import { EmptyState } from "../components/EmptyState";
-import { OwnerFilter } from "../components/OwnerFilter";
 import { PageSpinner } from "../components/Spinner";
 import { defaultOwnerFilterValue } from "../ownerFilter";
 import { useMe } from "../useMe";
-import { useUsers } from "../useUsers";
+import { userDisplayName, useUsers } from "../useUsers";
 import { CreateFollowUpFlagPanel } from "./CreateFollowUpFlagPanel";
+
+// Deliberately not the shared OwnerFilter component: that one's manager
+// branch renders a Mine/My-team toggle (team = a manager's direct-report
+// counselors), which doesn't fit here — follow-up flags are only ever
+// owned by managers/admins, never counselors, and REQUIREMENTS.md §4.3
+// (revised) makes this queue team-wide visibility for any Manager or
+// Admin, not a self-vs-team split. Every viewer gets the same Mine +
+// Everyone + full resource-list control.
+function ResourceFilter({
+  meId,
+  users,
+  selectedUserId,
+  onChange,
+}: {
+  meId: string;
+  users: TenantUser[];
+  selectedUserId: string | undefined;
+  onChange: (userId: string | undefined) => void;
+}) {
+  const isEveryone = selectedUserId === undefined;
+  return (
+    <div style={{ display: "flex", gap: "var(--space-2)", alignItems: "center" }}>
+      <Button
+        variant={selectedUserId === meId ? "primary" : "secondary"}
+        onClick={() => onChange(meId)}
+      >
+        Mine
+      </Button>
+      <select
+        aria-label="Filter by owner"
+        value={isEveryone ? "everyone" : selectedUserId}
+        onChange={(event) => {
+          const value = event.target.value;
+          onChange(value === "everyone" ? undefined : value);
+        }}
+      >
+        <option value="everyone">Everyone</option>
+        {users.map((user) => (
+          <option key={user.id} value={user.id}>
+            {userDisplayName(users, user.id)}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
 
 function startOfDay(date: Date): Date {
   const copy = new Date(date);
@@ -284,8 +330,7 @@ export function FollowUpFlagsPage() {
         </div>
         <div style={{ flex: 1 }} />
         {me && (
-          <OwnerFilter
-            role={me.user.role}
+          <ResourceFilter
             meId={me.user.id}
             users={users}
             selectedUserId={managerId}
