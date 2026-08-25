@@ -66,6 +66,8 @@ def scenario():
         cur.execute("DELETE FROM invoices WHERE tenant_id = %s", (tenant_id,))
         cur.execute("DELETE FROM audit_logs WHERE tenant_id = %s", (tenant_id,))
         cur.execute("DELETE FROM activities WHERE tenant_id = %s", (tenant_id,))
+        cur.execute("DELETE FROM sla_states WHERE tenant_id = %s", (tenant_id,))
+        cur.execute("DELETE FROM sla_policies WHERE tenant_id = %s", (tenant_id,))
         cur.execute("DELETE FROM deals WHERE tenant_id = %s", (tenant_id,))
         cur.execute("DELETE FROM accounts WHERE tenant_id = %s", (tenant_id,))
         cur.execute("DELETE FROM contacts WHERE tenant_id = %s", (tenant_id,))
@@ -351,3 +353,78 @@ def test_list_deals_filters_by_stage(scenario):
         )
     assert by_inquiry.json()["meta"]["total"] == 1
     assert by_contacted.json()["meta"]["total"] == 0
+
+
+def test_list_deals_filters_by_course(scenario):
+    other_course_id = uuid.uuid4()
+    with psycopg.connect(MIGRATE_URL, autocommit=True) as conn, conn.cursor() as cur:
+        cur.execute("SELECT set_config('app.tenant_id', %s, false)", (str(scenario["tenant_id"]),))
+        cur.execute(
+            "INSERT INTO courses (id, tenant_id, name, code) VALUES (%s, %s, %s, %s)",
+            (other_course_id, scenario["tenant_id"], "MSc Data", "DS201"),
+        )
+        cur.execute("RESET app.tenant_id")
+
+    with TestClient(app) as client:
+        client.post(
+            f"/api/v1/contacts/{scenario['contact_id']}/deals",
+            json={"course_id": str(scenario["course_id"])},
+            headers=_headers(scenario["tenant_id"]),
+        )
+        client.post(
+            f"/api/v1/contacts/{scenario['contact_id']}/deals",
+            json={"course_id": str(other_course_id)},
+            headers=_headers(scenario["tenant_id"]),
+        )
+
+        response = client.get(
+            f"/api/v1/deals?course_id={scenario['course_id']}",
+            headers=_headers(scenario["tenant_id"]),
+        )
+    assert response.status_code == 200
+    assert response.json()["meta"]["total"] == 1
+    assert response.json()["data"][0]["course_id"] == str(scenario["course_id"])
+
+
+def test_list_deals_includes_and_filters_by_sla_state(scenario):
+    with TestClient(app) as client:
+        deal = client.post(
+            f"/api/v1/contacts/{scenario['contact_id']}/deals",
+            json={"course_id": str(scenario["course_id"])},
+            headers=_headers(scenario["tenant_id"]),
+        ).json()["data"]
+        stages = client.get(
+            "/api/v1/pipeline-stages", headers=_headers(scenario["tenant_id"])
+        ).json()["data"]
+
+    policy_id = uuid.uuid4()
+    sla_state_id = uuid.uuid4()
+    with psycopg.connect(MIGRATE_URL, autocommit=True) as conn, conn.cursor() as cur:
+        cur.execute("SELECT set_config('app.tenant_id', %s, false)", (str(scenario["tenant_id"]),))
+        cur.execute(
+            "INSERT INTO sla_policies (id, tenant_id, name, applies_to, stage_id, "
+            "target_minutes) VALUES (%s, %s, %s, 'stage_entry', %s, 30)",
+            (policy_id, scenario["tenant_id"], "First contact", stages[0]["id"]),
+        )
+        cur.execute(
+            "INSERT INTO sla_states (id, tenant_id, sla_policy_id, deal_id, target_at, "
+            "warning_at, state) VALUES (%s, %s, %s, %s, now(), now(), 'breached')",
+            (sla_state_id, scenario["tenant_id"], policy_id, deal["id"]),
+        )
+        cur.execute("RESET app.tenant_id")
+
+    with TestClient(app) as client:
+        listed = client.get("/api/v1/deals", headers=_headers(scenario["tenant_id"]))
+        breached = client.get(
+            "/api/v1/deals?sla_state=breached", headers=_headers(scenario["tenant_id"])
+        )
+        on_track = client.get(
+            "/api/v1/deals?sla_state=on_track", headers=_headers(scenario["tenant_id"])
+        )
+
+    assert listed.status_code == 200
+    row = next(d for d in listed.json()["data"] if d["id"] == deal["id"])
+    assert row["sla_state"] == "breached"
+
+    assert breached.json()["meta"]["total"] == 1
+    assert on_track.json()["meta"]["total"] == 0

@@ -37,3 +37,7 @@ class DealOut(BaseModel):
     stage_changed_at: datetime
     created_at: datetime
     updated_at: datetime
+    # List-view enrichment only (deal_service.list_deals) — None on
+    # every other endpoint, which validates straight off the bare Deal
+    # ORM row with no sla_states join.
+    sla_state: str | None = None

@@ -56,12 +56,14 @@ async def get_deals(
     stage_id: uuid.UUID | None = None,
     owner_id: uuid.UUID | None = None,
     contact_id: uuid.UUID | None = None,
+    course_id: uuid.UUID | None = None,
+    sla_state: str | None = None,
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=25, ge=1, le=100),
     context: TenantContext = Depends(get_tenant_context),
     scope: RowScope = Depends(get_row_scope),
 ) -> dict:
-    deals, total = await list_deals(
+    rows, total = await list_deals(
         context.db,
         context.tenant.id,
         stage_id,
@@ -70,8 +72,15 @@ async def get_deals(
         page,
         page_size,
         scoped_owner_ids=scope.owner_ids,
+        course_id=course_id,
+        sla_state=sla_state,
     )
-    items = [DealOut.model_validate(d).model_dump(mode="json") for d in deals]
+    items = [
+        DealOut.model_validate(row["deal"])
+        .model_copy(update={"sla_state": row["sla_state"]})
+        .model_dump(mode="json")
+        for row in rows
+    ]
     return collection_envelope(items, request.state.request_id, page, page_size, total)
 
 
