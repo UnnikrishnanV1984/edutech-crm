@@ -7,6 +7,7 @@ import { listDeals, updateDeal, type Deal } from "../api/deals";
 import { listPipelineStages, type PipelineStage } from "../api/pipelineStages";
 import { useAuth } from "../auth/context";
 import { Avatar } from "../components/Avatar";
+import { Badge } from "../components/Badge";
 import { Button } from "../components/Button";
 import { OwnerFilter } from "../components/OwnerFilter";
 import { useToast } from "../components/toastContext";
@@ -15,6 +16,66 @@ import { stageColor, stageIcon } from "../stageColor";
 import { userDisplayName, useUsers } from "../useUsers";
 import { useMe } from "../useMe";
 import { CreateDealPanel } from "./CreateDealPanel";
+
+const LEAD_SOURCE_OPTIONS = [
+  { value: "meta", label: "Meta" },
+  { value: "google", label: "Google" },
+  { value: "web", label: "Web" },
+  { value: "whatsapp", label: "WhatsApp" },
+  { value: "manual", label: "Manual" },
+];
+
+const SLA_STATE_OPTIONS = [
+  { value: "on_track", label: "On track" },
+  { value: "at_risk", label: "At risk" },
+  { value: "breached", label: "Breached" },
+];
+
+// The Classical design system's one emphasis treatment (accent-tint
+// fill) — used generically for "this needs attention": an SLA-at-risk
+// card, the won-stage count, the "N selected" bulk-toolbar badge. Never
+// a solid accent block, per the design system's stroke-only rule.
+const ACCENT_TINT = { bg: "var(--accent-subtle)", fg: "var(--accent-hover)", border: "var(--accent)" };
+const SLA_TONE: Record<string, { bg: string; fg: string; border: string }> = {
+  breached: ACCENT_TINT,
+  at_risk: ACCENT_TINT,
+};
+
+// A pill-styled <select> — matches the wireframe's "Label ▾" filter
+// chips while staying a real, accessible native control.
+function FilterSelect({
+  placeholder,
+  value,
+  onChange,
+  options,
+}: {
+  placeholder: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: { value: string; label: string }[];
+}) {
+  return (
+    <select
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      style={{
+        fontSize: "var(--text-xs)",
+        padding: "4px 8px",
+        borderRadius: 999,
+        border: `1px solid ${value ? "var(--text-h)" : "var(--border)"}`,
+        background: "transparent",
+        color: value ? "var(--text-h)" : "var(--text-muted)",
+      }}
+    >
+      <option value="">{placeholder} ▾</option>
+      {options.map((option) => (
+        <option key={option.value} value={option.value}>
+          {option.label}
+        </option>
+      ))}
+    </select>
+  );
+}
 
 export function PipelinePage() {
   const { token } = useAuth();
@@ -31,7 +92,12 @@ export function PipelinePage() {
   // ADMIN_UX_IMPROVEMENTS_PLAN.md Sec5 — same OwnerFilter contract as
   // TasksPage.tsx.
   const [ownerId, setOwnerId] = useState<string | undefined>(undefined);
+  const [leadSource, setLeadSource] = useState("");
+  const [courseFilter, setCourseFilter] = useState("");
+  const [slaState, setSlaState] = useState("");
+  const [view, setView] = useState<"board" | "table">("board");
   const [draggingDealId, setDraggingDealId] = useState<string | undefined>(undefined);
+  const [dragOverStageId, setDragOverStageId] = useState<string | undefined>(undefined);
   const [confirmDrop, setConfirmDrop] = useState<{ deal: Deal; stage: PipelineStage } | undefined>(
     undefined,
   );
@@ -43,6 +109,8 @@ export function PipelinePage() {
     listCourses(token).then((response) => setCourses(response.data));
     listDeals(token, {
       owner_id: me?.user.role === "counselor" ? undefined : ownerId,
+      course_id: courseFilter || undefined,
+      sla_state: slaState || undefined,
       page_size: 100,
     }).then(
       (response) => {
@@ -67,12 +135,16 @@ export function PipelinePage() {
   }, [me?.user.id, me?.user.role]);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(load, [token, ownerId, me]);
+  useEffect(load, [token, ownerId, courseFilter, slaState, me]);
 
   function courseName(courseId: string | null) {
     if (!courseId) return null; // non-EdTech deal, no course to show
     return courses.find((c) => c.id === courseId)?.name ?? "";
   }
+
+  const visibleDeals = leadSource
+    ? deals.filter((d) => contactsById[d.contact_id]?.lead_source === leadSource)
+    : deals;
 
   async function moveDeal(deal: Deal, stage: PipelineStage) {
     const previousStageId = deal.stage_id;
@@ -94,6 +166,7 @@ export function PipelinePage() {
   }
 
   function handleDrop(stage: PipelineStage) {
+    setDragOverStageId(undefined);
     if (!draggingDealId) return;
     const deal = deals.find((d) => d.id === draggingDealId);
     setDraggingDealId(undefined);
@@ -107,123 +180,316 @@ export function PipelinePage() {
   }
 
   return (
-    <div style={{ padding: 24 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
-        <h1>Pipeline</h1>
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          {me && (
-            <OwnerFilter
-              role={me.user.role}
-              meId={me.user.id}
-              users={users}
-              selectedUserId={ownerId}
-              onChange={setOwnerId}
-            />
-          )}
-          <Button variant="primary" onClick={() => setShowCreate(true)}>
-            + New Deal
-          </Button>
-        </div>
+    <div style={{ maxWidth: 1280, margin: "0 auto" }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "var(--space-3)",
+          padding: "var(--space-4) var(--space-6)",
+          borderBottom: "1px solid var(--border)",
+          flexWrap: "wrap",
+        }}
+      >
+        <h1 style={{ margin: 0 }}>Pipelines</h1>
+        <select disabled title="Multiple pipelines aren't supported yet" style={{ width: 160 }}>
+          <option>Pipeline ▾</option>
+        </select>
+        <div style={{ flex: 1 }} />
+        {me && (
+          <OwnerFilter
+            role={me.user.role}
+            meId={me.user.id}
+            users={users}
+            selectedUserId={ownerId}
+            onChange={setOwnerId}
+          />
+        )}
+        <Button variant="primary" onClick={() => setShowCreate(true)}>
+          + New deal
+        </Button>
       </div>
 
-      <div className="pipeline-columns">
-        {stages.map((stage, index) => {
-          const tone = stageColor(stage, index);
-          const columnDeals = deals.filter((d) => d.stage_id === stage.id);
-          return (
-            <div
-              key={stage.id}
-              onDragOver={(event) => event.preventDefault()}
-              onDrop={() => handleDrop(stage)}
-              style={{
-                width: 280,
-                flexShrink: 0,
-                background: "var(--surface)",
-                borderRadius: "var(--radius)",
-                border: "1px solid var(--border)",
-              }}
-            >
-              <div
-                style={{
-                  borderTop: `3px solid ${tone.fg}`,
-                  borderRadius: "var(--radius) var(--radius) 0 0",
-                  padding: "var(--space-2)",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  fontWeight: "var(--weight-semibold)",
-                }}
-              >
-                <span>
-                  {stageIcon(stage)} {stage.name}
-                </span>
-                <span style={{ color: "var(--text-muted)" }}>{columnDeals.length}</span>
-              </div>
-              <div
-                style={{
-                  padding: "var(--space-2)",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "var(--space-2)",
-                }}
-              >
-                {columnDeals.map((deal) => {
-                  const contact = contactsById[deal.contact_id];
-                  const daysInStage = Math.floor(
-                    (Date.now() - new Date(deal.stage_changed_at).getTime()) / 86_400_000,
-                  );
-                  const dragging = draggingDealId === deal.id;
-                  return (
+      <div
+        style={{
+          padding: "var(--space-3) var(--space-5)",
+          borderBottom: "1px solid var(--border)",
+          display: "flex",
+          alignItems: "center",
+          gap: "var(--space-2)",
+          flexWrap: "wrap",
+        }}
+      >
+        <span
+          style={{
+            fontSize: "var(--text-xs)",
+            padding: "4px 10px",
+            borderRadius: 999,
+            border: "1px solid var(--text-h)",
+            color: "var(--text-h)",
+          }}
+        >
+          Filters
+        </span>
+        <FilterSelect
+          placeholder="Lead source"
+          value={leadSource}
+          onChange={setLeadSource}
+          options={LEAD_SOURCE_OPTIONS}
+        />
+        <FilterSelect
+          placeholder="Course"
+          value={courseFilter}
+          onChange={setCourseFilter}
+          options={courses.map((c) => ({ value: c.id, label: c.name }))}
+        />
+        <FilterSelect
+          placeholder="SLA state"
+          value={slaState}
+          onChange={setSlaState}
+          options={SLA_STATE_OPTIONS}
+        />
+        <div style={{ flex: 1 }} />
+        <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
+          {view === "board" ? "Board" : "Table"}
+        </span>
+        <button
+          type="button"
+          onClick={() => setView((v) => (v === "board" ? "table" : "board"))}
+          style={{
+            fontSize: "var(--text-xs)",
+            padding: "4px 10px",
+            borderRadius: 999,
+            border: "1px solid var(--border)",
+            background: "transparent",
+            color: "var(--text-muted)",
+            cursor: "pointer",
+          }}
+        >
+          {view === "board" ? "Table" : "Board"}
+        </button>
+      </div>
+
+      <div style={{ padding: "var(--space-4) var(--space-5)" }}>
+        {view === "board" && (
+          <>
+            <div className="pipeline-columns">
+              {stages.map((stage, index) => {
+                const tone = stageColor(stage, index);
+                const columnDeals = visibleDeals.filter((d) => d.stage_id === stage.id);
+                const isDragOver = dragOverStageId === stage.id;
+                return (
+                  <div
+                    key={stage.id}
+                    onDragOver={(event) => {
+                      event.preventDefault();
+                      if (draggingDealId) setDragOverStageId(stage.id);
+                    }}
+                    onDragLeave={() =>
+                      setDragOverStageId((current) => (current === stage.id ? undefined : current))
+                    }
+                    onDrop={() => handleDrop(stage)}
+                    style={{
+                      width: 196,
+                      flexShrink: 0,
+                      background: "var(--surface)",
+                      borderRadius: "var(--radius)",
+                      border: "1px solid var(--border)",
+                      opacity: stage.is_lost ? 0.55 : 1,
+                    }}
+                  >
                     <div
-                      key={deal.id}
-                      draggable
-                      onDragStart={() => setDraggingDealId(deal.id)}
-                      onDragEnd={() => setDraggingDealId(undefined)}
-                      onClick={() => navigate(`/contacts/${deal.contact_id}`)}
                       style={{
-                        background: "var(--elevation-2)",
-                        borderLeft: `3px solid ${tone.fg}`,
-                        border: "1px solid var(--border)",
-                        borderRadius: "var(--radius)",
+                        borderTop: `2px solid ${stage.is_won ? "var(--accent)" : "var(--border)"}`,
+                        borderRadius: "var(--radius) var(--radius) 0 0",
                         padding: "var(--space-2)",
-                        cursor: "grab",
-                        boxShadow: dragging ? "var(--shadow-lg)" : undefined,
-                        transform: dragging ? "scale(1.02)" : undefined,
-                        transition: "box-shadow 120ms ease, transform 120ms ease",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        fontSize: "var(--text-xs)",
+                        fontWeight: "var(--weight-semibold)",
                       }}
                     >
-                      <div style={{ fontWeight: "var(--weight-semibold)" }}>
-                        {contact?.full_name ?? "…"}
-                      </div>
-                      {courseName(deal.course_id) && (
-                        <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
-                          {courseName(deal.course_id)}
-                        </div>
-                      )}
-                      {Number(deal.value) > 0 && (
-                        <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
-                          {deal.currency} {Number(deal.value).toLocaleString()}
-                        </div>
-                      )}
-                      <div
-                        style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          marginTop: 4,
-                        }}
-                      >
-                        <Avatar name={userDisplayName(users, deal.owner_id)} size={18} />
-                        <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
-                          {daysInStage}d
-                        </span>
-                      </div>
+                      <span>
+                        {stage.name} {stageIcon(stage)}
+                      </span>
+                      <Badge
+                        label={String(columnDeals.length).padStart(2, "0")}
+                        tone={stage.is_won ? ACCENT_TINT : undefined}
+                      />
                     </div>
-                  );
-                })}
+                    <div
+                      style={{
+                        padding: "var(--space-2)",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "var(--space-2)",
+                      }}
+                    >
+                      {columnDeals.map((deal) => {
+                        const contact = contactsById[deal.contact_id];
+                        const daysInStage = Math.floor(
+                          (Date.now() - new Date(deal.stage_changed_at).getTime()) / 86_400_000,
+                        );
+                        const dragging = draggingDealId === deal.id;
+                        const atRisk = deal.sla_state === "at_risk" || deal.sla_state === "breached";
+                        return (
+                          <div
+                            key={deal.id}
+                            draggable
+                            onDragStart={() => setDraggingDealId(deal.id)}
+                            onDragEnd={() => {
+                              setDraggingDealId(undefined);
+                              setDragOverStageId(undefined);
+                            }}
+                            onClick={() => navigate(`/contacts/${deal.contact_id}`)}
+                            style={{
+                              background: "var(--elevation-2)",
+                              borderLeft: `2px solid ${atRisk ? "var(--accent)" : tone.fg}`,
+                              border: "1px solid var(--border)",
+                              borderRadius: "var(--radius)",
+                              padding: "var(--space-2)",
+                              cursor: "grab",
+                              boxShadow: dragging ? "var(--shadow-lg)" : undefined,
+                              transform: dragging ? "rotate(-0.6deg)" : undefined,
+                              transition: "box-shadow 120ms ease, transform 120ms ease",
+                            }}
+                          >
+                            <div style={{ fontWeight: "var(--weight-semibold)", fontSize: "var(--text-sm)" }}>
+                              {contact?.full_name ?? "…"}
+                            </div>
+                            {courseName(deal.course_id) && (
+                              <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
+                                {courseName(deal.course_id)}
+                              </div>
+                            )}
+                            {Number(deal.value) > 0 && (
+                              <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
+                                {deal.currency} {Number(deal.value).toLocaleString()}
+                              </div>
+                            )}
+                            <div
+                              style={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                marginTop: 4,
+                              }}
+                            >
+                              <Avatar name={userDisplayName(users, deal.owner_id)} size={18} />
+                              {stage.is_invoice_stage ? (
+                                <Badge variant="chip" label="Invoice" />
+                              ) : atRisk ? (
+                                <Badge
+                                  variant="chip"
+                                  label="SLA"
+                                  tone={SLA_TONE[deal.sla_state ?? "at_risk"]}
+                                />
+                              ) : (
+                                <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
+                                  {daysInStage}d
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                      {isDragOver && (
+                        <div
+                          style={{
+                            border: "1px dashed var(--border)",
+                            borderRadius: "var(--radius)",
+                            height: 48,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            fontSize: 9,
+                            letterSpacing: "0.1em",
+                            textTransform: "uppercase",
+                            color: "var(--text-muted)",
+                          }}
+                        >
+                          Drop target
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: "var(--space-3)" }}>
+              <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
+                Horizontal scroll →
+              </span>
+              <div style={{ flex: 1, height: 4, background: "var(--surface-hover)", borderRadius: 999 }}>
+                <div style={{ width: "40%", height: 4, background: "var(--border)", borderRadius: 999 }} />
               </div>
             </div>
-          );
-        })}
+          </>
+        )}
+
+        {view === "table" && (
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr style={{ textAlign: "left", color: "var(--text-muted)", fontSize: 13 }}>
+                <th style={{ padding: 8 }}>Name</th>
+                <th style={{ padding: 8 }}>Course</th>
+                <th style={{ padding: 8 }}>Stage</th>
+                <th style={{ padding: 8 }}>Owner</th>
+                <th style={{ padding: 8 }}>SLA</th>
+                <th style={{ padding: 8 }}>Days in stage</th>
+              </tr>
+            </thead>
+            <tbody>
+              {visibleDeals.map((deal) => {
+                const contact = contactsById[deal.contact_id];
+                const stageIndex = stages.findIndex((s) => s.id === deal.stage_id);
+                const stage = stages[stageIndex];
+                const daysInStage = Math.floor(
+                  (Date.now() - new Date(deal.stage_changed_at).getTime()) / 86_400_000,
+                );
+                return (
+                  <tr
+                    key={deal.id}
+                    onClick={() => navigate(`/contacts/${deal.contact_id}`)}
+                    style={{ cursor: "pointer", borderTop: "1px solid var(--border)" }}
+                  >
+                    <td style={{ padding: 8 }}>{contact?.full_name ?? "…"}</td>
+                    <td style={{ padding: 8 }}>{courseName(deal.course_id) ?? "—"}</td>
+                    <td style={{ padding: 8 }}>
+                      {stage ? (
+                        <Badge
+                          label={stage.name}
+                          icon={stageIcon(stage)}
+                          tone={stageColor(stage, Math.max(stageIndex, 0))}
+                        />
+                      ) : (
+                        "—"
+                      )}
+                    </td>
+                    <td style={{ padding: 8 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <Avatar name={userDisplayName(users, deal.owner_id)} size={20} />
+                        {userDisplayName(users, deal.owner_id)}
+                      </div>
+                    </td>
+                    <td style={{ padding: 8 }}>
+                      {deal.sla_state ? (
+                        <Badge
+                          label={deal.sla_state.replace("_", " ")}
+                          tone={SLA_TONE[deal.sla_state]}
+                        />
+                      ) : (
+                        <span style={{ color: "var(--text-muted)" }}>—</span>
+                      )}
+                    </td>
+                    <td style={{ padding: 8, color: "var(--text-muted)" }}>{daysInStage}d</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
       </div>
 
       {confirmDrop && (

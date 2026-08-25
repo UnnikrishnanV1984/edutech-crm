@@ -13,12 +13,15 @@ export interface Deal {
   stage_changed_at: string;
   created_at: string;
   updated_at: string;
+  sla_state: "on_track" | "at_risk" | "breached" | null;
 }
 
 export interface DealListParams {
   stage_id?: string;
   owner_id?: string;
   contact_id?: string;
+  course_id?: string;
+  sla_state?: string;
   page?: number;
   page_size?: number;
 }
