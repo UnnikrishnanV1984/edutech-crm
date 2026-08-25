@@ -1,16 +1,13 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-import { listConnections, type LeadSourceConnection } from "../api/leadSourceConnections";
 import {
-  getForecast,
   getFunnel,
   getInvoiceSummary,
   getSlaCompliance,
   getSourceAttribution,
 } from "../api/reports";
 import type {
-  ForecastReport,
   FunnelRow,
   InvoiceSummary,
   SlaComplianceRow,
@@ -18,7 +15,6 @@ import type {
 } from "../api/reports";
 import { listPipelineStages, type PipelineStage } from "../api/pipelineStages";
 import { useAuth } from "../auth/context";
-import { Badge } from "../components/Badge";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
 import { EmptyState } from "../components/EmptyState";
@@ -32,20 +28,16 @@ export function AdminDashboard() {
   const [funnel, setFunnel] = useState<FunnelRow[]>([]);
   const [stages, setStages] = useState<PipelineStage[]>([]);
   const [sources, setSources] = useState<SourceAttributionRow[]>([]);
-  const [forecast, setForecast] = useState<ForecastReport | undefined>(undefined);
   const [invoiceSummary, setInvoiceSummary] = useState<InvoiceSummary | undefined>(undefined);
   const [compliance, setCompliance] = useState<SlaComplianceRow[]>([]);
-  const [connections, setConnections] = useState<LeadSourceConnection[]>([]);
 
   useEffect(() => {
     if (!token) return;
     getFunnel(token).then((response) => setFunnel(response.data));
     listPipelineStages(token).then((response) => setStages(response.data));
     getSourceAttribution(token).then((response) => setSources(response.data));
-    getForecast(token).then((response) => setForecast(response.data));
     getInvoiceSummary(token).then((response) => setInvoiceSummary(response.data));
     getSlaCompliance(token).then((response) => setCompliance(response.data));
-    listConnections(token).then((response) => setConnections(response.data));
   }, [token]);
 
   const pipelineValue = funnel.reduce((sum, row) => sum + Number(row.value), 0);
@@ -236,55 +228,6 @@ export function AdminDashboard() {
           </Card>
         </div>
 
-        {forecast && (
-          <Card title={`Forecast — ${forecast.expected_enrollments} expected enrollments`}>
-            <p style={{ fontSize: "var(--text-base)", margin: "0 0 var(--space-2)" }}>
-              Weighted forecast value: {Number(forecast.expected_value).toLocaleString()}
-            </p>
-            <p style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", margin: 0 }}>
-              Both figures are weighted by each stage's win probability — set
-              those per stage to refine this.
-            </p>
-          </Card>
-        )}
-
-        <Card title="Integration health">
-          {connections.length === 0 && <EmptyState headline="No sources connected" />}
-          {connections.length > 0 && (
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <thead>
-                <tr style={{ textAlign: "left", borderBottom: "1px solid var(--border)" }}>
-                  <th style={{ padding: "var(--space-2)" }}>Source</th>
-                  <th style={{ padding: "var(--space-2)" }}>Status</th>
-                  <th style={{ padding: "var(--space-2)" }}>Last synced</th>
-                </tr>
-              </thead>
-              <tbody>
-                {connections.map((connection) => (
-                  <tr key={connection.id} style={{ borderBottom: "1px solid var(--border)" }}>
-                    <td style={{ padding: "var(--space-2)" }}>{connection.source}</td>
-                    <td style={{ padding: "var(--space-2)" }}>
-                      <Badge
-                        variant="chip"
-                        label={connection.status}
-                        tone={
-                          connection.status === "active"
-                            ? { bg: "var(--success-bg)", fg: "var(--success)", border: "transparent" }
-                            : { bg: "var(--surface)", fg: "var(--text-muted)", border: "var(--border)" }
-                        }
-                      />
-                    </td>
-                    <td style={{ padding: "var(--space-2)", color: "var(--text-muted)", fontSize: "var(--text-sm)" }}>
-                      {connection.last_synced_at
-                        ? new Date(connection.last_synced_at).toLocaleString()
-                        : "Never"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </Card>
       </div>
     </div>
   );
