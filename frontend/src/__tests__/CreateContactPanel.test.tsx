@@ -39,6 +39,10 @@ describe("CreateContactPanel", () => {
       territory: null,
       created_at: "2026-01-01T00:00:00Z",
       updated_at: "2026-01-01T00:00:00Z",
+      stage_id: null,
+      stage_name: null,
+      sla_state: null,
+      has_open_follow_up: false,
     };
     mockedCreateContact.mockResolvedValue({ data: newContact, meta: { request_id: "r1" } });
     const onCreated = vi.fn();
@@ -64,6 +68,10 @@ describe("CreateContactPanel", () => {
       territory: null,
       created_at: "2026-01-01T00:00:00Z",
       updated_at: "2026-01-01T00:00:00Z",
+      stage_id: null,
+      stage_name: null,
+      sla_state: null,
+      has_open_follow_up: false,
     };
     mockedCreateContact.mockRejectedValue(
       new ApiRequestError("CONFLICT", "duplicate", [
@@ -103,6 +111,10 @@ describe("CreateContactPanel", () => {
         territory: null,
         created_at: "2026-01-01T00:00:00Z",
         updated_at: "2026-01-01T00:00:00Z",
+        stage_id: null,
+        stage_name: null,
+        sla_state: null,
+        has_open_follow_up: false,
       },
       meta: { request_id: "r1" },
     });

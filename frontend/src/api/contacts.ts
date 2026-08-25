@@ -12,12 +12,21 @@ export interface Contact {
   territory: string | null;
   created_at: string;
   updated_at: string;
+  // The contact's most-recently-updated deal, if any — null when the
+  // contact has no deal yet.
+  stage_id: string | null;
+  stage_name: string | null;
+  sla_state: "on_track" | "at_risk" | "breached" | null;
+  has_open_follow_up: boolean;
 }
 
 export interface ContactListParams {
   search?: string;
   lead_source?: string;
   owner_id?: string;
+  stage_id?: string;
+  has_follow_up_flag?: boolean;
+  sort?: string;
   page?: number;
   page_size?: number;
 }
@@ -31,7 +40,7 @@ export interface ContactCreateInput {
   territory?: string;
 }
 
-function buildQuery(params: Record<string, string | number | undefined>): string {
+function buildQuery(params: Record<string, string | number | boolean | undefined>): string {
   const search = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {
     if (value !== undefined && value !== "") {
@@ -48,7 +57,7 @@ export async function listContacts(
 ): Promise<CollectionEnvelope<Contact>> {
   return apiGet<CollectionEnvelope<Contact>>(
     token,
-    `/api/v1/contacts${buildQuery(params as Record<string, string | number | undefined>)}`,
+    `/api/v1/contacts${buildQuery(params as Record<string, string | number | boolean | undefined>)}`,
   );
 }
 
