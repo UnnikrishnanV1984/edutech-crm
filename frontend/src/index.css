@@ -1,34 +1,38 @@
 :root {
-  /* Neutral scale (light) — see DESIGN_SYSTEM_REFRESH.md §2 */
-  --bg: #ffffff;
-  --surface: #f9f8fb;
-  --surface-hover: #f1eff5;
-  --border: #e6e3ec;
-  --text-muted: #736c82;
-  --text: #4a4556;
-  --text-h: #1c1a22;
+  /* Neutral scale (light) — Classical design system palette
+     (OPENFUNNEL_REBRAND_7A_PLAN.md §7 Commit 1), remapped onto this app's
+     existing token names. Source values from design_handoff_crm_wireframes/
+     tokens.css. */
+  --bg: #fdfcfa;
+  --surface: #ffffff;
+  --surface-hover: #f7f5ef;
+  --border: #e6e2d8;
+  --text-muted: #6f6a61;
+  --text: #4c473f;
+  --text-h: #201f1d;
 
   /* Elevation (§3) */
   --elevation-2: #ffffff;
 
-  /* Shadows (§4) — light mode leans on these where lightness has no headroom */
-  --shadow-sm: 0 1px 2px rgba(20, 16, 30, 0.06);
-  --shadow-md: 0 4px 16px rgba(20, 16, 30, 0.1);
-  --shadow-lg: 0 8px 24px rgba(20, 16, 30, 0.16);
+  /* Shadows (§4) — ink-tinted, matching the Classical system's shadow
+     approach (styles.css) rather than the old blue-purple tint. */
+  --shadow-sm: 0 1px 2px rgba(32, 31, 29, 0.06);
+  --shadow-md: 0 4px 16px rgba(32, 31, 29, 0.1);
+  --shadow-lg: 0 8px 24px rgba(32, 31, 29, 0.16);
 
-  /* Spacing (§5) */
-  --space-1: 4px;
-  --space-2: 8px;
-  --space-3: 12px;
-  --space-4: 16px;
+  /* Spacing (§5) — shifted toward the Classical system's tighter rhythm */
+  --space-1: 5px;
+  --space-2: 9px;
+  --space-3: 14px;
+  --space-4: 18px;
   --space-5: 24px;
-  --space-6: 32px;
+  --space-6: 28px;
   --space-7: 48px;
 
-  /* Radius (§5) */
-  --radius-sm: 4px;
+  /* Radius (§5) — from tokens.css's --wf-radius-* scale */
+  --radius-sm: 5px;
   --radius: 8px;
-  --radius-lg: 12px;
+  --radius-lg: 10px;
 
   /* Typography (§6) */
   --text-xs: 12px;
@@ -50,17 +54,20 @@
   /* Action/status colors (§7) — single saturated accent, kept quiet
      elsewhere. Values tuned to clear WCAG AA 4.5:1 against their own
      background (verified numerically, not eyeballed — see the design
-     doc's contrast-check note). */
-  --accent: #6a3ff0;
-  --accent-hover: #5c2fe0;
-  --accent-fg: #ffffff;
-  --accent-subtle: #efeaff;
-  --danger: #bb3348;
-  --danger-bg: #fdecef;
-  --success: #0e6e4a;
-  --success-bg: #e6f7ef;
-  --warning: #95630a;
-  --warning-bg: #fdf3e0;
+     doc's contrast-check note). Accent from tokens.css's --ac/--act/--at;
+     tokens.css has no danger/success/warning roles (Classical is
+     deliberately single-accent), so these three are hand-picked to read as
+     warm-palette-consistent and mutually distinguishable at a glance. */
+  --accent: #b68235;
+  --accent-hover: #8a6323;
+  --accent-fg: #201f1d;
+  --accent-subtle: #f7f0e2;
+  --danger: #a83e2c;
+  --danger-bg: #fbeae6;
+  --success: #5c7a2e;
+  --success-bg: #eef3e3;
+  --warning: #96660b;
+  --warning-bg: #fdf0da;
 
   --sans: system-ui, "Segoe UI", Roboto, sans-serif;
 
@@ -84,31 +91,32 @@
    Keep both blocks identical — nothing else enforces that. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    /* Neutral scale (dark) — true-grey base in the #0E-#1A range, not
-       pure black; each elevation step lighter than the last. */
-    --bg: #121319;
-    --surface: #191a22;
-    --surface-hover: #21222c;
-    --border: #2b2c38;
-    --text-muted: #8d8fa3;
-    --text: #c7c8d6;
-    --text-h: #f5f5f9;
+    /* Neutral scale (dark) — Classical palette's dark companion set
+       (tokens.css [data-theme="dark"]), remapped onto the same token
+       names as the light block above. */
+    --bg: #1b1917;
+    --surface: #221f1c;
+    --surface-hover: #272320;
+    --border: #332f29;
+    --text-muted: #a49b8c;
+    --text: #cec7ba;
+    --text-h: #efe9de;
 
-    --elevation-2: #21222c;
+    --elevation-2: #221f1c;
 
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
     --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.35);
     --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.45);
 
-    --accent: #b8a6ff;
-    --accent-hover: #a58cf7;
-    --accent-fg: #1a1130;
-    --accent-subtle: #2a2340;
-    --danger: #f27a8a;
-    --danger-bg: #3a1e24;
-    --success: #6ee7b0;
-    --success-bg: #163829;
-    --warning: #f0b84e;
+    --accent: #c99a4e;
+    --accent-hover: #dcb877;
+    --accent-fg: #efe9de;
+    --accent-subtle: #2f2618;
+    --danger: #d97b62;
+    --danger-bg: #3a241c;
+    --success: #9cbf6e;
+    --success-bg: #26301a;
+    --warning: #dba847;
     --warning-bg: #3a2c10;
   }
 }
@@ -117,29 +125,29 @@
   /* Identical to the block above — an explicit dark choice must apply
      even when the OS itself is light, which the media query above
      cannot express. */
-  --bg: #121319;
-  --surface: #191a22;
-  --surface-hover: #21222c;
-  --border: #2b2c38;
-  --text-muted: #8d8fa3;
-  --text: #c7c8d6;
-  --text-h: #f5f5f9;
+  --bg: #1b1917;
+  --surface: #221f1c;
+  --surface-hover: #272320;
+  --border: #332f29;
+  --text-muted: #a49b8c;
+  --text: #cec7ba;
+  --text-h: #efe9de;
 
-  --elevation-2: #21222c;
+  --elevation-2: #221f1c;
 
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.35);
   --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.45);
 
-  --accent: #b8a6ff;
-  --accent-hover: #a58cf7;
-  --accent-fg: #1a1130;
-  --accent-subtle: #2a2340;
-  --danger: #f27a8a;
-  --danger-bg: #3a1e24;
-  --success: #6ee7b0;
-  --success-bg: #163829;
-  --warning: #f0b84e;
+  --accent: #c99a4e;
+  --accent-hover: #dcb877;
+  --accent-fg: #efe9de;
+  --accent-subtle: #2f2618;
+  --danger: #d97b62;
+  --danger-bg: #3a241c;
+  --success: #9cbf6e;
+  --success-bg: #26301a;
+  --warning: #dba847;
   --warning-bg: #3a2c10;
 }
 
