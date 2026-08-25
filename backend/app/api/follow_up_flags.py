@@ -18,10 +18,12 @@ def _out(flag) -> dict:
 
 @router.get("")
 async def get_follow_up_flags(
-    request: Request, context: TenantContext = Depends(require_manager_or_admin)
+    request: Request,
+    contact_id: uuid.UUID | None = None,
+    context: TenantContext = Depends(require_manager_or_admin),
 ) -> dict:
     manager_id = None if context.user_role == "admin" else context.user.id
-    flags = await list_flags(context.db, context.tenant.id, manager_id)
+    flags = await list_flags(context.db, context.tenant.id, manager_id, contact_id)
     return data_envelope([_out(f) for f in flags], request.state.request_id)
 
 

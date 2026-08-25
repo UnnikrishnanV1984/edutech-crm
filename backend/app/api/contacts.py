@@ -7,12 +7,13 @@ from app.core.errors import NOT_FOUND, ApiError
 from app.core.reassignment import guard_reassignment
 from app.deps.scope import RowScope, get_row_scope
 from app.deps.tenant import TenantContext, get_tenant_context
-from app.schemas.activity import ActivityOut
+from app.schemas.activity import ActivityCreate, ActivityOut
 from app.schemas.contact import ContactCreate, ContactOut, ContactUpdate
-from app.services.activity_service import list_activities_for_contact
+from app.services.activity_service import list_activities_for_contact, log_manual_activity
 from app.services.contact_service import (
     create_contact,
     get_contact,
+    get_contact_detail_snapshot,
     list_contacts,
     update_contact,
 )
@@ -87,9 +88,9 @@ async def get_contact_by_id(
     contact = await get_contact(context.db, context.tenant.id, contact_id, scope.owner_ids)
     if contact is None:
         raise ApiError(404, NOT_FOUND, "Contact not found")
-    return data_envelope(
-        ContactOut.model_validate(contact).model_dump(mode="json"), request.state.request_id
-    )
+    snapshot = await get_contact_detail_snapshot(context.db, context.tenant.id, contact_id)
+    out = ContactOut.model_validate(contact).model_copy(update=snapshot)
+    return data_envelope(out.model_dump(mode="json"), request.state.request_id)
 
 
 @router.patch("/{contact_id}")
@@ -123,3 +124,22 @@ async def get_contact_activities(
     activities = await list_activities_for_contact(context.db, context.tenant.id, contact_id)
     items = [ActivityOut.model_validate(a).model_dump(mode="json") for a in activities]
     return data_envelope(items, request.state.request_id)
+
+
+@router.post("/{contact_id}/activities")
+async def post_contact_activity(
+    request: Request,
+    contact_id: uuid.UUID,
+    body: ActivityCreate,
+    context: TenantContext = Depends(get_tenant_context),
+    scope: RowScope = Depends(get_row_scope),
+) -> dict:
+    contact = await get_contact(context.db, context.tenant.id, contact_id, scope.owner_ids)
+    if contact is None:
+        raise ApiError(404, NOT_FOUND, "Contact not found")
+    activity = await log_manual_activity(
+        context.db, context.tenant.id, contact_id, context.user.id, body.note, body.channel
+    )
+    return data_envelope(
+        ActivityOut.model_validate(activity).model_dump(mode="json"), request.state.request_id
+    )

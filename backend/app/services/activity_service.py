@@ -59,6 +59,32 @@ async def log_lead_captured(
     return activity
 
 
+async def log_manual_activity(
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+    contact_id: uuid.UUID,
+    actor_id: uuid.UUID,
+    note: str,
+    channel: str,
+) -> Activity:
+    """Contact Detail's "Log activity" action — a counselor manually
+    recording that they called/emailed/messaged/noted something, distinct
+    from the system-generated types above. Not deal-scoped: a note can be
+    logged before any deal exists for this contact."""
+    activity = Activity(
+        id=uuid.uuid4(),
+        tenant_id=tenant_id,
+        contact_id=contact_id,
+        deal_id=None,
+        type="manual_note",
+        actor_id=actor_id,
+        payload={"note": note, "channel": channel},
+    )
+    db.add(activity)
+    await db.flush()
+    return activity
+
+
 async def list_activities_for_contact(
     db: AsyncSession, tenant_id: uuid.UUID, contact_id: uuid.UUID
 ) -> list[Activity]:

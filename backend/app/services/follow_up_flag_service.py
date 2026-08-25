@@ -27,13 +27,21 @@ async def create_flag(
 
 
 async def list_flags(
-    db: AsyncSession, tenant_id: uuid.UUID, manager_id: uuid.UUID | None
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+    manager_id: uuid.UUID | None,
+    contact_id: uuid.UUID | None = None,
 ) -> list[FollowUpFlag]:
     """manager_id=None means unrestricted (Admin) — REQUIREMENTS.md §4.3:
-    this is the manager's own personal tracking list."""
+    this is the manager's own personal tracking list. contact_id narrows
+    to one contact's flags — Contact Detail's Follow-up flag card, still
+    composed with manager_id so a manager only ever sees their own flag
+    on that contact, never a teammate's."""
     stmt = select(FollowUpFlag).where(FollowUpFlag.tenant_id == tenant_id)
     if manager_id is not None:
         stmt = stmt.where(FollowUpFlag.manager_id == manager_id)
+    if contact_id is not None:
+        stmt = stmt.where(FollowUpFlag.contact_id == contact_id)
     result = await db.execute(stmt.order_by(FollowUpFlag.remind_on))
     return list(result.scalars().all())
 

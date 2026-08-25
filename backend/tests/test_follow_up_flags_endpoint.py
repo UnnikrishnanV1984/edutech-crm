@@ -135,6 +135,40 @@ def test_admin_sees_all_flags(scenario):
     assert len(listed.json()["data"]) == 1
 
 
+def test_contact_id_filter_scopes_to_one_contact(scenario):
+    with TestClient(app) as client:
+        other_contact_id = client.post(
+            "/api/v1/contacts",
+            json={"full_name": "Other Contact", "lead_source": "web"},
+            headers=scenario["manager_headers"],
+        ).json()["data"]["id"]
+        client.post(
+            "/api/v1/follow-up-flags",
+            json={
+                "contact_id": scenario["contact_id"],
+                "note": "check in",
+                "remind_on": str(date.today() + timedelta(days=7)),
+            },
+            headers=scenario["manager_headers"],
+        )
+        client.post(
+            "/api/v1/follow-up-flags",
+            json={
+                "contact_id": other_contact_id,
+                "note": "check in on the other one",
+                "remind_on": str(date.today() + timedelta(days=7)),
+            },
+            headers=scenario["manager_headers"],
+        )
+        scoped = client.get(
+            f"/api/v1/follow-up-flags?contact_id={scenario['contact_id']}",
+            headers=scenario["manager_headers"],
+        )
+    assert scoped.status_code == 200
+    assert len(scoped.json()["data"]) == 1
+    assert scoped.json()["data"][0]["contact_id"] == scenario["contact_id"]
+
+
 def test_resolve_flag(scenario):
     with TestClient(app) as client:
         created = client.post(

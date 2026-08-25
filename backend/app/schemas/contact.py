@@ -59,11 +59,14 @@ class ContactOut(BaseModel):
     territory: str | None
     created_at: datetime
     updated_at: datetime
-    # List-view enrichment only (contact_service.list_contacts) — the
-    # contact's most-recently-updated deal, if any. None/False on every
-    # other endpoint, which validates straight off the bare Contact ORM
-    # row with no deal join.
+    # Enrichment only (contact_service.list_contacts / get_contact_detail_
+    # snapshot) — the contact's most-recently-updated deal, if any.
+    # None/False on create/update, which validate straight off the bare
+    # Contact ORM row with no deal join.
+    current_deal_id: uuid.UUID | None = None
     stage_id: uuid.UUID | None = None
     stage_name: str | None = None
     sla_state: str | None = None
+    sla_target_at: datetime | None = None
+    sla_target_minutes: int | None = None
     has_open_follow_up: bool = False

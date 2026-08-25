@@ -46,6 +46,7 @@ def tenant_and_user():
     with psycopg.connect(MIGRATE_URL, autocommit=True) as conn, conn.cursor() as cur:
         cur.execute("SELECT set_config('app.tenant_id', %s, false)", (str(tenant_id),))
         cur.execute("DELETE FROM follow_up_flags WHERE tenant_id = %s", (tenant_id,))
+        cur.execute("DELETE FROM activities WHERE tenant_id = %s", (tenant_id,))
         cur.execute("DELETE FROM deals WHERE tenant_id = %s", (tenant_id,))
         cur.execute("DELETE FROM pipeline_stages WHERE tenant_id = %s", (tenant_id,))
         cur.execute("DELETE FROM contacts WHERE tenant_id = %s", (tenant_id,))
@@ -324,3 +325,95 @@ def test_get_unknown_contact_returns_404(tenant_and_user):
         )
     assert response.status_code == 404
     assert response.json()["error"]["code"] == "NOT_FOUND"
+
+
+def test_get_contact_includes_current_deal_snapshot(tenant_and_user):
+    tenant_id = tenant_and_user["tenant_id"]
+    with TestClient(app) as client:
+        created = client.post(
+            "/api/v1/contacts",
+            json={"full_name": "Nora", "lead_source": "web"},
+            headers=_headers(tenant_and_user),
+        ).json()["data"]
+
+        stage_id = uuid.uuid4()
+        deal_id = uuid.uuid4()
+        with psycopg.connect(MIGRATE_URL, autocommit=True) as conn, conn.cursor() as cur:
+            cur.execute("SELECT set_config('app.tenant_id', %s, false)", (str(tenant_id),))
+            cur.execute(
+                "INSERT INTO pipeline_stages (id, tenant_id, name, sort_order) "
+                "VALUES (%s, %s, %s, 1)",
+                (stage_id, tenant_id, "Counselling"),
+            )
+            cur.execute(
+                "INSERT INTO deals (id, tenant_id, contact_id, stage_id, owner_id) "
+                "VALUES (%s, %s, %s, %s, %s)",
+                (deal_id, tenant_id, created["id"], stage_id, tenant_and_user["user_id"]),
+            )
+            cur.execute("RESET app.tenant_id")
+
+        response = client.get(
+            f"/api/v1/contacts/{created['id']}", headers=_headers(tenant_and_user)
+        )
+
+    assert response.status_code == 200
+    body = response.json()["data"]
+    assert body["current_deal_id"] == str(deal_id)
+    assert body["stage_id"] == str(stage_id)
+    assert body["stage_name"] == "Counselling"
+    assert body["sla_state"] is None
+    assert body["sla_target_at"] is None
+    assert body["has_open_follow_up"] is False
+
+
+def test_get_contact_with_no_deal_has_null_snapshot(tenant_and_user):
+    with TestClient(app) as client:
+        created = client.post(
+            "/api/v1/contacts",
+            json={"full_name": "Omar", "lead_source": "web"},
+            headers=_headers(tenant_and_user),
+        ).json()["data"]
+        response = client.get(
+            f"/api/v1/contacts/{created['id']}", headers=_headers(tenant_and_user)
+        )
+
+    assert response.status_code == 200
+    body = response.json()["data"]
+    assert body["current_deal_id"] is None
+    assert body["stage_id"] is None
+    assert body["sla_state"] is None
+
+
+def test_post_contact_activity_creates_manual_note(tenant_and_user):
+    with TestClient(app) as client:
+        created = client.post(
+            "/api/v1/contacts",
+            json={"full_name": "Priya", "lead_source": "web"},
+            headers=_headers(tenant_and_user),
+        ).json()["data"]
+
+        response = client.post(
+            f"/api/v1/contacts/{created['id']}/activities",
+            json={"note": "Called, left voicemail", "channel": "call"},
+            headers=_headers(tenant_and_user),
+        )
+        assert response.status_code == 200
+        body = response.json()["data"]
+        assert body["type"] == "manual_note"
+        assert body["payload"] == {"note": "Called, left voicemail", "channel": "call"}
+        assert body["deal_id"] is None
+
+        listed = client.get(
+            f"/api/v1/contacts/{created['id']}/activities", headers=_headers(tenant_and_user)
+        )
+    assert any(a["id"] == body["id"] for a in listed.json()["data"])
+
+
+def test_post_contact_activity_for_unknown_contact_returns_404(tenant_and_user):
+    with TestClient(app) as client:
+        response = client.post(
+            f"/api/v1/contacts/{uuid.uuid4()}/activities",
+            json={"note": "x"},
+            headers=_headers(tenant_and_user),
+        )
+    assert response.status_code == 404

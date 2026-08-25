@@ -10,6 +10,7 @@ from app.models.contact import Contact
 from app.models.deal import Deal
 from app.models.follow_up_flag import FollowUpFlag
 from app.models.pipeline_stage import PipelineStage
+from app.models.sla_policy import SlaPolicy
 from app.models.sla_state import SlaState
 from app.schemas.contact import ContactCreate, ContactUpdate
 
@@ -99,6 +100,75 @@ async def get_contact(
         stmt = stmt.where(Contact.owner_id.in_(owner_ids))
     result = await db.execute(stmt)
     return result.scalar_one_or_none()
+
+
+async def get_contact_detail_snapshot(
+    db: AsyncSession, tenant_id: uuid.UUID, contact_id: uuid.UUID
+) -> dict:
+    """The single-contact counterpart to list_contacts' latest-deal
+    enrichment — used by the Contact Detail page's header (stage/SLA
+    pills) and SLA card (elapsed-vs-target). One contact, so no DISTINCT
+    ON needed: just the most-recently-updated deal, if any. sla_target_at/
+    sla_target_minutes come from the same sla_states row as sla_state
+    (joined on to sla_policies for target_minutes), so the frontend can
+    compute an elapsed/target progress bar without a second request."""
+    stmt = (
+        select(
+            Deal.id,
+            PipelineStage.id,
+            PipelineStage.name,
+            SlaState.state,
+            SlaState.target_at,
+            SlaPolicy.target_minutes,
+        )
+        .select_from(Deal)
+        .outerjoin(
+            PipelineStage,
+            (PipelineStage.id == Deal.stage_id) & (PipelineStage.tenant_id == tenant_id),
+        )
+        .outerjoin(SlaState, (SlaState.deal_id == Deal.id) & (SlaState.tenant_id == tenant_id))
+        .outerjoin(
+            SlaPolicy,
+            (SlaPolicy.id == SlaState.sla_policy_id) & (SlaPolicy.tenant_id == tenant_id),
+        )
+        .where(Deal.tenant_id == tenant_id, Deal.contact_id == contact_id)
+        .order_by(Deal.updated_at.desc())
+        .limit(1)
+    )
+    row = (await db.execute(stmt)).first()
+
+    has_open_follow_up = (
+        await db.execute(
+            select(
+                exists().where(
+                    FollowUpFlag.tenant_id == tenant_id,
+                    FollowUpFlag.contact_id == contact_id,
+                    FollowUpFlag.resolved_at.is_(None),
+                )
+            )
+        )
+    ).scalar_one()
+
+    if row is None:
+        return {
+            "current_deal_id": None,
+            "stage_id": None,
+            "stage_name": None,
+            "sla_state": None,
+            "sla_target_at": None,
+            "sla_target_minutes": None,
+            "has_open_follow_up": has_open_follow_up,
+        }
+    deal_id, stage_id, stage_name, sla_state, target_at, target_minutes = row
+    return {
+        "current_deal_id": deal_id,
+        "stage_id": stage_id,
+        "stage_name": stage_name,
+        "sla_state": sla_state,
+        "sla_target_at": target_at,
+        "sla_target_minutes": target_minutes,
+        "has_open_follow_up": has_open_follow_up,
+    }
 
 
 SORTABLE_FIELDS = {
