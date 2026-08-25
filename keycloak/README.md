@@ -11,11 +11,15 @@ were added in Phase 2 so `POST/PATCH /api/v1/lead-source-connections*`
 (admin-only, `PHASE_2_PLAN.md` §4.1) has a real dev login to exercise from
 the frontend Integrations screen and from `tests/test_lead_source_connections_e2e.py`,
 without which those routes would be unreachable outside a raw curl call
-with hand-set headers. The `tenant_id` custom user attribute below **must
-exactly match** the `tenants.id` row the Postgres seed script
-(`backend/app/db/seed.py`) inserts for the same tenant — Keycloak and
-Postgres don't share a database, so these UUIDs are fixed/hardcoded on both
-sides rather than generated, purely so local dev has a stable pairing.
+with hand-set headers. `manager.a` (tenant A only) was added later so
+`ManagerDashboard.tsx`'s team-scoped widgets (Pipeline by stage / My queue
+today / Team SLA) have a real dev login too — without it, RowScope's
+manager branch (self + direct reports) was untestable outside a hand-set
+header. The `tenant_id` custom user attribute below **must exactly match**
+the `tenants.id` row the Postgres seed script (`backend/app/db/seed.py`)
+inserts for the same tenant — Keycloak and Postgres don't share a
+database, so these UUIDs are fixed/hardcoded on both sides rather than
+generated, purely so local dev has a stable pairing.
 
 Each user's `id` is also pinned (rather than left for Keycloak to generate
 on import) for the same reason, one level deeper: it's what Keycloak issues
@@ -26,10 +30,17 @@ that exact value before anyone has ever logged in — so seed data (see
 `docker compose up`, and the row that person later gets on real login is
 the *same* row, not a duplicate.
 
+`counselor.a` additionally carries a `reports_to: ["manager.a"]` attribute
+— a dev-seed-only convention (not a Keycloak concept `upsert_user` itself
+understands), read by `seed.py`'s own second pass to set `users.manager_id`
+after both rows exist, so `manager.a`'s RowScope actually has a direct
+report to see team data through, rather than an empty team.
+
 | Tenant | `tenants.id` / Keycloak `tenant_id` attribute | Username | Password | Role | Keycloak/user `id` (→ `sub`) |
 |---|---|---|---|---|---|
-| Future Digital Inc | `a1111111-1111-1111-1111-111111111111` | `counselor.a` | `password` | counselor | `ca111111-1111-1111-1111-111111111111` |
+| Future Digital Inc | `a1111111-1111-1111-1111-111111111111` | `counselor.a` | `password` | counselor (reports to `manager.a`) | `ca111111-1111-1111-1111-111111111111` |
 | Tenant B Academy | `b2222222-2222-2222-2222-222222222222` | `counselor.b` | `password` | counselor | `cb222222-2222-2222-2222-222222222222` |
+| Future Digital Inc | `a1111111-1111-1111-1111-111111111111` | `manager.a` | `password` | manager | `ea111111-1111-1111-1111-111111111111` |
 | Future Digital Inc | `a1111111-1111-1111-1111-111111111111` | `admin.a` | `password` | admin | `da111111-1111-1111-1111-111111111111` |
 | Tenant B Academy | `b2222222-2222-2222-2222-222222222222` | `admin.b` | `password` | admin | `db222222-2222-2222-2222-222222222222` |
 

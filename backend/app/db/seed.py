@@ -69,6 +69,7 @@ async def provision_dev_staff(realm_path: str = DEV_REALM_PATH) -> None:
 
     sessionmaker = get_sessionmaker()
     async with sessionmaker() as session, session.begin():
+        user_ids_by_username: dict[str, uuid.UUID] = {}
         for user in realm.get("users", []):
             tenant_ids = user.get("attributes", {}).get("tenant_id") or []
             if not tenant_ids or "id" not in user:
@@ -83,13 +84,42 @@ async def provision_dev_staff(realm_path: str = DEV_REALM_PATH) -> None:
                 or None
             )
             role = (user.get("realmRoles") or ["counselor"])[0]
-            await upsert_user(
+            provisioned = await upsert_user(
                 db=session,
                 tenant_id=tenant_id,
                 keycloak_sub=user["id"],
                 email=user["email"],
                 full_name=full_name,
                 role=role,
+            )
+            user_ids_by_username[user["username"]] = provisioned.id
+
+        # Second pass: an optional `reports_to` user attribute (dev-seed-only
+        # convention, not a Keycloak concept) names the manager's username —
+        # looked up against the ids just provisioned above, since it can
+        # reference a user later in the same array. manager_id isn't part
+        # of upsert_user itself: that function also runs on every real
+        # login, where resetting a manager assignment on each token refresh
+        # would fight whatever an admin sets via the Configurations UI.
+        for user in realm.get("users", []):
+            reports_to = (user.get("attributes", {}).get("reports_to") or [None])[0]
+            tenant_ids = user.get("attributes", {}).get("tenant_id") or []
+            if not reports_to or not tenant_ids:
+                continue
+            manager_id = user_ids_by_username.get(reports_to)
+            if manager_id is None:
+                continue
+            tenant_id = uuid.UUID(tenant_ids[0])
+            await session.execute(
+                text("SELECT set_config('app.tenant_id', :tenant_id, true)"),
+                {"tenant_id": str(tenant_id)},
+            )
+            await session.execute(
+                text(
+                    "UPDATE users SET manager_id = :manager_id "
+                    "WHERE tenant_id = :tenant_id AND keycloak_sub = :sub"
+                ),
+                {"manager_id": str(manager_id), "tenant_id": str(tenant_id), "sub": user["id"]},
             )
 
 
