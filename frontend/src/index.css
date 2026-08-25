@@ -1,3 +1,37 @@
+/* Vendored locally rather than a Google Fonts @import — this app is
+   client-VPC deployable (CLAUDE.md) with no guaranteed egress to an
+   external font CDN, same reasoning already applied to db/redis/keycloak
+   needing to work without a fixed external dependency. Latin subset only
+   (this app's UI is English-only); both are SIL Open Font License. */
+@font-face {
+  font-family: "Cormorant Garamond";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/cormorant-garamond-400.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Cormorant Garamond";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/fonts/cormorant-garamond-600.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Lora";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/lora-400.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Lora";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/fonts/lora-600.woff2") format("woff2");
+}
+
 :root {
   /* Neutral scale (light) — Classical design system palette
      (OPENFUNNEL_REBRAND_7A_PLAN.md §7 Commit 1), remapped onto this app's
@@ -70,8 +104,10 @@
   --warning-bg: #fdf0da;
 
   --sans: system-ui, "Segoe UI", Roboto, sans-serif;
+  --font-heading: "Cormorant Garamond", Georgia, serif;
+  --font-body: "Lora", Georgia, serif;
 
-  font: var(--text-base) / var(--line-base) var(--sans);
+  font: var(--text-base) / var(--line-base) var(--font-body);
   color-scheme: light dark;
   color: var(--text);
   background: var(--bg);
@@ -163,6 +199,15 @@ body {
   min-height: 100svh;
   display: flex;
   flex-direction: column;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-heading);
 }
 
 h1 {
