@@ -10,6 +10,8 @@ import {
 } from "../api/documents";
 import { useAuth } from "../auth/context";
 import { Button } from "../components/Button";
+import { Card } from "../components/Card";
+import { EmptyState } from "../components/EmptyState";
 import { Spinner } from "../components/Spinner";
 
 type UploadStatus = "uploading" | "uploaded" | "failed-start" | "failed-put" | "failed-confirm";
@@ -129,10 +131,21 @@ export function DocumentsSection({ contactId }: DocumentsSectionProps) {
   }
 
   return (
-    <section>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <h2 style={{ fontSize: 15 }}>Documents</h2>
-        <Button variant="text" onClick={() => fileInputRef.current?.click()}>
+    <Card>
+      <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+        <span
+          style={{
+            fontSize: 10,
+            fontWeight: "var(--weight-semibold)",
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+            color: "var(--text-muted)",
+          }}
+        >
+          Documents
+        </span>
+        <div style={{ flex: 1 }} />
+        <Button variant="secondary" onClick={() => fileInputRef.current?.click()}>
           + Upload
         </Button>
         <input
@@ -144,11 +157,16 @@ export function DocumentsSection({ contactId }: DocumentsSectionProps) {
         />
       </div>
       {documents === undefined && (
-        <div style={{ padding: 8 }}>
+        <div style={{ padding: 8, marginTop: "var(--space-3)" }}>
           <Spinner size={16} />
         </div>
       )}
-      <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+      {uploads.length === 0 && documents && documents.length === 0 && (
+        <div style={{ marginTop: "var(--space-3)" }}>
+          <EmptyState headline="No documents yet" />
+        </div>
+      )}
+      <ul style={{ listStyle: "none", padding: 0, margin: "var(--space-3) 0 0" }}>
         {uploads.map((item) => (
           <li
             key={item.localId}
@@ -192,10 +210,7 @@ export function DocumentsSection({ contactId }: DocumentsSectionProps) {
             </div>
           </li>
         ))}
-        {uploads.length === 0 && documents && documents.length === 0 && (
-          <li style={{ color: "var(--text-muted)", padding: 8 }}>No documents yet</li>
-        )}
       </ul>
-    </section>
+    </Card>
   );
 }

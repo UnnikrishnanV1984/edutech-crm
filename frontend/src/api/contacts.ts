@@ -14,9 +14,12 @@ export interface Contact {
   updated_at: string;
   // The contact's most-recently-updated deal, if any — null when the
   // contact has no deal yet.
+  current_deal_id: string | null;
   stage_id: string | null;
   stage_name: string | null;
   sla_state: "on_track" | "at_risk" | "breached" | null;
+  sla_target_at: string | null;
+  sla_target_minutes: number | null;
   has_open_follow_up: boolean;
 }
 
@@ -86,7 +89,11 @@ export interface Activity {
   deal_id: string | null;
   type: string;
   actor_id: string;
-  payload: { old_stage_id: string; new_stage_id: string } | null;
+  payload:
+    | { old_stage_id: string; new_stage_id: string }
+    | { note: string; channel: string }
+    | Record<string, unknown>
+    | null;
   created_at: string;
 }
 
@@ -95,4 +102,14 @@ export async function listContactActivities(
   contactId: string,
 ): Promise<DataEnvelope<Activity[]>> {
   return apiGet<DataEnvelope<Activity[]>>(token, `/api/v1/contacts/${contactId}/activities`);
+}
+
+export type ActivityChannel = "call" | "email" | "whatsapp" | "note";
+
+export async function logActivity(
+  token: string,
+  contactId: string,
+  input: { note: string; channel?: ActivityChannel },
+): Promise<DataEnvelope<Activity>> {
+  return apiPost<DataEnvelope<Activity>>(token, `/api/v1/contacts/${contactId}/activities`, input);
 }

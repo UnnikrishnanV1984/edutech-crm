@@ -3,16 +3,33 @@ import { useEffect, useState } from "react";
 import { listContactActivities, type Activity } from "../api/contacts";
 import { listPipelineStages, type PipelineStage } from "../api/pipelineStages";
 import { useAuth } from "../auth/context";
+import { Card } from "../components/Card";
+import { EmptyState } from "../components/EmptyState";
 import { Spinner } from "../components/Spinner";
 import { relativeTime } from "../relativeTime";
 import { userDisplayName, useUsers } from "../useUsers";
 
 interface ActivitySectionProps {
   contactId: string;
-  hasDeals: boolean;
 }
 
-export function ActivitySection({ contactId, hasDeals }: ActivitySectionProps) {
+function describeActivity(activity: Activity, stageName: (id: string) => string): string {
+  const payload = activity.payload as Record<string, unknown> | null;
+  if (activity.type === "deal_stage_changed" && payload && typeof payload.old_stage_id === "string") {
+    return `Moved ${stageName(payload.old_stage_id)} → ${stageName(String(payload.new_stage_id))}`;
+  }
+  if (activity.type === "manual_note" && payload && typeof payload.note === "string") {
+    const channel = typeof payload.channel === "string" ? payload.channel : "note";
+    const label = channel.charAt(0).toUpperCase() + channel.slice(1);
+    return `${label}: ${payload.note}`;
+  }
+  if (activity.type === "lead_captured") {
+    return "Lead captured";
+  }
+  return activity.type.replace(/_/g, " ");
+}
+
+export function ActivitySection({ contactId }: ActivitySectionProps) {
   const { token } = useAuth();
   const users = useUsers();
   const [activities, setActivities] = useState<Activity[] | undefined>(undefined);
@@ -29,36 +46,41 @@ export function ActivitySection({ contactId, hasDeals }: ActivitySectionProps) {
   }
 
   return (
-    <section>
-      <h2 style={{ fontSize: 15 }}>Activity</h2>
+    <Card title="Activity">
       {activities === undefined && (
         <div style={{ padding: 8 }}>
           <Spinner size={16} />
         </div>
       )}
-      {activities && activities.length === 0 && (
-        <p style={{ color: "var(--text-muted)" }}>
-          {hasDeals ? "No activity yet" : "No activity yet"}
-        </p>
-      )}
-      <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-        {activities?.map((activity) => (
-          <li
-            key={activity.id}
-            style={{ padding: "8px 0", borderLeft: "2px solid var(--border)", paddingLeft: 12 }}
-          >
-            {activity.payload && (
-              <span>
-                Moved {stageName(activity.payload.old_stage_id)} →{" "}
-                {stageName(activity.payload.new_stage_id)}
-              </span>
-            )}
-            <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
-              {userDisplayName(users, activity.actor_id)} · {relativeTime(activity.created_at)}
+      {activities && activities.length === 0 && <EmptyState headline="No activity yet" />}
+      {activities && activities.length > 0 && (
+        <div>
+          {activities.map((activity, index) => (
+            <div key={activity.id} style={{ display: "flex", gap: 11 }}>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                <div
+                  style={{
+                    width: 9,
+                    height: 9,
+                    borderRadius: "50%",
+                    background: index === 0 ? "var(--accent)" : "var(--text-muted)",
+                    flexShrink: 0,
+                  }}
+                />
+                {index < activities.length - 1 && (
+                  <div style={{ width: 1, flex: 1, background: "var(--border)" }} />
+                )}
+              </div>
+              <div style={{ paddingBottom: 16, flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: "var(--text-sm)" }}>{describeActivity(activity, stageName)}</div>
+                <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", marginTop: 2 }}>
+                  {userDisplayName(users, activity.actor_id)} · {relativeTime(activity.created_at)}
+                </div>
+              </div>
             </div>
-          </li>
-        ))}
-      </ul>
-    </section>
+          ))}
+        </div>
+      )}
+    </Card>
   );
 }

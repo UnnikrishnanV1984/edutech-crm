@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 
 import { ApiRequestError } from "../api/client";
 import { listCourses, type Course } from "../api/courses";
@@ -15,6 +15,8 @@ import { listPipelineStages, type PipelineStage } from "../api/pipelineStages";
 import { useAuth } from "../auth/context";
 import { Badge } from "../components/Badge";
 import { Button } from "../components/Button";
+import { Card } from "../components/Card";
+import { EmptyState } from "../components/EmptyState";
 import { Spinner } from "../components/Spinner";
 import { stageColor } from "../stageColor";
 import { CreateDealPanel } from "./CreateDealPanel";
@@ -38,6 +40,14 @@ const INVOICE_STATUS_LABELS: Record<InvoiceStatus, string> = {
 function formatMoney(value: string, currency: string) {
   const amount = Number(value);
   return `${currency} ${Number.isFinite(amount) ? amount.toLocaleString() : value}`;
+}
+
+function dealStatusLabel(stage: PipelineStage | undefined): string {
+  if (!stage) return "—";
+  if (stage.is_invoice_stage) return "Invoice";
+  if (stage.is_won) return "Won";
+  if (stage.is_lost) return "Lost";
+  return "Open";
 }
 
 interface DealsSectionProps {
@@ -74,61 +84,73 @@ export function DealsSection({ contactId }: DealsSectionProps) {
   }
 
   return (
-    <section>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <h2 style={{ fontSize: 15 }}>Deals {deals && `(${deals.length})`}</h2>
-        <Button variant="text" onClick={() => setShowCreate(true)}>
-          + New Deal
+    <Card>
+      <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+        <span
+          style={{
+            fontSize: 10,
+            fontWeight: "var(--weight-semibold)",
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+            color: "var(--text-muted)",
+          }}
+        >
+          Deals
+        </span>
+        {deals && <Badge label={String(deals.length).padStart(2, "0")} />}
+        <div style={{ flex: 1 }} />
+        <Button variant="secondary" onClick={() => setShowCreate(true)}>
+          + New deal
         </Button>
       </div>
       {deals === undefined && (
-        <div style={{ padding: 8 }}>
+        <div style={{ padding: 8, marginTop: "var(--space-3)" }}>
           <Spinner size={16} />
         </div>
       )}
-      <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-        {deals && deals.length === 0 && (
-          <li style={{ color: "var(--text-muted)", padding: 8 }}>No deals yet</li>
-        )}
-        {deals?.map((deal) => {
-          const stageInfo = stageFor(deal.stage_id);
-          const expanded = expandedDealId === deal.id;
-          return (
-            <li
-              key={deal.id}
-              style={{
-                borderBottom: "1px solid var(--border)",
-              }}
-            >
-              <div
-                onClick={() => setExpandedDealId(expanded ? undefined : deal.id)}
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  padding: 8,
-                  cursor: "pointer",
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
-                  <span>{courseName(deal.course_id)}</span>
-                  {Number(deal.value) > 0 && (
-                    <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
-                      {formatMoney(deal.value, deal.currency)}
-                    </span>
+      {deals && deals.length === 0 && (
+        <div style={{ marginTop: "var(--space-3)" }}>
+          <EmptyState headline="No deals yet" />
+        </div>
+      )}
+      {deals && deals.length > 0 && (
+        <table style={{ width: "100%", borderCollapse: "collapse", marginTop: "var(--space-3)" }}>
+          <tbody>
+            {deals.map((deal) => {
+              const stageInfo = stageFor(deal.stage_id);
+              const expanded = expandedDealId === deal.id;
+              return (
+                <Fragment key={deal.id}>
+                  <tr
+                    onClick={() => setExpandedDealId(expanded ? undefined : deal.id)}
+                    style={{ borderBottom: expanded ? "none" : "1px solid var(--border)", cursor: "pointer" }}
+                  >
+                    <td style={{ padding: "var(--space-2)" }}>{courseName(deal.course_id)}</td>
+                    <td style={{ padding: "var(--space-2)" }}>
+                      {stageInfo && (
+                        <Badge label={stageInfo.stage.name} tone={stageColor(stageInfo.stage, stageInfo.index)} />
+                      )}
+                    </td>
+                    <td style={{ padding: "var(--space-2)", color: "var(--text-muted)", fontSize: "var(--text-sm)" }}>
+                      {Number(deal.value) > 0 ? formatMoney(deal.value, deal.currency) : ""}
+                    </td>
+                    <td style={{ padding: "var(--space-2)", textAlign: "right" }}>
+                      <Badge label={dealStatusLabel(stageInfo?.stage)} />
+                    </td>
+                  </tr>
+                  {expanded && (
+                    <tr style={{ borderBottom: "1px solid var(--border)" }}>
+                      <td colSpan={4} style={{ padding: 0 }}>
+                        <DealInvoices deal={deal} stage={stageInfo?.stage} onDealChanged={load} />
+                      </td>
+                    </tr>
                   )}
-                </div>
-                {stageInfo && (
-                  <Badge label={stageInfo.stage.name} tone={stageColor(stageInfo.stage, stageInfo.index)} />
-                )}
-              </div>
-              {expanded && (
-                <DealInvoices deal={deal} stage={stageInfo?.stage} onDealChanged={load} />
-              )}
-            </li>
-          );
-        })}
-      </ul>
+                </Fragment>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
       {showCreate && (
         <CreateDealPanel
           contactId={contactId}
@@ -139,7 +161,7 @@ export function DealsSection({ contactId }: DealsSectionProps) {
           }}
         />
       )}
-    </section>
+    </Card>
   );
 }
 

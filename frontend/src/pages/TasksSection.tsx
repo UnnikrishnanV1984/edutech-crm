@@ -2,7 +2,10 @@ import { useEffect, useState } from "react";
 
 import { listTasks, updateTask, type Task } from "../api/tasks";
 import { useAuth } from "../auth/context";
+import { Badge } from "../components/Badge";
 import { Button } from "../components/Button";
+import { Card } from "../components/Card";
+import { EmptyState } from "../components/EmptyState";
 import { Spinner } from "../components/Spinner";
 import { CreateTaskPanel } from "./CreateTaskPanel";
 
@@ -45,24 +48,36 @@ export function TasksSection({ contactId, contactName }: TasksSectionProps) {
   const now = Date.now();
 
   return (
-    <section>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <h2 style={{ fontSize: 15 }}>
-          Tasks {openTasks.length > 0 && `(${openTasks.length})`}
-        </h2>
-        <Button variant="text" onClick={() => setShowCreate(true)}>
-          + Add task
+    <Card>
+      <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+        <span
+          style={{
+            fontSize: 10,
+            fontWeight: "var(--weight-semibold)",
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+            color: "var(--text-muted)",
+          }}
+        >
+          Tasks
+        </span>
+        {tasks && <Badge label={String(openTasks.length).padStart(2, "0")} />}
+        <div style={{ flex: 1 }} />
+        <Button variant="secondary" onClick={() => setShowCreate(true)}>
+          + Add
         </Button>
       </div>
       {tasks === undefined && (
-        <div style={{ padding: 8 }}>
+        <div style={{ padding: 8, marginTop: "var(--space-3)" }}>
           <Spinner size={16} />
         </div>
       )}
-      <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-        {tasks && openTasks.length === 0 && (
-          <li style={{ color: "var(--text-muted)", padding: 8 }}>No open tasks</li>
-        )}
+      {tasks && openTasks.length === 0 && (
+        <div style={{ marginTop: "var(--space-3)" }}>
+          <EmptyState headline="No open tasks" />
+        </div>
+      )}
+      <ul style={{ listStyle: "none", padding: 0, margin: "var(--space-3) 0 0" }}>
         {openTasks.map((task) => {
           const overdue = task.due_at ? new Date(task.due_at).getTime() < now : false;
           return (
@@ -120,6 +135,6 @@ export function TasksSection({ contactId, contactName }: TasksSectionProps) {
           }}
         />
       )}
-    </section>
+    </Card>
   );
 }

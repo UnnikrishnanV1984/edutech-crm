@@ -39,9 +39,12 @@ describe("CreateContactPanel", () => {
       territory: null,
       created_at: "2026-01-01T00:00:00Z",
       updated_at: "2026-01-01T00:00:00Z",
+      current_deal_id: null,
       stage_id: null,
       stage_name: null,
       sla_state: null,
+      sla_target_at: null,
+      sla_target_minutes: null,
       has_open_follow_up: false,
     };
     mockedCreateContact.mockResolvedValue({ data: newContact, meta: { request_id: "r1" } });
@@ -68,9 +71,12 @@ describe("CreateContactPanel", () => {
       territory: null,
       created_at: "2026-01-01T00:00:00Z",
       updated_at: "2026-01-01T00:00:00Z",
+      current_deal_id: null,
       stage_id: null,
       stage_name: null,
       sla_state: null,
+      sla_target_at: null,
+      sla_target_minutes: null,
       has_open_follow_up: false,
     };
     mockedCreateContact.mockRejectedValue(
@@ -111,9 +117,12 @@ describe("CreateContactPanel", () => {
         territory: null,
         created_at: "2026-01-01T00:00:00Z",
         updated_at: "2026-01-01T00:00:00Z",
+        current_deal_id: null,
         stage_id: null,
         stage_name: null,
         sla_state: null,
+        sla_target_at: null,
+        sla_target_minutes: null,
         has_open_follow_up: false,
       },
       meta: { request_id: "r1" },
