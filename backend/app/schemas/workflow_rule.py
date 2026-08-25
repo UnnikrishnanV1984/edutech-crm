@@ -71,3 +71,45 @@ class WorkflowRuleOut(BaseModel):
     approved_by: uuid.UUID | None
     created_at: datetime
     updated_at: datetime
+
+
+class WorkflowRunOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    workflow_rule_id: uuid.UUID
+    rule_name: str
+    trigger_source_type: str
+    trigger_source_id: uuid.UUID
+    status: str
+    attempt: int
+    error_message: str | None
+    executed_at: datetime
+
+
+class WorkflowTestRunRequest(BaseModel):
+    """Evaluates a draft (possibly unsaved) rule's When/If against the
+    tenant's own recent/currently-eligible records — no rule_id, since
+    Test run must work before the rule has been saved (Phase 7g
+    acceptance criterion)."""
+
+    trigger_type: str
+    trigger_config: dict[str, Any] = {}
+    conditions: list[dict[str, Any]] = []
+
+    @model_validator(mode="after")
+    def _check_trigger_type(self) -> "WorkflowTestRunRequest":
+        if self.trigger_type not in TRIGGER_TYPES:
+            raise ValueError(f"trigger_type must be one of {TRIGGER_TYPES}")
+        return self
+
+
+class WorkflowTestRunMatch(BaseModel):
+    type: str
+    id: str
+    label: str
+
+
+class WorkflowTestRunResult(BaseModel):
+    candidates_checked: int
+    matched: list[WorkflowTestRunMatch]

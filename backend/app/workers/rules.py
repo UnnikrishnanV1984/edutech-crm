@@ -35,7 +35,6 @@ from app.core.logging import get_logger
 from app.core.redis import get_redis_client
 from app.db.session import get_sessionmaker
 from app.models.activity import Activity
-from app.models.contact import Contact
 from app.models.deal import Deal
 from app.models.task import Task
 from app.models.tenant import Tenant
@@ -49,7 +48,13 @@ from app.services.escalation_service import (
     create_workflow_failure_escalation,
 )
 from app.services.user_service import get_user, list_counselor_ids
-from app.services.workflow_rule_service import get_active_rules_by_trigger
+from app.services.workflow_rule_service import (
+    get_active_rules_by_trigger,
+    load_condition_fields,
+    load_contact,
+    load_deal,
+    matches_conditions,
+)
 from app.workers.celery_app import celery_app
 
 logger = get_logger(__name__)
@@ -81,59 +86,17 @@ async def _set_tenant(db, tenant_id: uuid.UUID) -> None:
     )
 
 
-def _matches_conditions(conditions: list[dict], fields: dict) -> bool:
-    """AND-only (PHASE_3_PLAN.md §3.7) — every condition must match."""
-    for condition in conditions:
-        field, op, value = condition["field"], condition["op"], condition["value"]
-        actual = fields.get(field)
-        if op == "eq" and actual != value:
-            return False
-        if op == "in" and actual not in value:
-            return False
-    return True
-
-
-async def _load_deal(db, tenant_id: uuid.UUID, deal_id: uuid.UUID) -> Deal | None:
-    result = await db.execute(
-        select(Deal).where(Deal.tenant_id == tenant_id, Deal.id == deal_id)
-    )
-    return result.scalar_one_or_none()
-
-
-async def _load_contact(db, tenant_id: uuid.UUID, contact_id: uuid.UUID) -> Contact | None:
-    result = await db.execute(
-        select(Contact).where(Contact.tenant_id == tenant_id, Contact.id == contact_id)
-    )
-    return result.scalar_one_or_none()
-
-
-async def _load_condition_fields(
-    db, tenant_id: uuid.UUID, source_type: str, source_id: uuid.UUID
-) -> dict:
-    if source_type == "deal":
-        deal = await _load_deal(db, tenant_id, source_id)
-        if deal is None:
-            return {}
-        return {"stage_id": str(deal.stage_id), "course_id": str(deal.course_id)}
-    if source_type == "contact":
-        contact = await _load_contact(db, tenant_id, source_id)
-        if contact is None:
-            return {}
-        return {"lead_source": contact.lead_source}
-    return {}
-
-
 async def _resolve_deal_and_contact(
     db, tenant_id: uuid.UUID, source_type: str, source_id: uuid.UUID
 ) -> tuple[Deal | None, uuid.UUID | None, uuid.UUID | None]:
     """Returns (deal_or_none, contact_id_or_none, owner_id_or_none)."""
     if source_type == "deal":
-        deal = await _load_deal(db, tenant_id, source_id)
+        deal = await load_deal(db, tenant_id, source_id)
         if deal is None:
             return None, None, None
         return deal, deal.contact_id, deal.owner_id
     if source_type == "contact":
-        contact = await _load_contact(db, tenant_id, source_id)
+        contact = await load_contact(db, tenant_id, source_id)
         if contact is None:
             return None, None, None
         return None, contact.id, contact.owner_id
@@ -175,7 +138,7 @@ async def _apply_new_owner(
     if deal is not None:
         deal.owner_id = new_owner
     if contact_id is not None:
-        contact = await _load_contact(db, tenant_id, contact_id)
+        contact = await load_contact(db, tenant_id, contact_id)
         if contact is not None:
             contact.owner_id = new_owner
     await db.flush()
@@ -205,7 +168,7 @@ async def _execute_action(
         # to be the common case today, not an edge case.
         territory = None
         if contact_id is not None:
-            contact = await _load_contact(db, tenant_id, contact_id)
+            contact = await load_contact(db, tenant_id, contact_id)
             territory = contact.territory if contact is not None else None
         new_owner = (
             await _match_territory_counselor(db, tenant_id, territory) if territory else None
@@ -354,8 +317,8 @@ async def _run_one_rule(
 
                 if await _already_ran(db, tenant_id, rule.id, source_type, source_id):
                     return
-                fields = await _load_condition_fields(db, tenant_id, source_type, source_id)
-                if not _matches_conditions(rule.conditions, fields):
+                fields = await load_condition_fields(db, tenant_id, source_type, source_id)
+                if not matches_conditions(rule.conditions, fields):
                     return
 
                 has_send_message = any(a["type"] == "send_message" for a in rule.actions)

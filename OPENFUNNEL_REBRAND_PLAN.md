@@ -334,40 +334,52 @@ mechanism with Escalations' snooze — see below).
   - The underlying flag table (below the board, per the wireframe) reflects
     the same data with no drift.
 
-### Phase 7g — Workflow rule builder
+### Phase 7g — Workflow rule builder — done (2026-08-25)
 Depends on 7a. Fully independent of every other phase.
 
-- **Affected layers**: frontend only (`CreateWorkflowRulePanel.tsx` gains
-  condition rows, ordered action cards, a plain-English preview, and a
-  Test-run button); backend — confirm whether `workflow_rules.conditions`/
-  `actions` JSONB already supports everything the builder needs to express
-  (this session's earlier work on workflow rules suggests it likely does —
-  verify field-by-field at implementation time rather than assuming), and
-  whether a dry-run/"Test run" evaluation path exists in
-  `workflow rule engine` already or needs a new read-only evaluation mode.
-- **Database**: none expected — `workflow_rules` already stores conditions/
-  actions as JSONB.
-- **API contract**: candidate new endpoint — `POST
-  /api/v1/workflow-rules/{id}/test-run` (or a pre-save variant taking the
-  draft rule body directly, since Test run likely needs to work before the
-  rule is saved) returning which contacts/deals the current condition set
-  would currently match, without executing any actions.
-- **Multi-tenancy check**: test-run evaluates against the caller's own
-  tenant's data only — same scoping the real rule engine already uses.
-- **Task breakdown**:
-  1. Confirm current `conditions`/`actions` JSONB shape covers the
-     wireframe's field/operator/value/AND condition-row model; extend if
-     there's a gap.
-  2. Backend: read-only test-run evaluation path (reuses the existing rule-
-     matching logic, short-circuited before the action-dispatch step).
-  3. Frontend: condition-row builder, ordered action cards, plain-English
-     preview (pure client-side string generation from the current draft
-     state), Test run button wired to the new endpoint.
-- **Acceptance criteria**:
-  - Test run against a draft (unsaved) rule shows real matching contacts/
-    deals from the caller's own tenant and triggers zero actions.
-  - The plain-English preview updates live as conditions/actions change,
-    with no save required to see it.
+- **Confirmed at implementation time**: `workflow_rules.conditions`/
+  `actions` JSONB already covered everything the builder needs (field/op/
+  value condition rows, typed per-action config) — no schema change. The
+  live engine's condition-matching helpers (`_matches_conditions`/
+  `_load_condition_fields` in `app/workers/rules.py`) were promoted to
+  public functions on `workflow_rule_service.py`
+  (`matches_conditions`/`load_condition_fields`/`load_deal`/`load_contact`)
+  so the new read-only test-run path reuses the *exact* logic the live
+  engine runs, rather than a second implementation that could drift; the
+  worker module now imports them back.
+- **API contract (built)**:
+  - `POST /api/v1/workflow-rules/test-run` — takes a draft rule body
+    (`trigger_type`/`trigger_config`/`conditions`, no `id`, works before
+    saving) and returns `{candidates_checked, matched: [{type, id,
+    label}]}` against a sample of the tenant's own recent/currently-
+    eligible records (last 20 per trigger type), executing zero actions.
+  - `GET /api/v1/workflow-rules/runs` — paginated run history,
+    `?rule_id=` optional, joined to the rule's name so the UI never N+1s;
+    visibility mirrors `GET /api/v1/workflow-rules` exactly (non-Admin
+    only sees runs for rules they created or that are active). Added
+    beyond the original sketch — needed for the "Run history" button
+    (not explicitly scoped here originally, but required to make it
+    "usable" rather than decorative).
+  - `PATCH /api/v1/workflow-rules/{id}` unchanged (admin-only edit) — the
+    builder's Save routes there for edits, `POST /workflow-rules` for new
+    rules (defaults an Admin's save straight to `active`, closing a
+    pre-existing gap where an Admin-created rule had no UI path off
+    `draft` — `decide_rule` already supported that transition, it was
+    just never exposed).
+- **Frontend (built)**: `WorkflowRuleBuilder.tsx` (condition rows scoped
+  to the selected trigger's real fields — `lead_source` for
+  contact-sourced triggers, `stage_id`/`course_id` for deal-sourced ones,
+  none for `task_overdue` since the engine has no matchable fields for it
+  either — same limitation, not test-run-only), ordered numbered action
+  cards, a client-side plain-English preview, and a Test run button.
+  `WorkflowRunHistoryPanel.tsx` for the history view. `send_message`
+  stays visibly disabled in the action picker — no backing execution path
+  existed before this phase and still doesn't, unchanged from
+  `CreateWorkflowRulePanel.tsx` (now deleted, fully superseded).
+- **Acceptance criteria**: met — Test run against an unsaved draft rule
+  shows real matching contacts/deals from the caller's own tenant and
+  writes zero `workflow_runs` rows (regression-tested explicitly); the
+  plain-English preview updates live with no save required.
 
 ### Phase 7h — Branding / white-label
 Depends on 7a (the branding admin screen itself needs the restyled
