@@ -6,10 +6,12 @@ import {
   getInvoiceSummary,
   getSlaCompliance,
   getSourceAttribution,
+  reportPeriodLabel,
 } from "../api/reports";
 import type {
   FunnelRow,
   InvoiceSummary,
+  ReportPeriod,
   SlaComplianceRow,
   SourceAttributionRow,
 } from "../api/reports";
@@ -25,6 +27,7 @@ export function AdminDashboard() {
   const { token } = useAuth();
   const { me } = useMe();
   const navigate = useNavigate();
+  const [period, setPeriod] = useState<ReportPeriod>("last_30_days");
   const [funnel, setFunnel] = useState<FunnelRow[]>([]);
   const [stages, setStages] = useState<PipelineStage[]>([]);
   const [sources, setSources] = useState<SourceAttributionRow[]>([]);
@@ -33,12 +36,12 @@ export function AdminDashboard() {
 
   useEffect(() => {
     if (!token) return;
-    getFunnel(token).then((response) => setFunnel(response.data));
+    getFunnel(token, period).then((response) => setFunnel(response.data));
     listPipelineStages(token).then((response) => setStages(response.data));
-    getSourceAttribution(token).then((response) => setSources(response.data));
-    getInvoiceSummary(token).then((response) => setInvoiceSummary(response.data));
-    getSlaCompliance(token).then((response) => setCompliance(response.data));
-  }, [token]);
+    getSourceAttribution(token, period).then((response) => setSources(response.data));
+    getInvoiceSummary(token, period).then((response) => setInvoiceSummary(response.data));
+    getSlaCompliance(token, period).then((response) => setCompliance(response.data));
+  }, [token, period]);
 
   const pipelineValue = funnel.reduce((sum, row) => sum + Number(row.value), 0);
   const wonStageIds = new Set(stages.filter((s) => s.is_won).map((s) => s.id));
@@ -70,7 +73,9 @@ export function AdminDashboard() {
 
   return (
     <div style={{ maxWidth: 1120, margin: "0 auto", padding: "var(--space-6)" }}>
-      <DashboardTopBar roleLabel="Admin view">{quickLinks}</DashboardTopBar>
+      <DashboardTopBar roleLabel="Admin view" period={period} onPeriodChange={setPeriod}>
+        {quickLinks}
+      </DashboardTopBar>
 
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)" }}>
         <div style={{ display: "flex", gap: "var(--space-4)" }}>
@@ -82,12 +87,12 @@ export function AdminDashboard() {
 
         {invoiceSummary && (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "var(--space-5)" }}>
-            <Card title="Invoiced this month">
+            <Card title={`Invoiced (${reportPeriodLabel(period)})`}>
               <p style={{ fontSize: "var(--text-xl)", margin: 0 }}>
                 {Number(invoiceSummary.invoiced_total).toLocaleString()}
               </p>
             </Card>
-            <Card title="Paid this month">
+            <Card title={`Paid (${reportPeriodLabel(period)})`}>
               <p style={{ fontSize: "var(--text-xl)", margin: 0, color: "var(--success)" }}>
                 {Number(invoiceSummary.paid_total).toLocaleString()}
               </p>

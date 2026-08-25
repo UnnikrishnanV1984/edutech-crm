@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 
 import type { PipelineStage } from "../api/pipelineStages";
-import type { FunnelRow } from "../api/reports";
+import { REPORT_PERIOD_OPTIONS, type FunnelRow, type ReportPeriod } from "../api/reports";
 import { listTasks, updateTask, type Task } from "../api/tasks";
 import { Badge } from "../components/Badge";
 import { Card } from "../components/Card";
@@ -277,9 +277,13 @@ export function MyQueueTodayCard({ token, meId }: { token: string; meId: string 
 
 export function DashboardTopBar({
   roleLabel,
+  period,
+  onPeriodChange,
   children,
 }: {
   roleLabel: string;
+  period: ReportPeriod;
+  onPeriodChange: (period: ReportPeriod) => void;
   children?: ReactNode;
 }) {
   return (
@@ -305,8 +309,17 @@ export function DashboardTopBar({
         {roleLabel}
       </span>
       <div style={{ flex: 1 }} />
-      <select disabled title="Date-range filtering isn't available yet" style={{ width: 150 }}>
-        <option>Last 30 days ▾</option>
+      <select
+        aria-label="Date range"
+        value={period}
+        onChange={(event) => onPeriodChange(event.target.value as ReportPeriod)}
+        style={{ width: 150 }}
+      >
+        {REPORT_PERIOD_OPTIONS.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
       </select>
       {children}
     </div>

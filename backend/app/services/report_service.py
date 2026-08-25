@@ -6,7 +6,7 @@ Phase 3's contact_service/deal_service/task_service already do.
 """
 
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 from sqlalchemy import func, select
@@ -26,11 +26,67 @@ from app.models.user import User
 # sla_states row yet (no policy has ticked it) sorts last, not dropped.
 _SLA_URGENCY_ORDER = {"breached": 0, "at_risk": 1, "on_track": 2}
 
+DEFAULT_PERIOD = "last_30_days"
+
+
+def _quarter_start(moment: datetime) -> datetime:
+    quarter_start_month = ((moment.month - 1) // 3) * 3 + 1
+    return moment.replace(
+        month=quarter_start_month, day=1, hour=0, minute=0, second=0, microsecond=0
+    )
+
+
+def resolve_period(period: str) -> tuple[datetime, datetime | None]:
+    """Maps a fixed period token to a [start, end) UTC range for the
+    dashboard's date-range picker. `end=None` means "open through the
+    present" — deliberately not a literal "now" boundary, since any
+    clock skew between this app process and the DB server (real in
+    this Docker Desktop setup — see update_deal's stage_changed_at,
+    which hits the same class of skew from the other direction) could
+    put a row's Postgres-server-timestamped created_at a hair after
+    the app-computed "now", wrongly excluding something created
+    moments ago. Only the two closed-past periods (last_quarter/
+    last_year) get a real upper bound, and it's a calendar boundary
+    far from "now" either way, immune to that skew. An unrecognized
+    token quietly falls back to last_30_days rather than erroring —
+    same defensive-default style already used for `sort` in
+    contact_service._apply_sort, so a stale cached frontend build
+    sending an old token degrades instead of 500ing."""
+    now = datetime.now(UTC)
+    if period == "last_60_days":
+        return now - timedelta(days=60), None
+    if period == "this_quarter":
+        return _quarter_start(now), None
+    if period == "last_quarter":
+        this_q_start = _quarter_start(now)
+        return _quarter_start(this_q_start - timedelta(days=1)), this_q_start
+    if period == "this_year":
+        return now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0), None
+    if period == "last_year":
+        this_year_start = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+        return this_year_start.replace(year=this_year_start.year - 1), this_year_start
+    return now - timedelta(days=30), None
+
+
+def _apply_period(stmt, column, start: datetime, end: datetime | None):
+    stmt = stmt.where(column >= start)
+    if end is not None:
+        stmt = stmt.where(column < end)
+    return stmt
+
 
 async def get_funnel(
-    db: AsyncSession, tenant_id: uuid.UUID, owner_ids: list[uuid.UUID] | None
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+    owner_ids: list[uuid.UUID] | None,
+    period: str = DEFAULT_PERIOD,
 ) -> tuple[list[dict], str]:
+    """Counts/values deals *created* within the period — the funnel's
+    own "how many leads entered the pipeline in this window" reading,
+    not "deals currently sitting in each stage regardless of when"."""
+
     async def compute() -> list[dict]:
+        start, end = resolve_period(period)
         stages = (
             (
                 await db.execute(
@@ -45,6 +101,7 @@ async def get_funnel(
         count_stmt = select(
             Deal.stage_id, func.count(Deal.id), func.coalesce(func.sum(Deal.value), 0)
         ).where(Deal.tenant_id == tenant_id)
+        count_stmt = _apply_period(count_stmt, Deal.created_at, start, end)
         if owner_ids is not None:
             count_stmt = count_stmt.where(Deal.owner_id.in_(owner_ids))
         rows = (await db.execute(count_stmt.group_by(Deal.stage_id))).all()
@@ -60,22 +117,27 @@ async def get_funnel(
             for s in stages
         ]
 
-    return await get_or_compute(tenant_id, "funnel", owner_ids, compute)
+    return await get_or_compute(tenant_id, f"funnel:{period}", owner_ids, compute)
 
 
 async def get_source_attribution(
-    db: AsyncSession, tenant_id: uuid.UUID, owner_ids: list[uuid.UUID] | None
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+    owner_ids: list[uuid.UUID] | None,
+    period: str = DEFAULT_PERIOD,
 ) -> tuple[list[dict], str]:
     async def compute() -> list[dict]:
+        start, end = resolve_period(period)
         stmt = select(Contact.lead_source, func.count(Contact.id)).where(
             Contact.tenant_id == tenant_id
         )
+        stmt = _apply_period(stmt, Contact.created_at, start, end)
         if owner_ids is not None:
             stmt = stmt.where(Contact.owner_id.in_(owner_ids))
         rows = (await db.execute(stmt.group_by(Contact.lead_source))).all()
         return [{"lead_source": source, "count": count} for source, count in rows]
 
-    return await get_or_compute(tenant_id, "source_attribution", owner_ids, compute)
+    return await get_or_compute(tenant_id, f"source_attribution:{period}", owner_ids, compute)
 
 
 async def get_forecast(
@@ -139,21 +201,27 @@ async def get_forecast(
 
 
 async def get_sla_compliance(
-    db: AsyncSession, tenant_id: uuid.UUID, owner_ids: list[uuid.UUID] | None
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+    owner_ids: list[uuid.UUID] | None,
+    period: str = DEFAULT_PERIOD,
 ) -> tuple[list[dict], str]:
     """Deal-scoped SLA states only (the inner join on Deal naturally
     excludes task-scoped sla_states rows, whose deal_id is NULL) — a
     per-counselor breach/at-risk/on-track breakdown, REQUIREMENTS.md
     §5.2's "SLA compliance view." No trend-over-time (PHASE_4_PLAN.md's
-    intro explains why)."""
+    intro explains why). Scoped to deals *created* within the period,
+    same reading get_funnel uses."""
 
     async def compute() -> list[dict]:
+        start, end = resolve_period(period)
         stmt = (
             select(Deal.owner_id, SlaState.state, func.count(SlaState.id))
             .select_from(SlaState)
             .join(Deal, (Deal.id == SlaState.deal_id) & (Deal.tenant_id == SlaState.tenant_id))
             .where(SlaState.tenant_id == tenant_id)
         )
+        stmt = _apply_period(stmt, Deal.created_at, start, end)
         if owner_ids is not None:
             stmt = stmt.where(Deal.owner_id.in_(owner_ids))
         rows = (await db.execute(stmt.group_by(Deal.owner_id, SlaState.state))).all()
@@ -184,7 +252,7 @@ async def get_sla_compliance(
             for owner_id, counts in by_counselor.items()
         ]
 
-    return await get_or_compute(tenant_id, "sla_compliance", owner_ids, compute)
+    return await get_or_compute(tenant_id, f"sla_compliance:{period}", owner_ids, compute)
 
 
 async def get_my_queue(
@@ -228,11 +296,16 @@ async def get_my_queue(
 
 
 async def get_invoice_summary(
-    db: AsyncSession, tenant_id: uuid.UUID, owner_ids: list[uuid.UUID] | None
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+    owner_ids: list[uuid.UUID] | None,
+    period: str = DEFAULT_PERIOD,
 ) -> tuple[dict, str]:
     """PIPELINE_AND_REVENUE_PLAN.md §5.7 — invoiced/paid/outstanding for
-    the current calendar month (by issued_at/paid_at respectively);
-    invoice rework rate is all-time (a health metric, not a monthly
+    the dashboard's selected date-range period (by issued_at/paid_at
+    respectively; originally hardcoded to the current calendar month,
+    now driven by the same period token every other report accepts);
+    invoice rework rate is all-time (a health metric, not a windowed
     one) — uses invoices.was_reworked (migration 0026, a deviation from
     the original plan — see that migration's own docstring) rather than
     current status, so a reworked-then-resent invoice still counts.
@@ -240,23 +313,32 @@ async def get_invoice_summary(
     now() - stage_changed_at computation for stage_entry SLA policies,
     for deals *currently* in an is_invoice_stage stage — doesn't include
     duration for invoice stages a deal has already exited, which would
-    need per-stage-instance timestamps this schema doesn't track."""
+    need per-stage-instance timestamps this schema doesn't track (and
+    isn't period-filtered for the same reason: it's a live snapshot)."""
 
     async def compute() -> dict:
         now = datetime.now(UTC)
-        month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        start, end = resolve_period(period)
 
-        invoiced_stmt = select(func.coalesce(func.sum(Invoice.amount), 0)).where(
-            Invoice.tenant_id == tenant_id, Invoice.issued_at >= month_start
+        invoiced_stmt = _apply_period(
+            select(func.coalesce(func.sum(Invoice.amount), 0)).where(
+                Invoice.tenant_id == tenant_id
+            ),
+            Invoice.issued_at,
+            start,
+            end,
         )
-        paid_stmt = (
+        paid_stmt = _apply_period(
             select(func.coalesce(func.sum(Payment.amount), 0))
             .select_from(Payment)
             .join(
                 Invoice,
                 (Invoice.id == Payment.invoice_id) & (Invoice.tenant_id == Payment.tenant_id),
             )
-            .where(Payment.tenant_id == tenant_id, Payment.paid_at >= month_start)
+            .where(Payment.tenant_id == tenant_id),
+            Payment.paid_at,
+            start,
+            end,
         )
         rework_stmt = select(
             func.count(Invoice.id),
@@ -300,7 +382,7 @@ async def get_invoice_summary(
         )
 
         return {
-            "period": "current_month",
+            "period": period,
             "invoiced_total": str(invoiced_total),
             "paid_total": str(paid_total),
             "outstanding_total": str(invoiced_total - paid_total),
@@ -308,41 +390,42 @@ async def get_invoice_summary(
             "avg_minutes_in_invoice_stage": avg_minutes_in_invoice_stage,
         }
 
-    return await get_or_compute(tenant_id, "invoice_summary", owner_ids, compute)
+    return await get_or_compute(tenant_id, f"invoice_summary:{period}", owner_ids, compute)
 
 
 async def get_my_stats(
-    db: AsyncSession, tenant_id: uuid.UUID, user_id: uuid.UUID
+    db: AsyncSession, tenant_id: uuid.UUID, user_id: uuid.UUID, period: str = DEFAULT_PERIOD
 ) -> tuple[dict, str]:
     """Leads worked + conversion rate only — response time and demo
     attendance rate need tracking this schema doesn't have yet
-    (PHASE_4_PLAN.md's intro)."""
+    (PHASE_4_PLAN.md's intro). Both counts scoped to contacts/deals
+    *created* within the period, same reading every other report uses."""
 
     async def compute() -> dict:
+        start, end = resolve_period(period)
+        total_stmt = select(func.count(Contact.id)).where(
+            Contact.tenant_id == tenant_id, Contact.owner_id == user_id
+        )
         total = (
-            await db.execute(
-                select(func.count(Contact.id)).where(
-                    Contact.tenant_id == tenant_id, Contact.owner_id == user_id
-                )
-            )
+            await db.execute(_apply_period(total_stmt, Contact.created_at, start, end))
         ).scalar_one()
-        won = (
-            await db.execute(
-                select(func.count(func.distinct(Deal.id)))
-                .select_from(Deal)
-                .join(
-                    PipelineStage,
-                    (PipelineStage.id == Deal.stage_id)
-                    & (PipelineStage.tenant_id == Deal.tenant_id),
-                )
-                .where(
-                    Deal.tenant_id == tenant_id,
-                    Deal.owner_id == user_id,
-                    PipelineStage.is_won.is_(True),
-                )
+        won_stmt = (
+            select(func.count(func.distinct(Deal.id)))
+            .select_from(Deal)
+            .join(
+                PipelineStage,
+                (PipelineStage.id == Deal.stage_id) & (PipelineStage.tenant_id == Deal.tenant_id),
             )
+            .where(
+                Deal.tenant_id == tenant_id,
+                Deal.owner_id == user_id,
+                PipelineStage.is_won.is_(True),
+            )
+        )
+        won = (
+            await db.execute(_apply_period(won_stmt, Deal.created_at, start, end))
         ).scalar_one()
         conversion_rate = round(won / total, 4) if total > 0 else 0.0
         return {"leads_worked": total, "won_count": won, "conversion_rate": conversion_rate}
 
-    return await get_or_compute(tenant_id, "my_stats", [user_id], compute)
+    return await get_or_compute(tenant_id, f"my_stats:{period}", [user_id], compute)

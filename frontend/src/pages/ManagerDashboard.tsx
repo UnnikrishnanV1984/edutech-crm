@@ -5,6 +5,7 @@ import {
   getFunnel,
   getSlaCompliance,
   type FunnelRow,
+  type ReportPeriod,
   type SlaComplianceRow,
 } from "../api/reports";
 import { listPipelineStages, type PipelineStage } from "../api/pipelineStages";
@@ -19,16 +20,17 @@ export function ManagerDashboard() {
   const { token } = useAuth();
   const { me } = useMe();
   const navigate = useNavigate();
+  const [period, setPeriod] = useState<ReportPeriod>("last_30_days");
   const [funnel, setFunnel] = useState<FunnelRow[]>([]);
   const [stages, setStages] = useState<PipelineStage[]>([]);
   const [compliance, setCompliance] = useState<SlaComplianceRow[]>([]);
 
   useEffect(() => {
     if (!token) return;
-    getFunnel(token).then((response) => setFunnel(response.data));
+    getFunnel(token, period).then((response) => setFunnel(response.data));
     listPipelineStages(token).then((response) => setStages(response.data));
-    getSlaCompliance(token).then((response) => setCompliance(response.data));
-  }, [token]);
+    getSlaCompliance(token, period).then((response) => setCompliance(response.data));
+  }, [token, period]);
 
   const wonStageIds = new Set(stages.filter((s) => s.is_won).map((s) => s.id));
   const lostStageIds = new Set(stages.filter((s) => s.is_lost).map((s) => s.id));
@@ -43,7 +45,7 @@ export function ManagerDashboard() {
 
   return (
     <div style={{ maxWidth: 1120, margin: "0 auto", padding: "var(--space-6)" }}>
-      <DashboardTopBar roleLabel="Manager view" />
+      <DashboardTopBar roleLabel="Manager view" period={period} onPeriodChange={setPeriod} />
 
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)" }}>
         <div style={{ display: "flex", gap: "var(--space-4)" }}>

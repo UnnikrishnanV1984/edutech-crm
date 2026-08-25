@@ -146,6 +146,45 @@ def test_staff_funnel_only_counts_own_deals(scenario):
     assert total == 1  # the one deal, owned by this staff member
 
 
+def test_funnel_default_period_excludes_a_deal_older_than_30_days(scenario):
+    with psycopg.connect(MIGRATE_URL, autocommit=True) as conn, conn.cursor() as cur:
+        cur.execute("SELECT set_config('app.tenant_id', %s, false)", (str(scenario["tenant_id"]),))
+        cur.execute(
+            "UPDATE deals SET created_at = now() - interval '45 days' "
+            "WHERE tenant_id = %s AND id = %s",
+            (scenario["tenant_id"], scenario["deal_id"]),
+        )
+        cur.execute("RESET app.tenant_id")
+
+    with TestClient(app) as client:
+        default_response = client.get("/api/v1/reports/funnel", headers=scenario["admin_headers"])
+        wide_response = client.get(
+            "/api/v1/reports/funnel?period=last_60_days", headers=scenario["admin_headers"]
+        )
+    assert sum(r["count"] for r in default_response.json()["data"]) == 0
+    assert sum(r["count"] for r in wide_response.json()["data"]) == 1
+
+
+def test_funnel_last_quarter_excludes_a_deal_created_this_quarter(scenario):
+    with TestClient(app) as client:
+        response = client.get(
+            "/api/v1/reports/funnel?period=last_quarter", headers=scenario["admin_headers"]
+        )
+    assert sum(r["count"] for r in response.json()["data"]) == 0
+
+
+def test_unrecognized_period_falls_back_to_last_30_days(scenario):
+    with TestClient(app) as client:
+        default_response = client.get(
+            "/api/v1/reports/funnel", headers=scenario["admin_headers"]
+        )
+        garbage_response = client.get(
+            "/api/v1/reports/funnel?period=not-a-real-period", headers=scenario["admin_headers"]
+        )
+    assert garbage_response.status_code == 200
+    assert garbage_response.json()["data"] == default_response.json()["data"]
+
+
 def test_forecast_includes_zero_probability_stage_with_zero_contribution(scenario):
     with TestClient(app) as client:
         response = client.get("/api/v1/reports/forecast", headers=scenario["admin_headers"])
@@ -340,6 +379,41 @@ def test_invoice_summary_totals_invoiced_paid_and_outstanding(scenario):
     assert Decimal(body["invoiced_total"]) == Decimal("1000.00")
     assert Decimal(body["paid_total"]) == Decimal("400.00")
     assert Decimal(body["outstanding_total"]) == Decimal("600.00")
+
+
+def test_invoice_summary_period_reflects_the_requested_token(scenario):
+    with TestClient(app) as client:
+        default_response = client.get(
+            "/api/v1/reports/invoices", headers=scenario["admin_headers"]
+        )
+        year_response = client.get(
+            "/api/v1/reports/invoices?period=this_year", headers=scenario["admin_headers"]
+        )
+    assert default_response.json()["data"]["period"] == "last_30_days"
+    assert year_response.json()["data"]["period"] == "this_year"
+
+
+def test_invoice_summary_last_year_excludes_an_invoice_issued_this_year(scenario):
+    with TestClient(app) as client:
+        invoice = client.post(
+            f"/api/v1/deals/{scenario['deal_id']}/invoices",
+            json={"invoice_number": "INV-PERIOD-1", "amount": "500.00"},
+            headers=scenario["admin_headers"],
+        ).json()["data"]
+        # issued_at is only stamped on the sent transition, not at creation.
+        client.patch(
+            f"/api/v1/invoices/{invoice['id']}",
+            json={"status": "sent"},
+            headers=scenario["admin_headers"],
+        )
+        this_year_response = client.get(
+            "/api/v1/reports/invoices?period=this_year", headers=scenario["admin_headers"]
+        )
+        last_year_response = client.get(
+            "/api/v1/reports/invoices?period=last_year", headers=scenario["admin_headers"]
+        )
+    assert Decimal(this_year_response.json()["data"]["invoiced_total"]) == Decimal("500.00")
+    assert Decimal(last_year_response.json()["data"]["invoiced_total"]) == Decimal("0")
 
 
 def test_invoice_summary_rework_rate_counts_reworked_then_resent_invoice(scenario):
