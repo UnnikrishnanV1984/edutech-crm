@@ -164,6 +164,19 @@ before starting Phase 6.
   rework when the deal re-enters that stage; all three dashboards show the
   new $ KPIs.
 
+### Phase 7 — OpenFunnel rebrand + design system
+New design system + white-label branding + several UX gaps closed (bulk
+contact actions, pipeline table view, escalation/follow-up snooze,
+workflow rule builder). Sub-phased 7a–7i in `OPENFUNNEL_REBRAND_PLAN.md` —
+7a (token/rebrand foundation) gates every other visual sub-phase.
+Independent of Phase 5/6's remaining scope (disjoint tables/layers, same
+reasoning Phase 6 used against Phase 5).
+- **Exit criteria**: every screen in `design_handoff_crm_wireframes/` has a
+  shipped equivalent; "OpenFunnel" is the only product name a user ever
+  sees; a tenant can publish custom branding that appears in the app
+  shell, outbound email, and generated PDFs with zero effect on tenants
+  who haven't configured any.
+
 ## 3. Suggested working agreement for Claude Code
 
 - Work phase by phase; do not start Phase N+1 work until Phase N's exit

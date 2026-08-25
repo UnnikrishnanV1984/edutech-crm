@@ -1,0 +1,30 @@
+/* CRM wireframes — theme tokens (Classical, light + dark).
+   Light values are the Classical design system's own; dark is the warm
+   near-black companion set used by the wireframes. Import alongside the
+   design system's styles.css. */
+:root{
+  --p:#fdfcfa;   /* paper / page ground            */
+  --p2:#ffffff;  /* raised surface (inputs, cards) */
+  --s:#faf8f4;   /* subtle surface (sidebar)       */
+  --s2:#f7f5ef;  /* quiet fill (pills, zebra)      */
+  --at:#f7f0e2;  /* accent tint (active nav, flags)*/
+  --hatch:#f1ede3;/* placeholder hatch stripe      */
+  --ink:#201f1d;  --ink2:#4c473f;  --mut:#6f6a61;
+  --ln:#e6e2d8;  --ln2:#d8d3c9;  --ln3:#cfc8b8;   /* hairline → strong → dashed */
+  --bar:#e5e1d7; --bar2:#ece8de;                  /* placeholder bars */
+  --ac:#b68235;  --act:#8a6323;  --acl:#e0cda6;   /* accent, accent text, accent line */
+}
+[data-theme="dark"]{
+  --p:#1b1917; --p2:#221f1c; --s:#1f1c1a; --s2:#272320; --at:#2f2618; --hatch:#272320;
+  --ink:#efe9de; --ink2:#cec7ba; --mut:#a49b8c;
+  --ln:#332f29; --ln2:#3e3931; --ln3:#4d463c;
+  --bar:#37322b; --bar2:#2d2924;
+  --ac:#c99a4e; --act:#dcb877; --acl:#6a5533;
+}
+/* Geometry / type used by the wireframes */
+:root{
+  --wf-radius-pill:999px; --wf-radius-lg:14px; --wf-radius-md:10px;
+  --wf-radius-sm:8px; --wf-radius-xs:5px; --wf-radius-phone:22px;
+  --wf-font-heading:'Cormorant Garamond',Georgia,serif;
+  --wf-font-body:Lora,Georgia,serif;
+}
