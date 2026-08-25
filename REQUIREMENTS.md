@@ -156,7 +156,19 @@ Distinct from escalations: a Manager can place a **follow-up flag** on any
 lead independent of SLA/automation — e.g., "check on this personally next
 week." This is a lightweight reminder mechanism (shows on the manager's
 dashboard on the target date) and does not notify or block the counselor;
-it's the manager's own tracking tool, not a directive.
+it's a tracking tool, not a directive.
+
+The Follow-ups queue (`FollowUpFlagsPage.tsx`) is team-wide visibility, not
+locked to each Manager's own list: its filter offers Mine / Everyone / any
+specific person, and any Manager or Admin can select any of those (revised
+2026-08-25 — this supersedes an earlier "manager's own personal list only"
+framing). A per-contact indicator (the Contact Detail page's follow-up flag
+card) is the exception — it stays scoped to the viewing Manager's own flag
+on that contact specifically, since it's a personal "did I flag this"
+signal rather than the team queue. Acting on a flag (resolve/snooze) is
+still restricted to its own Manager or an Admin regardless of who can see
+it — broader visibility doesn't grant edit rights to someone else's
+reminder.
 
 ## 5. Dashboards by role
 

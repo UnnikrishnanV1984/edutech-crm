@@ -33,12 +33,15 @@ async def get_follow_up_flags(
     manager_id: uuid.UUID | None = None,
     context: TenantContext = Depends(require_manager_or_admin),
 ) -> dict:
-    # manager_id is only ever honored for an Admin caller — REQUIREMENTS.md
-    # §4.3 makes this strictly the manager's own personal tracking list, so
-    # a non-admin caller can't broaden or redirect it to anyone else's,
-    # same as GET /escalations' assigned_to scoping.
-    scoped_manager_id = context.user.id if context.user_role != "admin" else manager_id
-    flags = await list_flags(context.db, context.tenant.id, scoped_manager_id, contact_id)
+    # manager_id is honored for any Manager or Admin caller, not just
+    # Admin — the Follow-ups queue's "Everyone" + resource-list filter is
+    # a full team-visibility tool by product decision, superseding
+    # REQUIREMENTS.md §4.3's original "manager's own personal tracking
+    # list" framing. Omitted entirely means unrestricted ("Everyone").
+    # Acting on a flag (resolve/snooze below) is still restricted to its
+    # own manager or an Admin — broader visibility doesn't grant edit
+    # rights to someone else's reminder.
+    flags = await list_flags(context.db, context.tenant.id, manager_id, contact_id)
     enrichment = await enrich_flags(context.db, context.tenant.id, flags)
     return data_envelope(
         [_out(f, enrichment.get(f.id)) for f in flags], request.state.request_id

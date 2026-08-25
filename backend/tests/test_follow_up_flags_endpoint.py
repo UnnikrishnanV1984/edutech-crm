@@ -103,7 +103,9 @@ def test_manager_creates_and_lists_own_flag(scenario):
     assert len(listed.json()["data"]) == 1
 
 
-def test_other_manager_does_not_see_it(scenario):
+def test_other_manager_sees_it_too_by_default(scenario):
+    # REQUIREMENTS.md §4.3 (revised) — the queue defaults to team-wide
+    # visibility ("Everyone"), not each manager's own list.
     with TestClient(app) as client:
         client.post(
             "/api/v1/follow-up-flags",
@@ -117,7 +119,7 @@ def test_other_manager_does_not_see_it(scenario):
         listed = client.get(
             "/api/v1/follow-up-flags", headers=scenario["other_manager_headers"]
         )
-    assert listed.json()["data"] == []
+    assert len(listed.json()["data"]) == 1
 
 
 def test_admin_sees_all_flags(scenario):
@@ -237,12 +239,11 @@ def test_admin_can_filter_by_manager_id(scenario):
     assert scoped_to_other.json()["data"] == []
 
 
-def test_manager_cannot_widen_scope_via_manager_id_param(scenario):
-    """REQUIREMENTS.md §4.3 — a manager's flag list is strictly their own;
-    manager_id is only ever honored for an Admin caller. Passing another
-    manager's id neither reveals that manager's flags nor hides the
-    caller's own — it's silently ignored, same as every other
-    role-scoped endpoint in this app."""
+def test_manager_can_browse_another_managers_flags_via_manager_id_param(scenario):
+    """REQUIREMENTS.md §4.3 (revised 2026-08-25) — the Follow-ups queue is
+    team-wide visibility, not locked to each manager's own list. Any
+    Manager or Admin caller can filter to a specific person, same as the
+    Everyone/resource-list dropdown offers in the UI."""
     with TestClient(app) as client:
         created = client.post(
             "/api/v1/follow-up-flags",
@@ -251,7 +252,7 @@ def test_manager_cannot_widen_scope_via_manager_id_param(scenario):
                 "note": "check in",
                 "remind_on": str(date.today() + timedelta(days=7)),
             },
-            headers=scenario["manager_headers"],
+            headers=scenario["other_manager_headers"],
         ).json()["data"]
         other_manager_id = client.get(
             "/api/v1/me", headers=scenario["other_manager_headers"]
@@ -264,6 +265,49 @@ def test_manager_cannot_widen_scope_via_manager_id_param(scenario):
     data = response.json()["data"]
     assert len(data) == 1
     assert data[0]["id"] == created["id"]
+
+
+def test_manager_sees_everyone_when_manager_id_omitted(scenario):
+    with TestClient(app) as client:
+        client.post(
+            "/api/v1/follow-up-flags",
+            json={
+                "contact_id": scenario["contact_id"],
+                "note": "mine",
+                "remind_on": str(date.today() + timedelta(days=7)),
+            },
+            headers=scenario["manager_headers"],
+        )
+        client.post(
+            "/api/v1/follow-up-flags",
+            json={
+                "contact_id": scenario["contact_id"],
+                "note": "someone else's",
+                "remind_on": str(date.today() + timedelta(days=7)),
+            },
+            headers=scenario["other_manager_headers"],
+        )
+        response = client.get("/api/v1/follow-up-flags", headers=scenario["manager_headers"])
+    assert len(response.json()["data"]) == 2
+
+
+def test_manager_cannot_resolve_another_managers_flag(scenario):
+    """Broader read visibility doesn't grant edit rights — resolving is
+    still restricted to the flag's own manager or an Admin."""
+    with TestClient(app) as client:
+        created = client.post(
+            "/api/v1/follow-up-flags",
+            json={
+                "contact_id": scenario["contact_id"],
+                "note": "check in",
+                "remind_on": str(date.today() + timedelta(days=7)),
+            },
+            headers=scenario["other_manager_headers"],
+        ).json()["data"]
+        response = client.patch(
+            f"/api/v1/follow-up-flags/{created['id']}", headers=scenario["manager_headers"]
+        )
+    assert response.status_code == 403
 
 
 def test_snooze_moves_remind_on_without_resolving(scenario):

@@ -36,11 +36,13 @@ async def list_flags(
     manager_id: uuid.UUID | None,
     contact_id: uuid.UUID | None = None,
 ) -> list[FollowUpFlag]:
-    """manager_id=None means unrestricted (Admin) — REQUIREMENTS.md §4.3:
-    this is the manager's own personal tracking list. contact_id narrows
-    to one contact's flags — Contact Detail's Follow-up flag card, still
-    composed with manager_id so a manager only ever sees their own flag
-    on that contact, never a teammate's."""
+    """manager_id=None means unrestricted ("Everyone") — honored for any
+    Manager or Admin caller (require_manager_or_admin already excludes
+    Staff), per the Follow-ups queue's "Mine / Everyone / a specific
+    person" filter. contact_id narrows to one contact's flags — Contact
+    Detail's Follow-up flag card passes its own manager_id explicitly to
+    stay scoped to the viewing manager's own flag there, since that
+    widget is a personal indicator, not the team-wide queue."""
     stmt = select(FollowUpFlag).where(FollowUpFlag.tenant_id == tenant_id)
     if manager_id is not None:
         stmt = stmt.where(FollowUpFlag.manager_id == manager_id)
