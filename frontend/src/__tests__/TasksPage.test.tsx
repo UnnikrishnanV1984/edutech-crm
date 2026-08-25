@@ -1,22 +1,35 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { getContact } from "../api/contacts";
 import { listTasks, updateTask } from "../api/tasks";
 import { useAuth } from "../auth/context";
 import { TasksPage } from "../pages/TasksPage";
 import { useMe } from "../useMe";
-import { useUsers } from "../useUsers";
+import { userDisplayName, useUsers } from "../useUsers";
 
 vi.mock("../auth/context", () => ({ useAuth: vi.fn() }));
 vi.mock("../useMe", () => ({ useMe: vi.fn() }));
-vi.mock("../useUsers", () => ({ useUsers: vi.fn(), userDisplayName: vi.fn(() => "Someone") }));
+vi.mock("../useUsers", () => ({ useUsers: vi.fn(), userDisplayName: vi.fn() }));
 vi.mock("../api/tasks", () => ({ listTasks: vi.fn(), updateTask: vi.fn(), createTask: vi.fn() }));
+vi.mock("../api/contacts", () => ({ getContact: vi.fn(), listContacts: vi.fn() }));
 
 const mockedUseAuth = vi.mocked(useAuth);
 const mockedUseMe = vi.mocked(useMe);
 const mockedUseUsers = vi.mocked(useUsers);
+const mockedUserDisplayName = vi.mocked(userDisplayName);
 const mockedListTasks = vi.mocked(listTasks);
 const mockedUpdateTask = vi.mocked(updateTask);
+const mockedGetContact = vi.mocked(getContact);
+
+function renderTasksPage() {
+  return render(
+    <MemoryRouter>
+      <TasksPage />
+    </MemoryRouter>,
+  );
+}
 
 const TASK = {
   id: "t1",
@@ -46,10 +59,33 @@ function setup(role: "counselor" | "manager" | "admin" = "counselor") {
     error: undefined,
   });
   mockedUseUsers.mockReturnValue([]);
+  mockedUserDisplayName.mockReturnValue("Someone");
+  mockedGetContact.mockResolvedValue({
+    data: {
+      id: "c1",
+      full_name: "Priya Shah",
+      email: null,
+      phone: null,
+      lead_source: "web",
+      owner_id: "u1",
+      status: "active",
+      territory: null,
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-01T00:00:00Z",
+      current_deal_id: null,
+      stage_id: null,
+      stage_name: null,
+      sla_state: null,
+      sla_target_at: null,
+      sla_target_minutes: null,
+      has_open_follow_up: false,
+    },
+    meta: { request_id: "r1" },
+  });
 }
 
 describe("TasksPage complete/undo", () => {
-  it("optimistically removes a completed task and shows Undo", async () => {
+  it("optimistically strikes through a completed task and shows an inline Undo", async () => {
     setup();
     mockedListTasks.mockResolvedValue({
       data: [TASK],
@@ -57,17 +93,18 @@ describe("TasksPage complete/undo", () => {
     });
     mockedUpdateTask.mockResolvedValue({ data: { ...TASK, status: "done" }, meta: { request_id: "r1" } });
 
-    render(<TasksPage />);
+    renderTasksPage();
     await waitFor(() => expect(screen.getByText("Call back")).toBeInTheDocument());
 
     fireEvent.click(screen.getByLabelText("Complete Call back"));
 
-    await waitFor(() => expect(screen.queryByText("Call back")).not.toBeInTheDocument());
-    expect(screen.getByText(/Completed "Call back"/)).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText("Undo")).toBeInTheDocument());
+    // The row stays in place (struck through), unlike the old page-level banner.
+    expect(screen.getByText("Call back")).toBeInTheDocument();
     expect(mockedUpdateTask).toHaveBeenCalledWith("test-token", "t1", { status: "done" });
   });
 
-  it("clicking Undo restores the task and reverses the status", async () => {
+  it("clicking the inline Undo restores the task and reverses the status", async () => {
     setup();
     mockedListTasks.mockResolvedValue({
       data: [TASK],
@@ -75,14 +112,15 @@ describe("TasksPage complete/undo", () => {
     });
     mockedUpdateTask.mockResolvedValue({ data: { ...TASK, status: "done" }, meta: { request_id: "r1" } });
 
-    render(<TasksPage />);
+    renderTasksPage();
     await waitFor(() => expect(screen.getByText("Call back")).toBeInTheDocument());
     fireEvent.click(screen.getByLabelText("Complete Call back"));
-    await waitFor(() => expect(screen.getByText(/Completed/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Undo")).toBeInTheDocument());
 
     fireEvent.click(screen.getByText("Undo"));
 
-    await waitFor(() => expect(screen.getByText("Call back")).toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByText("Undo")).not.toBeInTheDocument());
+    expect(screen.getByText("Call back")).toBeInTheDocument();
     expect(mockedUpdateTask).toHaveBeenLastCalledWith("test-token", "t1", { status: "open" });
   });
 
@@ -94,12 +132,13 @@ describe("TasksPage complete/undo", () => {
     });
     mockedUpdateTask.mockRejectedValue(new Error("network error"));
 
-    render(<TasksPage />);
+    renderTasksPage();
     await waitFor(() => expect(screen.getByText("Call back")).toBeInTheDocument());
     fireEvent.click(screen.getByLabelText("Complete Call back"));
 
-    await waitFor(() => expect(screen.getByText("Call back")).toBeInTheDocument());
-    expect(screen.queryByText(/Completed/)).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByLabelText("Complete Call back")).not.toBeChecked());
+    expect(screen.getByText("Call back")).toBeInTheDocument();
+    expect(screen.queryByText("Undo")).not.toBeInTheDocument();
   });
 });
 
@@ -113,7 +152,7 @@ describe("TasksPage owner filter", () => {
       meta: { request_id: "r1", page: 1, page_size: 100, total: 0 },
     });
 
-    render(<TasksPage />);
+    renderTasksPage();
     await waitFor(() => expect(mockedListTasks).toHaveBeenCalled());
 
     expect(screen.queryByText("Mine")).not.toBeInTheDocument();
@@ -128,7 +167,7 @@ describe("TasksPage owner filter", () => {
       meta: { request_id: "r1", page: 1, page_size: 100, total: 0 },
     });
 
-    render(<TasksPage />);
+    renderTasksPage();
     await waitFor(() => expect(screen.getByText("Mine")).toBeInTheDocument());
 
     expect(screen.queryByText("Everyone")).not.toBeInTheDocument();
@@ -141,7 +180,7 @@ describe("TasksPage owner filter", () => {
       meta: { request_id: "r1", page: 1, page_size: 100, total: 0 },
     });
 
-    render(<TasksPage />);
+    renderTasksPage();
     await waitFor(() => expect(screen.getByText("Mine")).toBeInTheDocument());
 
     expect(screen.getByLabelText("Filter by owner")).toBeInTheDocument();
@@ -155,7 +194,7 @@ describe("TasksPage owner filter", () => {
       meta: { request_id: "r1", page: 1, page_size: 100, total: 0 },
     });
 
-    render(<TasksPage />);
+    renderTasksPage();
     await waitFor(() =>
       expect(screen.getByLabelText<HTMLSelectElement>("Filter by owner").value).toBe("everyone"),
     );
@@ -181,7 +220,7 @@ describe("TasksPage board view", () => {
       });
     });
 
-    render(<TasksPage />);
+    renderTasksPage();
     await waitFor(() => expect(screen.getByText("Call back")).toBeInTheDocument());
 
     expect(mockedListTasks).not.toHaveBeenCalledWith(
