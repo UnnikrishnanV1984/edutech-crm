@@ -96,6 +96,13 @@ export interface MyStats {
   conversion_rate: number;
 }
 
+export interface EscalationSummary {
+  open: number;
+  breaching_within_1h: number;
+  avg_resolve_minutes: number;
+  reopened: number;
+}
+
 function periodQuery(period?: ReportPeriod): string {
   return period ? `?period=${period}` : "";
 }
@@ -150,6 +157,12 @@ export async function getMyStats(
   period?: ReportPeriod,
 ): Promise<ReportEnvelope<MyStats>> {
   return apiGet<ReportEnvelope<MyStats>>(token, `/api/v1/reports/my-stats${periodQuery(period)}`);
+}
+
+export async function getEscalationSummary(
+  token: string,
+): Promise<ReportEnvelope<EscalationSummary>> {
+  return apiGet<ReportEnvelope<EscalationSummary>>(token, "/api/v1/reports/escalations");
 }
 
 // Re-exported so pages don't need to import DataEnvelope separately when

@@ -2,7 +2,7 @@ import { apiGet, apiPatch, apiPost } from "./client";
 import type { DataEnvelope } from "./types";
 
 export type EscalationSource = "sla_breach" | "workflow_failure" | "rule_triggered" | "manual";
-export type EscalationStatus = "open" | "acknowledged" | "resolved" | "reassigned";
+export type EscalationStatus = "open" | "acknowledged" | "resolved" | "reassigned" | "snoozed";
 
 export interface Escalation {
   id: string;
@@ -19,10 +19,20 @@ export interface Escalation {
   opened_at: string;
   acknowledged_at: string | null;
   resolved_at: string | null;
+  snoozed_until: string | null;
+  was_reopened: boolean;
+  contact_id: string | null;
+  contact_name: string | null;
+  rule_name: string | null;
+  assigned_to_name: string | null;
 }
 
-export async function listEscalations(token: string): Promise<DataEnvelope<Escalation[]>> {
-  return apiGet<DataEnvelope<Escalation[]>>(token, "/api/v1/escalations");
+export async function listEscalations(
+  token: string,
+  params?: { status?: EscalationStatus },
+): Promise<DataEnvelope<Escalation[]>> {
+  const query = params?.status ? `?status=${params.status}` : "";
+  return apiGet<DataEnvelope<Escalation[]>>(token, `/api/v1/escalations${query}`);
 }
 
 export async function raiseEscalation(
@@ -35,7 +45,12 @@ export async function raiseEscalation(
 export async function updateEscalation(
   token: string,
   escalationId: string,
-  input: { status?: "acknowledged" | "resolved"; resolution_note?: string; reassign_to?: string },
+  input: {
+    status?: "acknowledged" | "resolved" | "snoozed";
+    resolution_note?: string;
+    reassign_to?: string;
+    snoozed_until?: string;
+  },
 ): Promise<DataEnvelope<Escalation>> {
   return apiPatch<DataEnvelope<Escalation>>(token, `/api/v1/escalations/${escalationId}`, input);
 }
