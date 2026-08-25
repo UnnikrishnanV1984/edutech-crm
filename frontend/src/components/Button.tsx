@@ -13,7 +13,9 @@ const variantClass: Record<Variant, string> = {
 };
 
 const variantStyles: Record<Variant, React.CSSProperties> = {
-  primary: { background: "var(--accent)", color: "var(--accent-fg)", border: "1px solid var(--accent)" },
+  // Accent-outlined, never filled — the Classical design system applies
+  // accent as stroke/tint only (design_handoff_crm_wireframes/README.md).
+  primary: { background: "transparent", color: "var(--accent)", border: "1px solid var(--accent)" },
   secondary: { background: "transparent", color: "var(--text-h)" },
   text: {
     background: "transparent",

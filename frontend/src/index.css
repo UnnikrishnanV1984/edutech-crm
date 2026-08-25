@@ -235,8 +235,9 @@ button:disabled {
 }
 
 .btn-primary:not(:disabled):hover {
-  background: var(--accent-hover);
+  background: var(--accent-subtle);
   border-color: var(--accent-hover);
+  color: var(--accent-hover);
 }
 
 .btn-secondary:not(:disabled):hover {
