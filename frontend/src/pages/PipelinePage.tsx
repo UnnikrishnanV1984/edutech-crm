@@ -14,7 +14,9 @@ import { PageSpinner } from "../components/Spinner";
 import { useToast } from "../components/toastContext";
 import { defaultOwnerFilterValue } from "../ownerFilter";
 import { stageColor, stageIcon } from "../stageColor";
+import type { TenantUser } from "../api/users";
 import { userDisplayName, useUsers } from "../useUsers";
+import { useIsMobile } from "../useIsMobile";
 import { useMe } from "../useMe";
 import { CreateDealPanel } from "./CreateDealPanel";
 
@@ -78,14 +80,133 @@ function FilterSelect({
   );
 }
 
+// Every card carries a "Move ▾" select alongside the drag interaction —
+// design_handoff_crm_wireframes/ screen 13's phone mock replaces drag
+// with this control entirely below 900px (native HTML5 drag doesn't fire
+// on touch), and it's harmless/useful as a keyboard-accessible fallback
+// on desktop too, so it's always rendered rather than conditionally
+// swapped in.
+function DealCard({
+  deal,
+  contact,
+  stage,
+  stages,
+  stageIndex,
+  users,
+  courseName,
+  dragging,
+  onDragStart,
+  onDragEnd,
+  onClick,
+  onMove,
+}: {
+  deal: Deal;
+  contact: Contact | undefined;
+  stage: PipelineStage;
+  stages: PipelineStage[];
+  stageIndex: number;
+  users: TenantUser[];
+  courseName: (courseId: string | null) => string | null;
+  dragging: boolean;
+  onDragStart: () => void;
+  onDragEnd: () => void;
+  onClick: () => void;
+  onMove: (deal: Deal, stage: PipelineStage) => void;
+}) {
+  const tone = stageColor(stage, stageIndex);
+  // Reading the clock for a display-only "days in stage" label, not for
+  // reconciliation identity — safe to call during render here (same
+  // reasoning as TasksSection.tsx's own now/Date.now() usage).
+  // oxlint-disable-next-line react/purity
+  const now = Date.now();
+  const daysInStage = Math.floor((now - new Date(deal.stage_changed_at).getTime()) / 86_400_000);
+  const atRisk = deal.sla_state === "at_risk" || deal.sla_state === "breached";
+
+  return (
+    <div
+      draggable
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+      onClick={onClick}
+      style={{
+        background: "var(--elevation-2)",
+        borderLeft: `2px solid ${atRisk ? "var(--accent)" : tone.fg}`,
+        border: "1px solid var(--border)",
+        borderRadius: "var(--radius)",
+        padding: "var(--space-2)",
+        cursor: "grab",
+        boxShadow: dragging ? "var(--shadow-lg)" : undefined,
+        transform: dragging ? "rotate(-0.6deg)" : undefined,
+        transition: "box-shadow 120ms ease, transform 120ms ease",
+      }}
+    >
+      <div style={{ fontWeight: "var(--weight-semibold)", fontSize: "var(--text-sm)" }}>
+        {contact?.full_name ?? "…"}
+      </div>
+      {courseName(deal.course_id) && (
+        <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
+          {courseName(deal.course_id)}
+        </div>
+      )}
+      {Number(deal.value) > 0 && (
+        <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
+          {deal.currency} {Number(deal.value).toLocaleString()}
+        </div>
+      )}
+      <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>
+        <Avatar name={userDisplayName(users, deal.owner_id)} size={18} />
+        {stage.is_invoice_stage ? (
+          <Badge variant="chip" label="Invoice" />
+        ) : atRisk ? (
+          <Badge variant="chip" label="SLA" tone={SLA_TONE[deal.sla_state ?? "at_risk"]} />
+        ) : (
+          <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
+            {daysInStage}d
+          </span>
+        )}
+        <div style={{ flex: 1 }} />
+        <select
+          aria-label={`Move ${contact?.full_name ?? "deal"} to a different stage`}
+          value=""
+          onClick={(event) => event.stopPropagation()}
+          onChange={(event) => {
+            const target = stages.find((s) => s.id === event.target.value);
+            if (target) onMove(deal, target);
+            event.currentTarget.value = "";
+          }}
+          style={{
+            fontSize: "var(--text-xs)",
+            padding: "2px 6px",
+            borderRadius: 999,
+            border: "1px solid var(--border)",
+            background: "transparent",
+            color: "var(--text-muted)",
+          }}
+        >
+          <option value="">Move ▾</option>
+          {stages
+            .filter((s) => s.id !== stage.id)
+            .map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+        </select>
+      </div>
+    </div>
+  );
+}
+
 export function PipelinePage() {
   const { token } = useAuth();
   const { me } = useMe();
   const users = useUsers();
   const { showToast } = useToast();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
 
   const [stages, setStages] = useState<PipelineStage[]>([]);
+  const [mobileStageId, setMobileStageId] = useState<string | undefined>(undefined);
   const [deals, setDeals] = useState<Deal[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
   const [contactsById, setContactsById] = useState<Record<string, Contact>>({});
@@ -139,6 +260,13 @@ export function PipelinePage() {
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(load, [token, ownerId, courseFilter, slaState, me]);
+
+  useEffect(() => {
+    if (stages.length > 0 && !stages.some((s) => s.id === mobileStageId)) {
+      setMobileStageId(stages[0]!.id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stages]);
 
   function courseName(courseId: string | null) {
     if (!courseId) return null; // non-EdTech deal, no course to show
@@ -276,11 +404,78 @@ export function PipelinePage() {
       <div style={{ padding: "var(--space-4) var(--space-5)" }}>
         {!loaded && <PageSpinner />}
 
-        {loaded && view === "board" && (
+        {loaded && view === "board" && isMobile && (
+          <>
+            <div
+              className="pipeline-columns"
+              style={{ paddingBottom: "var(--space-2)", marginBottom: "var(--space-3)" }}
+            >
+              {stages.map((stage) => {
+                const count = visibleDeals.filter((d) => d.stage_id === stage.id).length;
+                const active = stage.id === mobileStageId;
+                return (
+                  <button
+                    key={stage.id}
+                    type="button"
+                    onClick={() => setMobileStageId(stage.id)}
+                    style={{
+                      flexShrink: 0,
+                      fontSize: "var(--text-xs)",
+                      fontWeight: "var(--weight-semibold)",
+                      padding: "var(--space-2) var(--space-3)",
+                      borderRadius: 999,
+                      border: `1px solid ${active ? "var(--accent)" : "var(--border)"}`,
+                      background: active ? "var(--accent-subtle)" : "transparent",
+                      color: active ? "var(--text-h)" : "var(--text-muted)",
+                      cursor: "pointer",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {stage.name} {String(count).padStart(2, "0")}
+                  </button>
+                );
+              })}
+            </div>
+
+            {(() => {
+              const stageIndex = stages.findIndex((s) => s.id === mobileStageId);
+              const stage = stages[stageIndex];
+              if (!stage) return null;
+              const columnDeals = visibleDeals.filter((d) => d.stage_id === stage.id);
+              return (
+                <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
+                  {columnDeals.length === 0 && (
+                    <p style={{ color: "var(--text-muted)", fontSize: "var(--text-sm)" }}>
+                      Nothing in {stage.name} yet.
+                    </p>
+                  )}
+                  {columnDeals.map((deal) => (
+                    <DealCard
+                      key={deal.id}
+                      deal={deal}
+                      contact={contactsById[deal.contact_id]}
+                      stage={stage}
+                      stages={stages}
+                      stageIndex={stageIndex}
+                      users={users}
+                      courseName={courseName}
+                      dragging={false}
+                      onDragStart={() => undefined}
+                      onDragEnd={() => undefined}
+                      onClick={() => navigate(`/contacts/${deal.contact_id}`)}
+                      onMove={(d, s) => void moveDeal(d, s)}
+                    />
+                  ))}
+                </div>
+              );
+            })()}
+          </>
+        )}
+
+        {loaded && view === "board" && !isMobile && (
           <>
             <div className="pipeline-columns">
               {stages.map((stage, index) => {
-                const tone = stageColor(stage, index);
                 const columnDeals = visibleDeals.filter((d) => d.stage_id === stage.id);
                 const isDragOver = dragOverStageId === stage.id;
                 return (
@@ -331,74 +526,26 @@ export function PipelinePage() {
                         gap: "var(--space-2)",
                       }}
                     >
-                      {columnDeals.map((deal) => {
-                        const contact = contactsById[deal.contact_id];
-                        const daysInStage = Math.floor(
-                          (Date.now() - new Date(deal.stage_changed_at).getTime()) / 86_400_000,
-                        );
-                        const dragging = draggingDealId === deal.id;
-                        const atRisk = deal.sla_state === "at_risk" || deal.sla_state === "breached";
-                        return (
-                          <div
-                            key={deal.id}
-                            draggable
-                            onDragStart={() => setDraggingDealId(deal.id)}
-                            onDragEnd={() => {
-                              setDraggingDealId(undefined);
-                              setDragOverStageId(undefined);
-                            }}
-                            onClick={() => navigate(`/contacts/${deal.contact_id}`)}
-                            style={{
-                              background: "var(--elevation-2)",
-                              borderLeft: `2px solid ${atRisk ? "var(--accent)" : tone.fg}`,
-                              border: "1px solid var(--border)",
-                              borderRadius: "var(--radius)",
-                              padding: "var(--space-2)",
-                              cursor: "grab",
-                              boxShadow: dragging ? "var(--shadow-lg)" : undefined,
-                              transform: dragging ? "rotate(-0.6deg)" : undefined,
-                              transition: "box-shadow 120ms ease, transform 120ms ease",
-                            }}
-                          >
-                            <div style={{ fontWeight: "var(--weight-semibold)", fontSize: "var(--text-sm)" }}>
-                              {contact?.full_name ?? "…"}
-                            </div>
-                            {courseName(deal.course_id) && (
-                              <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
-                                {courseName(deal.course_id)}
-                              </div>
-                            )}
-                            {Number(deal.value) > 0 && (
-                              <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
-                                {deal.currency} {Number(deal.value).toLocaleString()}
-                              </div>
-                            )}
-                            <div
-                              style={{
-                                display: "flex",
-                                justifyContent: "space-between",
-                                alignItems: "center",
-                                marginTop: 4,
-                              }}
-                            >
-                              <Avatar name={userDisplayName(users, deal.owner_id)} size={18} />
-                              {stage.is_invoice_stage ? (
-                                <Badge variant="chip" label="Invoice" />
-                              ) : atRisk ? (
-                                <Badge
-                                  variant="chip"
-                                  label="SLA"
-                                  tone={SLA_TONE[deal.sla_state ?? "at_risk"]}
-                                />
-                              ) : (
-                                <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
-                                  {daysInStage}d
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
+                      {columnDeals.map((deal) => (
+                        <DealCard
+                          key={deal.id}
+                          deal={deal}
+                          contact={contactsById[deal.contact_id]}
+                          stage={stage}
+                          stages={stages}
+                          stageIndex={index}
+                          users={users}
+                          courseName={courseName}
+                          dragging={draggingDealId === deal.id}
+                          onDragStart={() => setDraggingDealId(deal.id)}
+                          onDragEnd={() => {
+                            setDraggingDealId(undefined);
+                            setDragOverStageId(undefined);
+                          }}
+                          onClick={() => navigate(`/contacts/${deal.contact_id}`)}
+                          onMove={(d, s) => void moveDeal(d, s)}
+                        />
+                      ))}
                       {isDragOver && (
                         <div
                           style={{
@@ -434,6 +581,7 @@ export function PipelinePage() {
         )}
 
         {loaded && view === "table" && (
+          <div className="table-scroll">
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr style={{ textAlign: "left", color: "var(--text-muted)", fontSize: 13 }}>
@@ -494,6 +642,7 @@ export function PipelinePage() {
               })}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 
@@ -587,6 +736,7 @@ function PipelineCreateDealEntry({
         onClick={(event) => event.stopPropagation()}
         style={{
           width: 420,
+          maxWidth: "100%",
           background: "var(--elevation-2)",
           borderLeft: "1px solid var(--border)",
           boxShadow: "var(--shadow-md)",

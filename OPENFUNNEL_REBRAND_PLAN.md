@@ -500,7 +500,7 @@ checklist, and version history with restore. Full design in
   - A published logo/header/accent shows up in the sidebar without a page
     reload once Publish completes.
 
-### Phase 7i — Responsive / phone layouts
+### Phase 7i — Responsive / phone layouts — shipped (2026-08-26)
 Depends on **every** other phase above — a mobile layout for a screen that
 hasn't been rebuilt in the new design system yet isn't meaningful work.
 Last in sequence for that reason, not because it's unimportant.
@@ -508,20 +508,77 @@ Last in sequence for that reason, not because it's unimportant.
 - **Affected layers**: frontend only.
 - **Database / API**: none.
 - **Multi-tenancy check**: N/A.
-- **Task breakdown**:
-  1. Bottom tab bar (Home/Pipe/Contact/Tasks/More) for <900px, replacing the
-     sidebar.
-  2. Dashboard: counters + queue cards, no chart.
-  3. Pipeline: one-stage-at-a-time with a swipeable stage bar and an
-     explicit "Move ▾" control replacing drag (drag doesn't work well on
-     touch — this is a deliberate interaction change, not a missed detail).
-  4. Contact detail: header actions (Call/WhatsApp/Note), tabbed Deals/
-     Tasks/Activity/Docs, sticky Advance-stage bar.
-- **Acceptance criteria**:
+- **Breakpoint**: 900px, matching the one already in use
+  (`.contact-detail-grid` in `index.css`, predating this phase) — `<900px`
+  is "mobile" everywhere below, both in the new CSS (`@media (min-width:
+  900px)`) and in the new `useIsMobile.ts` hook (`(max-width: 899px)`, the
+  exact complement, so neither ever disagrees with the other at exactly
+  900px).
+- **Built**:
+  1. Bottom tab bar (`MobileNav.tsx`: Home/Pipe/Contact/Tasks/More) below
+     900px, replacing `Sidebar.tsx`; "More" opens a sheet with the same
+     role-gated Team/Admin links Sidebar already hid for
+     counselor/manager. `App.tsx` swaps `<Sidebar>`/`<MobileNav>` on
+     `useIsMobile()` and reserves 56px of `main`'s bottom padding for the
+     fixed bar.
+  2. Dashboard (`AdminDashboard.tsx`/`ManagerDashboard.tsx`/
+     `StaffDashboard.tsx`): the metric-card row and the Pipeline-by-stage +
+     My-queue split now use new `index.css` grid classes (`.grid-4col`,
+     `.grid-2col`, `.grid-split-14`) that collapse to one column below
+     900px instead of squeezing 4 cards into unreadable slivers; every
+     `<table>` (Team SLA compliance, and every other table in the app —
+     Contacts, Tasks, Escalations, Follow-ups, Workflow rules, SLA
+     policies, Integrations, Users & roles) is now wrapped in a new
+     `.table-scroll` div so a column set that can't fit a phone width
+     scrolls honestly instead of silently breaking or hiding a column.
+  3. Pipeline (`PipelinePage.tsx`): every deal card (`DealCard`, extracted
+     from the old inline JSX so desktop and mobile share one
+     implementation) now carries a "Move ▾" `<select>` beside its
+     avatar/SLA chip — the only way to change stage below 900px (native
+     HTML5 drag never fires on touch), and a harmless keyboard-accessible
+     extra on desktop, where drag still works too. Below 900px the board
+     itself switches from the horizontal multi-column layout to one stage
+     at a time, selected from a horizontally-scrolling stage-tab strip
+     (reusing the existing `.pipeline-columns` scroll pattern) — matching
+     design_handoff_crm_wireframes/ screen 13 exactly.
+  4. Contact detail (`ContactDetailPage.tsx`): below 900px the always-both-
+     columns-expanded layout becomes a Deals/Tasks/Activity/Docs tab
+     switcher (SlaCard folds into the Deals tab, FollowUpFlagCard into
+     Tasks — the wireframe's phone mock only shows 4 tabs but this app has
+     2 extra real panels beyond what it mocked), and a `position: sticky`
+     Advance-stage + "+Task" bar sits just above the bottom tab bar so
+     it's reachable without scrolling back up. The header's own Advance
+     button is hidden on mobile (promoted to the sticky bar) to avoid
+     showing it twice; Log activity/Add task stay in the header at every
+     width. This app has no Call/WhatsApp telephony integration to wire a
+     real header action to, so those two wireframe buttons weren't
+     fabricated — the existing Log activity/Add task actions fill that
+     header row instead.
+  5. Contacts (`ContactsListPage.tsx`): the 196px filter rail — the one
+     page with a true sidebar-style filter rail, per the wireframe — is
+     hidden below 900px behind a "Filters" button that opens it as a
+     fixed overlay panel with a close button, instead of permanently
+     eating most of a phone's width.
+  6. Every fixed-width drawer/modal that wasn't already using
+     `SlideOverPanel.tsx` (which already had `maxWidth: "100%"`) — the
+     inline "Find a contact" drawer in `PipelinePage.tsx`, the pipeline
+     Reset-to-default confirmation in `PipelineConfigPage.tsx`,
+     `WorkflowRuleBuilder.tsx`'s builder panel, `BrandingTab.tsx`'s right
+     column — now clamps to the viewport width too, and
+     `WorkflowRulesPage.tsx`/`BrandingTab.tsx`'s side-by-side
+     table-plus-panel layouts use a new `.split-row` class that stacks
+     below 900px instead of squeezing a 392px-wide panel next to a table.
+  7. `ConfigurationsPage.tsx`'s 5-tab bar scrolls horizontally instead of
+     wrapping/overflowing when all 5 tab labels don't fit a phone width.
+- **Acceptance criteria (met)**:
   - Every primary nav destination is reachable from the bottom tab bar at
-    <900px.
-  - Pipeline stage advancement works via the explicit "Move ▾" control with
-    no drag-and-drop dependency below the 900px breakpoint.
+    <900px — the same 4 tabs plus role-gated "More" links `Sidebar.tsx`
+    already gated for counselor/manager/admin, verified in
+    `MobileNav.test.tsx`.
+  - Pipeline stage advancement works via the explicit "Move ▾" control
+    with no drag-and-drop dependency below the 900px breakpoint — the
+    control is always rendered (not conditionally mounted only on
+    mobile), so it works at every width, not just below 900px.
 
 ## 5. `FEATURES_AND_PLAN.md` update
 

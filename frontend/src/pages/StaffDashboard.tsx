@@ -59,7 +59,7 @@ export function StaffDashboard() {
 
       {loaded && (
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)" }}>
-        <div style={{ display: "flex", gap: "var(--space-4)" }}>
+        <div className="grid-4col">
           <MetricCard label="Open deals" value={openDeals} />
           <MetricCard label="SLA at risk" value={atRisk} accent />
           <MetricCard label="Breached" value={breached} />
@@ -69,7 +69,7 @@ export function StaffDashboard() {
           />
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: "var(--space-5)" }}>
+        <div className="grid-split-14">
           <PipelineByStageCard funnel={funnel} stages={stages} />
           {token && me && <MyQueueTodayCard token={token} meId={me.user.id} />}
         </div>

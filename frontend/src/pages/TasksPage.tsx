@@ -284,13 +284,15 @@ export function TasksPage() {
 
   function TaskGroupTable({ rows, overdue }: { rows: Task[]; overdue: boolean }) {
     return (
-      <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 6 }}>
-        <tbody>
-          {rows.map((task) => (
-            <TaskRow key={task.id} task={task} overdue={overdue} />
-          ))}
-        </tbody>
-      </table>
+      <div className="table-scroll">
+        <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 6 }}>
+          <tbody>
+            {rows.map((task) => (
+              <TaskRow key={task.id} task={task} overdue={overdue} />
+            ))}
+          </tbody>
+        </table>
+      </div>
     );
   }
 
@@ -355,7 +357,7 @@ export function TasksPage() {
       )}
 
       {tasks && tasks.length > 0 && view === "board" && (
-        <div style={{ display: "flex", gap: 16 }}>
+        <div className="grid-2col">
           <div style={{ flex: 1 }}>
             <GroupHeader label="Open" count={tasks.length} />
             <TaskGroupTable

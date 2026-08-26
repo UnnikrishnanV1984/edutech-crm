@@ -126,7 +126,7 @@ export function WorkflowRulesPage() {
         </Button>
       </div>
 
-      <div style={{ display: "flex", gap: "var(--space-4)", alignItems: "flex-start" }}>
+      <div className="split-row">
         <div style={{ flex: 1, minWidth: 0 }}>
           <Card>
             {rules === undefined && <PageSpinner />}
@@ -134,6 +134,7 @@ export function WorkflowRulesPage() {
             {rules && rules.length === 0 && <EmptyState headline="No workflow rules yet" />}
 
             {rules && rules.length > 0 && (
+              <div className="table-scroll">
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead>
                   <tr style={{ textAlign: "left", borderBottom: "1px solid var(--border)" }}>
@@ -229,6 +230,7 @@ export function WorkflowRulesPage() {
                   })}
                 </tbody>
               </table>
+              </div>
             )}
 
             {recentRuns.length > 0 && (

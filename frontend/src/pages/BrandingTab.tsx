@@ -281,7 +281,7 @@ export function BrandingTab() {
   const ratio = draft.accent_color ? contrastRatio(draft.accent_color, headerBgColor) : undefined;
 
   return (
-    <div style={{ display: "flex", gap: "var(--space-4)", alignItems: "flex-start" }}>
+    <div className="split-row">
       <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 14 }}>
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
           <Button variant="secondary" disabled={discarding} onClick={() => void handleDiscard()}>
@@ -307,7 +307,7 @@ export function BrandingTab() {
           <p style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)", marginTop: -8 }}>
             Changes save to the draft immediately — nothing here is live until you Publish.
           </p>
-          <div style={{ display: "flex", gap: 14, marginTop: 12 }}>
+          <div style={{ display: "flex", gap: 14, marginTop: 12, flexWrap: "wrap" }}>
             <UploadWell
               assetType="logo"
               label="Logo — square mark"
@@ -323,8 +323,8 @@ export function BrandingTab() {
               onUploaded={loadDraft}
             />
           </div>
-          <div style={{ display: "flex", gap: 14, marginTop: 14 }}>
-            <label style={{ flex: 1 }}>
+          <div style={{ display: "flex", gap: 14, marginTop: 14, flexWrap: "wrap" }}>
+            <label style={{ flex: 1, minWidth: 160 }}>
               <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
                 Company display name
               </span>
@@ -549,7 +549,7 @@ export function BrandingTab() {
         </Card>
       </div>
 
-      <div style={{ width: 392, flex: "none", display: "flex", flexDirection: "column", gap: 14 }}>
+      <div style={{ width: 392, maxWidth: "100%", flex: "none", display: "flex", flexDirection: "column", gap: 14 }}>
         <BrandingLivePreview draft={draft} />
         <BrandingVersionHistory versions={versions} onRestored={() => void handleRestored()} />
       </div>

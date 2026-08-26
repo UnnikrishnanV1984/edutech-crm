@@ -11,6 +11,7 @@ import { Button } from "../components/Button";
 import { PageSpinner } from "../components/Spinner";
 import { leadSourceColor, leadSourceLabel } from "../leadSource";
 import { userDisplayName, useUsers } from "../useUsers";
+import { useIsMobile } from "../useIsMobile";
 import { useMe } from "../useMe";
 import { ActivitySection } from "./ActivitySection";
 import { CreateTaskPanel } from "./CreateTaskPanel";
@@ -26,6 +27,7 @@ export function ContactDetailPage() {
   const { token } = useAuth();
   const { me } = useMe();
   const users = useUsers();
+  const isMobile = useIsMobile();
   const [contact, setContact] = useState<Contact | undefined>(undefined);
   const [stages, setStages] = useState<PipelineStage[]>([]);
   const [editingName, setEditingName] = useState(false);
@@ -39,6 +41,7 @@ export function ContactDetailPage() {
   const [dealsKey, setDealsKey] = useState(0);
   const [tasksKey, setTasksKey] = useState(0);
   const [activityKey, setActivityKey] = useState(0);
+  const [mobileTab, setMobileTab] = useState<"deals" | "tasks" | "activity" | "docs">("deals");
 
   function loadContact() {
     if (!token || !contactId) return;
@@ -164,14 +167,16 @@ export function ContactDetailPage() {
           <Button variant="secondary" onClick={() => setShowAddTask(true)}>
             Add task
           </Button>
-          <Button
-            variant="primary"
-            disabled={!nextStage || advancing}
-            title={!nextStage ? "No active deal, or already at the final stage" : undefined}
-            onClick={() => void advanceStage()}
-          >
-            {advancing ? "Advancing…" : nextStage ? `Advance to ${nextStage.name}` : "Advance stage"}
-          </Button>
+          {!isMobile && (
+            <Button
+              variant="primary"
+              disabled={!nextStage || advancing}
+              title={!nextStage ? "No active deal, or already at the final stage" : undefined}
+              onClick={() => void advanceStage()}
+            >
+              {advancing ? "Advancing…" : nextStage ? `Advance to ${nextStage.name}` : "Advance stage"}
+            </Button>
+          )}
         </div>
 
         <div style={{ display: "flex", gap: "var(--space-6)", marginTop: "var(--space-4)", flexWrap: "wrap" }}>
@@ -224,23 +229,113 @@ export function ContactDetailPage() {
         </div>
       </header>
 
-      <div className="contact-detail-grid">
-        <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
-          <DealsSection key={dealsKey} contactId={contactId} />
-          <ActivitySection key={activityKey} contactId={contactId} />
+      {isMobile ? (
+        <div>
+          <div className="table-scroll" style={{ display: "flex", borderBottom: "1px solid var(--border)" }}>
+            {(
+              [
+                { value: "deals", label: "Deals" },
+                { value: "tasks", label: "Tasks" },
+                { value: "activity", label: "Activity" },
+                { value: "docs", label: "Docs" },
+              ] as const
+            ).map((tab) => (
+              <button
+                key={tab.value}
+                type="button"
+                onClick={() => setMobileTab(tab.value)}
+                style={{
+                  padding: "8px 14px",
+                  border: "none",
+                  background: "none",
+                  cursor: "pointer",
+                  fontSize: "var(--text-sm)",
+                  fontWeight:
+                    mobileTab === tab.value ? "var(--weight-semibold)" : "var(--weight-normal)",
+                  color: mobileTab === tab.value ? "var(--text-h)" : "var(--text-muted)",
+                  borderBottom:
+                    mobileTab === tab.value ? "2px solid var(--accent)" : "2px solid transparent",
+                  marginBottom: -1,
+                  whiteSpace: "nowrap",
+                  flexShrink: 0,
+                }}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)", marginTop: "var(--space-4)" }}>
+            {mobileTab === "deals" && (
+              <>
+                <SlaCard
+                  dealId={contact.current_deal_id}
+                  slaState={contact.sla_state}
+                  targetAt={contact.sla_target_at}
+                  targetMinutes={contact.sla_target_minutes}
+                />
+                <DealsSection key={dealsKey} contactId={contactId} />
+              </>
+            )}
+            {mobileTab === "tasks" && (
+              <>
+                <TasksSection key={tasksKey} contactId={contactId} contactName={contact.full_name} />
+                {canSeeFollowUpFlag && <FollowUpFlagCard contactId={contactId} />}
+              </>
+            )}
+            {mobileTab === "activity" && <ActivitySection key={activityKey} contactId={contactId} />}
+            {mobileTab === "docs" && <DocumentsSection contactId={contactId} />}
+          </div>
         </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
-          <SlaCard
-            dealId={contact.current_deal_id}
-            slaState={contact.sla_state}
-            targetAt={contact.sla_target_at}
-            targetMinutes={contact.sla_target_minutes}
-          />
-          <TasksSection key={tasksKey} contactId={contactId} contactName={contact.full_name} />
-          <DocumentsSection contactId={contactId} />
-          {canSeeFollowUpFlag && <FollowUpFlagCard contactId={contactId} />}
+      ) : (
+        <div className="contact-detail-grid">
+          <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
+            <DealsSection key={dealsKey} contactId={contactId} />
+            <ActivitySection key={activityKey} contactId={contactId} />
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
+            <SlaCard
+              dealId={contact.current_deal_id}
+              slaState={contact.sla_state}
+              targetAt={contact.sla_target_at}
+              targetMinutes={contact.sla_target_minutes}
+            />
+            <TasksSection key={tasksKey} contactId={contactId} contactName={contact.full_name} />
+            <DocumentsSection contactId={contactId} />
+            {canSeeFollowUpFlag && <FollowUpFlagCard contactId={contactId} />}
+          </div>
         </div>
-      </div>
+      )}
+
+      {isMobile && (
+        <div
+          style={{
+            position: "sticky",
+            bottom: 56,
+            marginTop: "var(--space-4)",
+            padding: "var(--space-3)",
+            background: "var(--elevation-2)",
+            border: "1px solid var(--border)",
+            borderRadius: "var(--radius-lg)",
+            boxShadow: "var(--shadow-md)",
+            display: "flex",
+            gap: "var(--space-2)",
+          }}
+        >
+          <Button
+            variant="primary"
+            disabled={!nextStage || advancing}
+            title={!nextStage ? "No active deal, or already at the final stage" : undefined}
+            onClick={() => void advanceStage()}
+            style={{ flex: 1, textAlign: "center" }}
+          >
+            {advancing ? "Advancing…" : nextStage ? `Advance to ${nextStage.name}` : "Advance stage"}
+          </Button>
+          <Button variant="secondary" onClick={() => setShowAddTask(true)}>
+            + Task
+          </Button>
+        </div>
+      )}
 
       {showLogActivity && (
         <LogActivityPanel

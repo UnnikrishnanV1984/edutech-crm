@@ -76,19 +76,29 @@ export function TopBar() {
           padding: hasHeaderImage ? "4px 10px" : 0,
           borderRadius: "var(--radius)",
           background: hasHeaderImage ? "rgba(0, 0, 0, 0.4)" : "transparent",
+          minWidth: 0,
         }}
       >
         {branding?.logo_url && (
           <img
             src={branding.logo_url}
             alt={displayName ?? "Tenant logo"}
-            style={{ width: 28, height: 28, borderRadius: "var(--radius-sm)", objectFit: "cover" }}
+            style={{
+              width: 28,
+              height: 28,
+              borderRadius: "var(--radius-sm)",
+              objectFit: "cover",
+              flexShrink: 0,
+            }}
           />
         )}
         <strong
           style={{
             fontSize: "var(--text-lg)",
             color: hasHeaderImage ? "#ffffff" : "var(--text-h)",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
           }}
         >
           {displayName ?? "OpenFunnel"}

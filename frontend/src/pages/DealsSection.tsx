@@ -114,6 +114,7 @@ export function DealsSection({ contactId }: DealsSectionProps) {
         </div>
       )}
       {deals && deals.length > 0 && (
+        <div className="table-scroll">
         <table style={{ width: "100%", borderCollapse: "collapse", marginTop: "var(--space-3)" }}>
           <tbody>
             {deals.map((deal) => {
@@ -150,6 +151,7 @@ export function DealsSection({ contactId }: DealsSectionProps) {
             })}
           </tbody>
         </table>
+        </div>
       )}
       {showCreate && (
         <CreateDealPanel

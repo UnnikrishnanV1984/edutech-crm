@@ -231,6 +231,7 @@ export function WorkflowRuleBuilder({ mode, rule, onSaved, onCancel }: WorkflowR
     <div
       style={{
         width: 392,
+        maxWidth: "100%",
         flex: "none",
         border: "1px solid var(--border)",
         borderRadius: "var(--radius-lg)",

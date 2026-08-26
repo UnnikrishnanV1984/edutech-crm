@@ -17,6 +17,7 @@ import { defaultOwnerFilterValue } from "../ownerFilter";
 import { relativeTime } from "../relativeTime";
 import { stageColor, stageIcon } from "../stageColor";
 import { userDisplayName, useUsers } from "../useUsers";
+import { useIsMobile } from "../useIsMobile";
 import { useMe } from "../useMe";
 import { CreateContactPanel } from "./CreateContactPanel";
 
@@ -111,6 +112,8 @@ export function ContactsListPage() {
   const { me } = useMe();
   const users = useUsers();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
+  const [showFilters, setShowFilters] = useState(false);
 
   const [contacts, setContacts] = useState<Contact[] | undefined>(undefined);
   const [total, setTotal] = useState(0);
@@ -301,8 +304,13 @@ export function ContactsListPage() {
           placeholder="Search name, email, phone"
           value={search}
           onChange={(event) => updateFilter(() => setSearch(event.target.value))}
-          style={{ width: 240 }}
+          style={{ width: 240, maxWidth: "100%" }}
         />
+        {isMobile && (
+          <Button variant="secondary" onClick={() => setShowFilters(true)}>
+            Filters{hasFilters ? " •" : ""}
+          </Button>
+        )}
         <Button variant="secondary" disabled title="CSV import isn't available yet">
           Import
         </Button>
@@ -312,6 +320,13 @@ export function ContactsListPage() {
       </div>
 
       <div style={{ display: "flex", minWidth: 0 }}>
+        {isMobile && showFilters && (
+          <div
+            style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.3)", zIndex: 90 }}
+            onClick={() => setShowFilters(false)}
+          />
+        )}
+        {(!isMobile || showFilters) && (
         <div
           style={{
             width: 196,
@@ -321,8 +336,35 @@ export function ContactsListPage() {
             display: "flex",
             flexDirection: "column",
             gap: "var(--space-4)",
+            ...(isMobile
+              ? {
+                  position: "fixed",
+                  top: 0,
+                  bottom: 0,
+                  left: 0,
+                  zIndex: 91,
+                  background: "var(--elevation-2)",
+                  overflowY: "auto",
+                  boxShadow: "var(--shadow-md)",
+                }
+              : {}),
           }}
         >
+          {isMobile && (
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontSize: "var(--text-sm)", fontWeight: "var(--weight-semibold)" }}>
+                Filters
+              </span>
+              <button
+                type="button"
+                aria-label="Close filters"
+                onClick={() => setShowFilters(false)}
+                style={{ border: "none", background: "none" }}
+              >
+                ✕
+              </button>
+            </div>
+          )}
           {me && me.user.role !== "counselor" && (
             <FilterSection label="Owner">
               <OwnerFilter
@@ -402,6 +444,7 @@ export function ContactsListPage() {
             Save this view
           </span>
         </div>
+        )}
 
         <div style={{ flex: 1, minWidth: 0 }}>
           <div
@@ -578,6 +621,7 @@ export function ContactsListPage() {
 
             {!error && contacts && contacts.length > 0 && (
               <>
+                <div className="table-scroll">
                 <table style={{ width: "100%", borderCollapse: "collapse" }}>
                   <thead>
                     <tr style={{ textAlign: "left", color: "var(--text-muted)", fontSize: 13 }}>
@@ -665,6 +709,7 @@ export function ContactsListPage() {
                     })}
                   </tbody>
                 </table>
+                </div>
 
                 <div
                   style={{

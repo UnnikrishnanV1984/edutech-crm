@@ -147,14 +147,7 @@ export function EscalationsPage() {
         ))}
       </div>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(4, 1fr)",
-          gap: "var(--space-4)",
-          marginBottom: "var(--space-5)",
-        }}
-      >
+      <div className="grid-4col" style={{ marginBottom: "var(--space-5)" }}>
         <KpiBox label="Open" value={String(summary?.open ?? 0).padStart(2, "0")} />
         <KpiBox
           label="Breaching within 1h"
@@ -179,6 +172,7 @@ export function EscalationsPage() {
         )}
 
         {escalations && escalations.length > 0 && (
+          <div className="table-scroll">
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr style={{ textAlign: "left", borderBottom: "1px solid var(--border)" }}>
@@ -248,6 +242,7 @@ export function EscalationsPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </Card>
 

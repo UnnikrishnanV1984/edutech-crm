@@ -149,6 +149,7 @@ export function IntegrationsPage() {
         )}
 
         {connections && connections.length > 0 && (
+          <div className="table-scroll">
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr style={{ textAlign: "left", borderBottom: "1px solid var(--border)" }}>
@@ -237,6 +238,7 @@ export function IntegrationsPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </Card>
 

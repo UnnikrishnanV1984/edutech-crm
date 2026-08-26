@@ -12,17 +12,27 @@ import { FollowUpFlagsPage } from "./pages/FollowUpFlagsPage";
 import { PipelinePage } from "./pages/PipelinePage";
 import { TasksPage } from "./pages/TasksPage";
 import { WorkflowRulesPage } from "./pages/WorkflowRulesPage";
+import { MobileNav } from "./MobileNav";
 import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
+import { useIsMobile } from "./useIsMobile";
 
 function AppRoutes() {
+  const isMobile = useIsMobile();
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100svh" }}>
       <ApplyBranding />
       <TopBar />
       <div style={{ display: "flex", flex: 1, minHeight: 0 }}>
-        <Sidebar />
-        <main style={{ flex: 1, minWidth: 0, overflowY: "auto" }}>
+        {!isMobile && <Sidebar />}
+        <main
+          style={{
+            flex: 1,
+            minWidth: 0,
+            overflowY: "auto",
+            paddingBottom: isMobile ? 56 : 0,
+          }}
+        >
           <Routes>
             <Route path="/" element={<Navigate to="/contacts" replace />} />
             <Route path="/dashboard" element={<DashboardPage />} />
@@ -48,6 +58,7 @@ function AppRoutes() {
           </Routes>
         </main>
       </div>
+      {isMobile && <MobileNav />}
     </div>
   );
 }

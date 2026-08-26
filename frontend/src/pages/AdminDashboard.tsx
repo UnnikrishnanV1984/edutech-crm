@@ -90,7 +90,7 @@ export function AdminDashboard() {
 
       {loaded && (
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)" }}>
-        <div style={{ display: "flex", gap: "var(--space-4)" }}>
+        <div className="grid-4col">
           <MetricCard label="Open deals" value={openDeals} />
           <MetricCard label="SLA at risk" value={atRisk} accent />
           <MetricCard label="Breached" value={breached} />
@@ -98,7 +98,7 @@ export function AdminDashboard() {
         </div>
 
         {invoiceSummary && (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "var(--space-5)" }}>
+          <div className="grid-4col">
             <Card title={`Invoiced (${reportPeriodLabel(period)})`}>
               <p style={{ fontSize: "var(--text-xl)", margin: 0 }}>
                 {Number(invoiceSummary.invoiced_total).toLocaleString()}
@@ -128,7 +128,7 @@ export function AdminDashboard() {
           </div>
         )}
 
-        <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: "var(--space-5)" }}>
+        <div className="grid-split-14">
           <PipelineByStageCard funnel={funnel} stages={stages} />
           {token && me && <MyQueueTodayCard token={token} meId={me.user.id} />}
         </div>
@@ -157,38 +157,40 @@ export function AdminDashboard() {
             </div>
           )}
           {compliance.length > 0 && (
-            <table style={{ width: "100%", borderCollapse: "collapse", marginTop: "var(--space-4)" }}>
-              <thead>
-                <tr style={{ textAlign: "left", borderBottom: "1px solid var(--border)" }}>
-                  <th style={{ padding: "var(--space-2)" }}>Counselor</th>
-                  <th style={{ padding: "var(--space-2)" }}>On track</th>
-                  <th style={{ padding: "var(--space-2)" }}>At risk</th>
-                  <th style={{ padding: "var(--space-2)" }}>Breached</th>
-                </tr>
-              </thead>
-              <tbody>
-                {compliance.map((row) => (
-                  <tr key={row.counselor_id} style={{ borderBottom: "1px solid var(--border)" }}>
-                    <td style={{ padding: "var(--space-2)" }}>
-                      {row.counselor_name ?? row.counselor_id}
-                    </td>
-                    <td style={{ padding: "var(--space-2)", color: "var(--success)" }}>
-                      {row.on_track}
-                    </td>
-                    <td style={{ padding: "var(--space-2)", color: "var(--warning)" }}>
-                      {row.at_risk}
-                    </td>
-                    <td style={{ padding: "var(--space-2)", color: "var(--danger)" }}>
-                      {row.breached}
-                    </td>
+            <div className="table-scroll" style={{ marginTop: "var(--space-4)" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr style={{ textAlign: "left", borderBottom: "1px solid var(--border)" }}>
+                    <th style={{ padding: "var(--space-2)" }}>Counselor</th>
+                    <th style={{ padding: "var(--space-2)" }}>On track</th>
+                    <th style={{ padding: "var(--space-2)" }}>At risk</th>
+                    <th style={{ padding: "var(--space-2)" }}>Breached</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {compliance.map((row) => (
+                    <tr key={row.counselor_id} style={{ borderBottom: "1px solid var(--border)" }}>
+                      <td style={{ padding: "var(--space-2)" }}>
+                        {row.counselor_name ?? row.counselor_id}
+                      </td>
+                      <td style={{ padding: "var(--space-2)", color: "var(--success)" }}>
+                        {row.on_track}
+                      </td>
+                      <td style={{ padding: "var(--space-2)", color: "var(--warning)" }}>
+                        {row.at_risk}
+                      </td>
+                      <td style={{ padding: "var(--space-2)", color: "var(--danger)" }}>
+                        {row.breached}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </Card>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-5)" }}>
+        <div className="grid-2col">
           <Card title={`Org funnel${pipelineValue > 0 ? ` — ${pipelineValue.toLocaleString()} pipeline value` : ""}`}>
             {funnel.length === 0 && <EmptyState headline="No deals yet" />}
             {funnel.length > 0 && (

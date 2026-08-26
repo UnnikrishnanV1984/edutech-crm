@@ -346,15 +346,7 @@ export function FollowUpFlagsPage() {
 
       {flags && (
         <>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(4, 1fr)",
-              gap: "var(--space-4)",
-              alignItems: "start",
-              marginBottom: "var(--space-5)",
-            }}
-          >
+          <div className="grid-4col" style={{ alignItems: "start", marginBottom: "var(--space-5)" }}>
             <div>
               <ColumnHeader label="Overdue" count={buckets.overdue.length} accent />
               <div style={{ display: "flex", flexDirection: "column", gap: 9, marginTop: 11 }}>
@@ -403,6 +395,7 @@ export function FollowUpFlagsPage() {
                   All flags
                 </span>
               </div>
+              <div className="table-scroll">
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead>
                   <tr style={{ textAlign: "left", borderBottom: "1px solid var(--border)" }}>
@@ -468,6 +461,7 @@ export function FollowUpFlagsPage() {
                   })}
                 </tbody>
               </table>
+              </div>
             </Card>
           )}
         </>

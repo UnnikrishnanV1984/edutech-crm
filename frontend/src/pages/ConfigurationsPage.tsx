@@ -38,7 +38,10 @@ export function ConfigurationsPage() {
         Admin only
       </div>
 
-      <div style={{ display: "flex", gap: 0, borderBottom: "1px solid var(--border)", marginBottom: 20 }}>
+      <div
+        className="table-scroll"
+        style={{ display: "flex", gap: 0, borderBottom: "1px solid var(--border)", marginBottom: 20 }}
+      >
         {TABS.map((tab) => (
           <button
             key={tab.value}
@@ -54,6 +57,8 @@ export function ConfigurationsPage() {
               color: activeTab === tab.value ? "var(--text-h)" : "var(--text-muted)",
               borderBottom: activeTab === tab.value ? "2px solid var(--accent)" : "2px solid transparent",
               marginBottom: -1,
+              whiteSpace: "nowrap",
+              flexShrink: 0,
             }}
           >
             {tab.label}

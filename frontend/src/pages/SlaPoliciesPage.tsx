@@ -81,6 +81,7 @@ export function SlaPoliciesPage() {
           {policies && policies.length === 0 && <EmptyState headline="No SLA policies yet" />}
 
           {policies && policies.length > 0 && (
+            <div className="table-scroll">
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr style={{ textAlign: "left", borderBottom: "1px solid var(--border)" }}>
@@ -125,6 +126,7 @@ export function SlaPoliciesPage() {
                 ))}
               </tbody>
             </table>
+            </div>
           )}
         </Card>
       </div>

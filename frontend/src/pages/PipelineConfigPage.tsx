@@ -497,6 +497,7 @@ function ResetToDefaultModal({
         onClick={(event) => event.stopPropagation()}
         style={{
           width: 440,
+          maxWidth: "calc(100% - var(--space-4))",
           background: "var(--elevation-2)",
           border: "1px solid var(--border)",
           borderRadius: "var(--radius-lg)",
