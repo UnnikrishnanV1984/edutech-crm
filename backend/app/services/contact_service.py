@@ -197,11 +197,17 @@ async def list_contacts(
     scoped_owner_ids: list[uuid.UUID] | None = None,
     stage_id: uuid.UUID | None = None,
     has_follow_up_flag: bool | None = None,
+    ids: list[uuid.UUID] | None = None,
 ) -> tuple[list[dict], int]:
     """owner_id is the caller-supplied ?owner_id= filter; scoped_owner_ids
     is the RowScope enforcement (PHASE_3_PLAN.md §4) — the two compose:
     a Manager can still filter to one teammate via owner_id, but can
     never widen past scoped_owner_ids.
+
+    ids batch-fetches a known, caller-bounded set of contacts (e.g. the
+    Pipeline board resolving each deal's contact) in one round trip instead
+    of one request per contact — pagination doesn't apply, since the
+    caller already knows exactly which rows it wants.
 
     Each contact is enriched with its most-recently-updated deal's stage
     and SLA state — a contact can have zero or many deals, so "most
@@ -233,6 +239,8 @@ async def list_contacts(
     )
     if scoped_owner_ids is not None:
         joined = joined.where(Contact.owner_id.in_(scoped_owner_ids))
+    if ids is not None:
+        joined = joined.where(Contact.id.in_(ids))
     if search:
         pattern = f"%{search.lower()}%"
         joined = joined.where(
@@ -265,7 +273,9 @@ async def list_contacts(
         PipelineStage.name.label("stage_name"),
         SlaState.state.label("sla_state"),
     )
-    stmt = _apply_sort(stmt, sort).offset((page - 1) * page_size).limit(page_size)
+    stmt = _apply_sort(stmt, sort)
+    if ids is None:
+        stmt = stmt.offset((page - 1) * page_size).limit(page_size)
     rows = (await db.execute(stmt)).all()
 
     open_flag_contact_ids: set[uuid.UUID] = set()

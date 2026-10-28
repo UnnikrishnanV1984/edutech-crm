@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { getContact } from "../api/contacts";
+import { listContacts } from "../api/contacts";
 import { listTasks, updateTask } from "../api/tasks";
 import { useAuth } from "../auth/context";
 import { TasksPage } from "../pages/TasksPage";
@@ -13,7 +13,7 @@ vi.mock("../auth/context", () => ({ useAuth: vi.fn() }));
 vi.mock("../useMe", () => ({ useMe: vi.fn() }));
 vi.mock("../useUsers", () => ({ useUsers: vi.fn(), userDisplayName: vi.fn() }));
 vi.mock("../api/tasks", () => ({ listTasks: vi.fn(), updateTask: vi.fn(), createTask: vi.fn() }));
-vi.mock("../api/contacts", () => ({ getContact: vi.fn(), listContacts: vi.fn() }));
+vi.mock("../api/contacts", () => ({ listContacts: vi.fn() }));
 
 const mockedUseAuth = vi.mocked(useAuth);
 const mockedUseMe = vi.mocked(useMe);
@@ -21,7 +21,7 @@ const mockedUseUsers = vi.mocked(useUsers);
 const mockedUserDisplayName = vi.mocked(userDisplayName);
 const mockedListTasks = vi.mocked(listTasks);
 const mockedUpdateTask = vi.mocked(updateTask);
-const mockedGetContact = vi.mocked(getContact);
+const mockedListContacts = vi.mocked(listContacts);
 
 function renderTasksPage() {
   return render(
@@ -60,27 +60,29 @@ function setup(role: "counselor" | "manager" | "admin" = "counselor") {
   });
   mockedUseUsers.mockReturnValue([]);
   mockedUserDisplayName.mockReturnValue("Someone");
-  mockedGetContact.mockResolvedValue({
-    data: {
-      id: "c1",
-      full_name: "Priya Shah",
-      email: null,
-      phone: null,
-      lead_source: "web",
-      owner_id: "u1",
-      status: "active",
-      territory: null,
-      created_at: "2026-01-01T00:00:00Z",
-      updated_at: "2026-01-01T00:00:00Z",
-      current_deal_id: null,
-      stage_id: null,
-      stage_name: null,
-      sla_state: null,
-      sla_target_at: null,
-      sla_target_minutes: null,
-      has_open_follow_up: false,
-    },
-    meta: { request_id: "r1" },
+  mockedListContacts.mockResolvedValue({
+    data: [
+      {
+        id: "c1",
+        full_name: "Priya Shah",
+        email: null,
+        phone: null,
+        lead_source: "web",
+        owner_id: "u1",
+        status: "active",
+        territory: null,
+        created_at: "2026-01-01T00:00:00Z",
+        updated_at: "2026-01-01T00:00:00Z",
+        current_deal_id: null,
+        stage_id: null,
+        stage_name: null,
+        sla_state: null,
+        sla_target_at: null,
+        sla_target_minutes: null,
+        has_open_follow_up: false,
+      },
+    ],
+    meta: { request_id: "r1", page: 1, page_size: 1, total: 1 },
   });
 }
 

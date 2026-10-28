@@ -46,6 +46,7 @@ async def get_contacts(
     sort: str | None = None,
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=25, ge=1, le=100),
+    ids: list[uuid.UUID] | None = Query(default=None),
     context: TenantContext = Depends(get_tenant_context),
     scope: RowScope = Depends(get_row_scope),
 ) -> dict:
@@ -61,6 +62,7 @@ async def get_contacts(
         scoped_owner_ids=scope.owner_ids,
         stage_id=stage_id,
         has_follow_up_flag=has_follow_up_flag,
+        ids=ids,
     )
     items = [
         ContactOut.model_validate(row["contact"])
@@ -75,7 +77,8 @@ async def get_contacts(
         .model_dump(mode="json")
         for row in rows
     ]
-    return collection_envelope(items, request.state.request_id, page, page_size, total)
+    effective_page_size = len(items) if ids is not None else page_size
+    return collection_envelope(items, request.state.request_id, page, effective_page_size, total)
 
 
 @router.get("/{contact_id}")

@@ -32,6 +32,10 @@ export interface ContactListParams {
   sort?: string;
   page?: number;
   page_size?: number;
+  // Batch-fetch a known set of contacts (e.g. resolving each deal/task's
+  // contact) in one request instead of one GET per contact — pagination
+  // params are ignored by the backend when this is set.
+  ids?: string[];
 }
 
 export interface ContactCreateInput {
@@ -43,10 +47,15 @@ export interface ContactCreateInput {
   territory?: string;
 }
 
-function buildQuery(params: Record<string, string | number | boolean | undefined>): string {
+function buildQuery(
+  params: Record<string, string | number | boolean | string[] | undefined>,
+): string {
   const search = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {
-    if (value !== undefined && value !== "") {
+    if (value === undefined || value === "") continue;
+    if (Array.isArray(value)) {
+      for (const item of value) search.append(key, item);
+    } else {
       search.set(key, String(value));
     }
   }
@@ -60,7 +69,7 @@ export async function listContacts(
 ): Promise<CollectionEnvelope<Contact>> {
   return apiGet<CollectionEnvelope<Contact>>(
     token,
-    `/api/v1/contacts${buildQuery(params as Record<string, string | number | boolean | undefined>)}`,
+    `/api/v1/contacts${buildQuery(params as Record<string, string | number | boolean | string[] | undefined>)}`,
   );
 }
 

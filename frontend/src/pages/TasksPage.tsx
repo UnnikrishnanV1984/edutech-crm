@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-import { getContact, type Contact } from "../api/contacts";
+import { listContacts, type Contact } from "../api/contacts";
 import { listTasks, updateTask, type Task } from "../api/tasks";
 import { useAuth } from "../auth/context";
 import { Avatar } from "../components/Avatar";
@@ -164,13 +164,15 @@ export function TasksPage() {
       const missing = [...new Set(response.data.map((t) => t.contact_id))].filter(
         (id) => !(id in contactsById),
       );
-      Promise.all(missing.map((id) => getContact(token, id).catch(() => undefined))).then((results) => {
-        setContactsById((current) => {
-          const next = { ...current };
-          for (const r of results) if (r) next[r.data.id] = r.data;
-          return next;
+      if (missing.length > 0) {
+        listContacts(token, { ids: missing }).then((contactsResponse) => {
+          setContactsById((current) => {
+            const next = { ...current };
+            for (const c of contactsResponse.data) next[c.id] = c;
+            return next;
+          });
         });
-      });
+      }
     });
   }
 

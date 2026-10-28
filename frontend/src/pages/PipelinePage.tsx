@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-import { getContact, listContacts, type Contact } from "../api/contacts";
+import { listContacts, type Contact } from "../api/contacts";
 import { listCourses, type Course } from "../api/courses";
 import { listDeals, updateDeal, type Deal } from "../api/deals";
 import { listPipelineStages, type PipelineStage } from "../api/pipelineStages";
@@ -249,13 +249,15 @@ export function PipelinePage() {
         const missing = [...new Set(response.data.map((d) => d.contact_id))].filter(
           (id) => !(id in contactsById),
         );
-        Promise.all(missing.map((id) => getContact(token, id))).then((results) => {
-          setContactsById((current) => {
-            const next = { ...current };
-            for (const r of results) next[r.data.id] = r.data;
-            return next;
+        if (missing.length > 0) {
+          listContacts(token, { ids: missing }).then((contactsResponse) => {
+            setContactsById((current) => {
+              const next = { ...current };
+              for (const c of contactsResponse.data) next[c.id] = c;
+              return next;
+            });
           });
-        });
+        }
       },
     );
   }

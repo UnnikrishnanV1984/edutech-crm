@@ -171,6 +171,32 @@ def test_search_and_filter(tenant_and_user):
     assert by_source.json()["meta"]["total"] == 1
 
 
+def test_list_contacts_ids_filter_batches_without_pagination(tenant_and_user):
+    with TestClient(app) as client:
+        headers = _headers(tenant_and_user)
+        created = [
+            client.post(
+                "/api/v1/contacts",
+                json={"full_name": f"Batch {i}", "lead_source": "manual"},
+                headers=headers,
+            ).json()["data"]
+            for i in range(3)
+        ]
+        wanted_ids = [created[0]["id"], created[2]["id"]]
+
+        response = client.get(
+            "/api/v1/contacts",
+            params=[("ids", wanted_ids[0]), ("ids", wanted_ids[1])],
+            headers=headers,
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    returned_ids = {c["id"] for c in body["data"]}
+    assert returned_ids == set(wanted_ids)
+    assert body["meta"]["total"] == 2
+
+
 def test_get_and_patch_contact(tenant_and_user):
     with TestClient(app) as client:
         created = client.post(
