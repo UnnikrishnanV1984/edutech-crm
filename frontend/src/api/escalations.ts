@@ -1,5 +1,5 @@
 import { apiGet, apiPatch, apiPost } from "./client";
-import type { DataEnvelope } from "./types";
+import type { CollectionEnvelope, DataEnvelope } from "./types";
 
 export type EscalationSource = "sla_breach" | "workflow_failure" | "rule_triggered" | "manual";
 export type EscalationStatus = "open" | "acknowledged" | "resolved" | "reassigned" | "snoozed";
@@ -29,10 +29,17 @@ export interface Escalation {
 
 export async function listEscalations(
   token: string,
-  params?: { status?: EscalationStatus },
-): Promise<DataEnvelope<Escalation[]>> {
-  const query = params?.status ? `?status=${params.status}` : "";
-  return apiGet<DataEnvelope<Escalation[]>>(token, `/api/v1/escalations${query}`);
+  params?: { status?: EscalationStatus; page?: number; page_size?: number },
+): Promise<CollectionEnvelope<Escalation>> {
+  const search = new URLSearchParams();
+  if (params?.status) search.set("status", params.status);
+  if (params?.page) search.set("page", String(params.page));
+  if (params?.page_size) search.set("page_size", String(params.page_size));
+  const query = search.toString();
+  return apiGet<CollectionEnvelope<Escalation>>(
+    token,
+    `/api/v1/escalations${query ? `?${query}` : ""}`,
+  );
 }
 
 export async function raiseEscalation(

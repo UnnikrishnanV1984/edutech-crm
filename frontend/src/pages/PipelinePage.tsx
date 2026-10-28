@@ -10,6 +10,7 @@ import { Avatar } from "../components/Avatar";
 import { Badge } from "../components/Badge";
 import { Button } from "../components/Button";
 import { OwnerFilter } from "../components/OwnerFilter";
+import { Pager } from "../components/Pager";
 import { PageSpinner } from "../components/Spinner";
 import { useToast } from "../components/toastContext";
 import { defaultOwnerFilterValue } from "../ownerFilter";
@@ -225,6 +226,12 @@ export function PipelinePage() {
   );
   const [showCreate, setShowCreate] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  // Table view's own pagination — client-side, over the same `deals`
+  // array the Kanban board already loads in full (page_size: 100 below),
+  // since a drag-and-drop board needs its full working set in memory
+  // regardless. Keeps the flat table from rendering unboundedly long.
+  const [tablePage, setTablePage] = useState(1);
+  const [tablePageSize, setTablePageSize] = useState(25);
 
   function load() {
     if (!token) return;
@@ -276,6 +283,15 @@ export function PipelinePage() {
   const visibleDeals = leadSource
     ? deals.filter((d) => contactsById[d.contact_id]?.lead_source === leadSource)
     : deals;
+
+  useEffect(() => {
+    setTablePage(1);
+  }, [leadSource, courseFilter, slaState, ownerId, view]);
+
+  const tableDeals = visibleDeals.slice(
+    (tablePage - 1) * tablePageSize,
+    tablePage * tablePageSize,
+  );
 
   async function moveDeal(deal: Deal, stage: PipelineStage) {
     const previousStageId = deal.stage_id;
@@ -594,7 +610,7 @@ export function PipelinePage() {
               </tr>
             </thead>
             <tbody>
-              {visibleDeals.map((deal) => {
+              {tableDeals.map((deal) => {
                 const contact = contactsById[deal.contact_id];
                 const stageIndex = stages.findIndex((s) => s.id === deal.stage_id);
                 const stage = stages[stageIndex];
@@ -643,6 +659,16 @@ export function PipelinePage() {
             </tbody>
           </table>
           </div>
+        )}
+
+        {loaded && view === "table" && visibleDeals.length > 0 && (
+          <Pager
+            page={tablePage}
+            pageSize={tablePageSize}
+            total={visibleDeals.length}
+            onPageChange={setTablePage}
+            onPageSizeChange={setTablePageSize}
+          />
         )}
       </div>
 

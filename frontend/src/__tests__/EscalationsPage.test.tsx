@@ -106,7 +106,7 @@ describe("EscalationsPage", () => {
     setup("counselor");
     mockedListEscalations.mockResolvedValue({
       data: [],
-      meta: { request_id: "r1" },
+      meta: { request_id: "r1", page: 1, page_size: 25, total: 0 },
     });
     renderPage();
     expect(screen.getByText("Managers and admins only")).toBeInTheDocument();
@@ -116,7 +116,7 @@ describe("EscalationsPage", () => {
     setup();
     mockedListEscalations.mockResolvedValue({
       data: [ESCALATION],
-      meta: { request_id: "r1" },
+      meta: { request_id: "r1", page: 1, page_size: 25, total: 1 },
     });
 
     renderPage();
@@ -130,23 +130,41 @@ describe("EscalationsPage", () => {
 
   it("re-fetches with the selected status filter", async () => {
     setup();
-    mockedListEscalations.mockResolvedValue({ data: [], meta: { request_id: "r1" } });
+    mockedListEscalations.mockResolvedValue({
+      data: [],
+      meta: { request_id: "r1", page: 1, page_size: 25, total: 0 },
+    });
     renderPage();
 
     await waitFor(() =>
-      expect(mockedListEscalations).toHaveBeenCalledWith("test-token", { status: "open" }),
+      expect(mockedListEscalations).toHaveBeenCalledWith("test-token", {
+        status: "open",
+        page: 1,
+        page_size: 25,
+      }),
     );
 
     fireEvent.click(screen.getByText("Resolved"));
 
     await waitFor(() =>
-      expect(mockedListEscalations).toHaveBeenLastCalledWith("test-token", { status: "resolved" }),
+      expect(mockedListEscalations).toHaveBeenLastCalledWith("test-token", {
+        status: "resolved",
+        page: 1,
+        page_size: 25,
+      }),
     );
   });
 
   it("opens the resolve drawer and resolves with a note", async () => {
     setup();
-    mockedListEscalations.mockResolvedValue({ data: [ESCALATION], meta: { request_id: "r1" } });
+    mockedListEscalations.mockResolvedValueOnce({
+      data: [ESCALATION],
+      meta: { request_id: "r1", page: 1, page_size: 25, total: 1 },
+    });
+    mockedListEscalations.mockResolvedValue({
+      data: [],
+      meta: { request_id: "r1", page: 1, page_size: 25, total: 0 },
+    });
     mockedUpdateEscalation.mockResolvedValue({
       data: { ...ESCALATION, status: "resolved" },
       meta: { request_id: "r1" },
@@ -174,7 +192,10 @@ describe("EscalationsPage", () => {
 
   it("snoozing requires a snoozed_until before submitting", async () => {
     setup();
-    mockedListEscalations.mockResolvedValue({ data: [ESCALATION], meta: { request_id: "r1" } });
+    mockedListEscalations.mockResolvedValue({
+      data: [ESCALATION],
+      meta: { request_id: "r1", page: 1, page_size: 25, total: 1 },
+    });
     renderPage();
     await waitFor(() => expect(screen.getByText("Priya Shah")).toBeInTheDocument());
 
@@ -189,7 +210,10 @@ describe("EscalationsPage", () => {
 
   it("reassigns to the selected manager", async () => {
     setup();
-    mockedListEscalations.mockResolvedValue({ data: [ESCALATION], meta: { request_id: "r1" } });
+    mockedListEscalations.mockResolvedValue({
+      data: [ESCALATION],
+      meta: { request_id: "r1", page: 1, page_size: 25, total: 1 },
+    });
     mockedUpdateEscalation.mockResolvedValue({
       data: { ...ESCALATION, status: "open", assigned_to: "u2" },
       meta: { request_id: "r1" },

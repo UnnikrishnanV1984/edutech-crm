@@ -11,6 +11,7 @@ import { Badge } from "../components/Badge";
 import { Button } from "../components/Button";
 import { EmptyState } from "../components/EmptyState";
 import { OwnerFilter } from "../components/OwnerFilter";
+import { Pager } from "../components/Pager";
 import { Skeleton } from "../components/Skeleton";
 import { leadSourceColor, leadSourceLabel } from "../leadSource";
 import { defaultOwnerFilterValue } from "../ownerFilter";
@@ -80,7 +81,10 @@ function Chip({
         background: "transparent",
         color: selected ? "var(--text-h)" : "var(--text-muted)",
         cursor: "pointer",
-        whiteSpace: "nowrap",
+        whiteSpace: "normal",
+        textAlign: "center",
+        maxWidth: "100%",
+        wordBreak: "break-word",
       }}
     >
       {label}
@@ -196,12 +200,6 @@ export function ContactsListPage() {
     : true;
   const hasFilters = Boolean(
     search || leadSource || stageId || flaggedOnly || !isDefaultOwnerFilter,
-  );
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  const pageWindowStart = Math.max(1, Math.min(page - 2, totalPages - 4));
-  const pageNumbers = Array.from(
-    { length: Math.min(totalPages, 5) },
-    (_, i) => pageWindowStart + i,
   );
 
   const canReassignOwner = me?.user.role === "manager" || me?.user.role === "admin";
@@ -406,7 +404,7 @@ export function ContactsListPage() {
           </FilterSection>
 
           <FilterSection label="Stage">
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, width: "100%", minWidth: 0 }}>
               {stages.map((stage) => (
                 <Chip
                   key={stage.id}
@@ -711,33 +709,14 @@ export function ContactsListPage() {
                 </table>
                 </div>
 
-                <div
-                  style={{
-                    padding: "var(--space-4) 0",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                  }}
-                >
-                  <Chip label="Prev" onClick={() => setPage((p) => Math.max(1, p - 1))} />
-                  {pageNumbers.map((n) => (
-                    <Chip key={n} label={String(n)} selected={n === page} onClick={() => setPage(n)} />
-                  ))}
-                  <Chip label="Next" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} />
-                  <div style={{ flex: 1 }} />
-                  <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
-                    <select
-                      value={pageSize}
-                      onChange={(event) => updateFilter(() => setPageSize(Number(event.target.value)))}
-                    >
-                      {PAGE_SIZE_OPTIONS.map((size) => (
-                        <option key={size} value={size}>
-                          {size} per page
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                </div>
+                <Pager
+                  page={page}
+                  pageSize={pageSize}
+                  total={total}
+                  onPageChange={setPage}
+                  onPageSizeChange={(size) => updateFilter(() => setPageSize(size))}
+                  pageSizeOptions={PAGE_SIZE_OPTIONS}
+                />
               </>
             )}
           </div>

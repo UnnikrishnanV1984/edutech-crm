@@ -1,7 +1,7 @@
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import CONFLICT, VALIDATION_ERROR, ApiError
@@ -158,7 +158,9 @@ async def list_escalations(
     tenant_id: uuid.UUID,
     assigned_to: uuid.UUID | None,
     status: str | None = None,
-) -> list[Escalation]:
+    page: int = 1,
+    page_size: int = 25,
+) -> tuple[list[Escalation], int]:
     """assigned_to=None means unrestricted (Admin) — every other caller
     only ever sees escalations assigned to themselves, which is also
     correctly empty for a Staff caller since assigned_to is never a
@@ -168,8 +170,17 @@ async def list_escalations(
         stmt = stmt.where(Escalation.assigned_to == assigned_to)
     if status is not None:
         stmt = stmt.where(Escalation.status == status)
-    result = await db.execute(stmt.order_by(Escalation.opened_at.desc()))
-    return list(result.scalars().all())
+
+    count_result = await db.execute(select(func.count()).select_from(stmt.subquery()))
+    total = count_result.scalar_one()
+
+    stmt = (
+        stmt.order_by(Escalation.opened_at.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+    )
+    result = await db.execute(stmt)
+    return list(result.scalars().all()), total
 
 
 async def enrich_escalations(

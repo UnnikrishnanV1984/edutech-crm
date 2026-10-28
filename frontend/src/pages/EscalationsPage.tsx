@@ -7,6 +7,7 @@ import { useAuth } from "../auth/context";
 import { Badge } from "../components/Badge";
 import { Card } from "../components/Card";
 import { EmptyState } from "../components/EmptyState";
+import { Pager } from "../components/Pager";
 import { PageSpinner } from "../components/Spinner";
 import { useMe } from "../useMe";
 import { ResolveEscalationDrawer } from "./ResolveEscalationDrawer";
@@ -91,14 +92,18 @@ export function EscalationsPage() {
   const navigate = useNavigate();
   const [statusFilter, setStatusFilter] = useState<EscalationStatus>("open");
   const [escalations, setEscalations] = useState<Escalation[] | undefined>(undefined);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
   const [summary, setSummary] = useState<EscalationSummary | undefined>(undefined);
   const [resolving, setResolving] = useState<Escalation | undefined>(undefined);
 
   function load() {
     if (!token) return;
-    listEscalations(token, { status: statusFilter }).then((response) =>
-      setEscalations(response.data),
-    );
+    listEscalations(token, { status: statusFilter, page, page_size: pageSize }).then((response) => {
+      setEscalations(response.data);
+      setTotal(response.meta.total);
+    });
   }
 
   function loadSummary() {
@@ -107,9 +112,11 @@ export function EscalationsPage() {
   }
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(load, [token, statusFilter]);
+  useEffect(load, [token, statusFilter, page, pageSize]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(loadSummary, [token]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => setPage(1), [statusFilter]);
 
   if (me && me.user.role === "counselor") {
     return (
@@ -122,9 +129,9 @@ export function EscalationsPage() {
     );
   }
 
-  function handleUpdated(updated: Escalation) {
+  function handleUpdated() {
     setResolving(undefined);
-    setEscalations((current) => current?.filter((e) => e.id !== updated.id));
+    load();
     loadSummary();
   }
 
@@ -243,6 +250,10 @@ export function EscalationsPage() {
             </tbody>
           </table>
           </div>
+        )}
+
+        {escalations && escalations.length > 0 && (
+          <Pager page={page} pageSize={pageSize} total={total} onPageChange={setPage} onPageSizeChange={setPageSize} />
         )}
       </Card>
 

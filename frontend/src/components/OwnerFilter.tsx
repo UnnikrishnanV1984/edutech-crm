@@ -38,7 +38,7 @@ export function OwnerFilter({ role, meId, users, selectedUserId, onChange }: Own
   // admin
   const isEveryone = selectedUserId === undefined;
   return (
-    <div style={{ display: "flex", gap: "var(--space-2)", alignItems: "center" }}>
+    <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-2)", alignItems: "center", width: "100%" }}>
       <Button
         variant={selectedUserId === meId ? "primary" : "secondary"}
         onClick={() => onChange(meId)}
@@ -52,6 +52,7 @@ export function OwnerFilter({ role, meId, users, selectedUserId, onChange }: Own
           const value = event.target.value;
           onChange(value === "everyone" ? undefined : value);
         }}
+        style={{ flex: "1 1 auto", minWidth: 0, maxWidth: "100%" }}
       >
         <option value="everyone">Everyone</option>
         {users.map((user) => (

@@ -1,8 +1,8 @@
 import uuid
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Query, Request
 
-from app.core.envelope import data_envelope
+from app.core.envelope import collection_envelope, data_envelope
 from app.core.errors import FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, ApiError
 from app.deps.tenant import TenantContext, get_tenant_context
 from app.schemas.escalation import EscalationCreate, EscalationOut, EscalationUpdate
@@ -33,16 +33,19 @@ def _out(escalation, enrichment: dict | None = None) -> dict:
 async def get_escalations(
     request: Request,
     status: str | None = None,
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=25, ge=1, le=100),
     context: TenantContext = Depends(get_tenant_context),
 ) -> dict:
     if status is not None and status not in _VALID_STATUSES:
         raise ApiError(400, VALIDATION_ERROR, f"Unknown status: {status}")
     assigned_to = None if context.user_role == "admin" else context.user.id
-    escalations = await list_escalations(context.db, context.tenant.id, assigned_to, status)
-    enrichment = await enrich_escalations(context.db, context.tenant.id, escalations)
-    return data_envelope(
-        [_out(e, enrichment.get(e.id)) for e in escalations], request.state.request_id
+    escalations, total = await list_escalations(
+        context.db, context.tenant.id, assigned_to, status, page, page_size
     )
+    enrichment = await enrich_escalations(context.db, context.tenant.id, escalations)
+    items = [_out(e, enrichment.get(e.id)) for e in escalations]
+    return collection_envelope(items, request.state.request_id, page, page_size, total)
 
 
 @router.post("")
