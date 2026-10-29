@@ -5,6 +5,7 @@ import { createDeal, type Deal } from "../api/deals";
 import { listPipelineStages, type PipelineStage } from "../api/pipelineStages";
 import { useAuth } from "../auth/context";
 import { Button } from "../components/Button";
+import { Select } from "../components/Select";
 import { SlideOverPanel } from "../components/SlideOverPanel";
 import { Spinner } from "../components/Spinner";
 
@@ -71,32 +72,30 @@ export function CreateDealPanel({ contactId, onClose, onCreated }: CreateDealPan
         >
           <label>
             Course
-            <select
-              value={courseId}
-              onChange={(event) => setCourseId(event.target.value)}
-              style={{ display: "block", width: "100%", marginTop: 4 }}
-            >
-              {courses.map((course) => (
-                <option key={course.id} value={course.id}>
-                  {course.name}
-                </option>
-              ))}
-            </select>
+            <div style={{ marginTop: 4 }}>
+              <Select
+                ariaLabel="Course"
+                value={courseId}
+                onChange={setCourseId}
+                options={courses.map((course) => ({ value: course.id, label: course.name }))}
+                triggerStyle={{ width: "100%" }}
+              />
+            </div>
           </label>
           <label>
             Stage
-            <select
-              value={stageId}
-              onChange={(event) => setStageId(event.target.value)}
-              style={{ display: "block", width: "100%", marginTop: 4 }}
-            >
-              <option value="">First open stage</option>
-              {stages.map((stage) => (
-                <option key={stage.id} value={stage.id}>
-                  {stage.name}
-                </option>
-              ))}
-            </select>
+            <div style={{ marginTop: 4 }}>
+              <Select
+                ariaLabel="Stage"
+                value={stageId}
+                onChange={setStageId}
+                options={[
+                  { value: "", label: "First open stage" },
+                  ...stages.map((stage) => ({ value: stage.id, label: stage.name })),
+                ]}
+                triggerStyle={{ width: "100%" }}
+              />
+            </div>
           </label>
           {error && (
             <p role="alert" style={{ color: "var(--danger)" }}>

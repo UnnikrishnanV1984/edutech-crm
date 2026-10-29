@@ -9,8 +9,10 @@ import { useAuth } from "../auth/context";
 import { Avatar } from "../components/Avatar";
 import { Badge } from "../components/Badge";
 import { Button } from "../components/Button";
+import { FilterSelect } from "../components/FilterSelect";
 import { OwnerFilter } from "../components/OwnerFilter";
 import { Pager } from "../components/Pager";
+import { Select } from "../components/Select";
 import { PageSpinner } from "../components/Spinner";
 import { useToast } from "../components/toastContext";
 import { defaultOwnerFilterValue } from "../ownerFilter";
@@ -44,42 +46,6 @@ const SLA_TONE: Record<string, { bg: string; fg: string; border: string }> = {
   breached: ACCENT_TINT,
   at_risk: ACCENT_TINT,
 };
-
-// A pill-styled <select> — matches the wireframe's "Label ▾" filter
-// chips while staying a real, accessible native control.
-function FilterSelect({
-  placeholder,
-  value,
-  onChange,
-  options,
-}: {
-  placeholder: string;
-  value: string;
-  onChange: (value: string) => void;
-  options: { value: string; label: string }[];
-}) {
-  return (
-    <select
-      value={value}
-      onChange={(event) => onChange(event.target.value)}
-      style={{
-        fontSize: "var(--text-xs)",
-        padding: "4px 8px",
-        borderRadius: 999,
-        border: `1px solid ${value ? "var(--text-h)" : "var(--border)"}`,
-        background: "transparent",
-        color: value ? "var(--text-h)" : "var(--text-muted)",
-      }}
-    >
-      <option value="">{placeholder} ▾</option>
-      {options.map((option) => (
-        <option key={option.value} value={option.value}>
-          {option.label}
-        </option>
-      ))}
-    </select>
-  );
-}
 
 // Every card carries a "Move ▾" select alongside the drag interaction —
 // design_handoff_crm_wireframes/ screen 13's phone mock replaces drag
@@ -166,41 +132,27 @@ function DealCard({
           </span>
         )}
         <div style={{ flex: 1 }} />
-        <select
-          aria-label={`Move ${contact?.full_name ?? "deal"} to a different stage`}
+        <Select
+          ariaLabel={`Move ${contact?.full_name ?? "deal"} to a different stage`}
           value=""
-          onClick={(event) => event.stopPropagation()}
-          onChange={(event) => {
-            const target = stages.find((s) => s.id === event.target.value);
+          onChange={(stageId) => {
+            const target = stages.find((s) => s.id === stageId);
             if (target) onMove(deal, target);
-            event.currentTarget.value = "";
           }}
-          style={{
+          options={stages.filter((s) => s.id !== stage.id).map((s) => ({ value: s.id, label: s.name }))}
+          placeholder="Move"
+          triggerStyle={{
             fontSize: "var(--text-xs)",
             padding: "2px 6px",
             borderRadius: 999,
             border: "1px solid var(--border)",
             background: "transparent",
             color: "var(--text-muted)",
-            // Native <select> sizes its closed box to the widest <option>
-            // (e.g. a long stage name), not the "Move ▾" text actually
-            // shown — without a fixed width it balloons past the 196px
-            // column and paints over the next one.
             width: 64,
-            maxWidth: 64,
             boxSizing: "border-box",
             flexShrink: 0,
           }}
-        >
-          <option value="">Move ▾</option>
-          {stages
-            .filter((s) => s.id !== stage.id)
-            .map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-        </select>
+        />
       </div>
     </div>
   );
@@ -349,9 +301,14 @@ export function PipelinePage() {
         }}
       >
         <h1 style={{ margin: 0 }}>Pipelines</h1>
-        <select disabled title="Multiple pipelines aren't supported yet" style={{ width: 160 }}>
-          <option>Pipeline ▾</option>
-        </select>
+        <Select
+          disabled
+          title="Multiple pipelines aren't supported yet"
+          value="default"
+          onChange={() => undefined}
+          options={[{ value: "default", label: "Pipeline" }]}
+          triggerStyle={{ width: 160 }}
+        />
         <div style={{ flex: 1 }} />
         {me && (
           <OwnerFilter

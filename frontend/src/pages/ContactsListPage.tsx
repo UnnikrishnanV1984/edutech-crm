@@ -12,6 +12,7 @@ import { Button } from "../components/Button";
 import { EmptyState } from "../components/EmptyState";
 import { OwnerFilter } from "../components/OwnerFilter";
 import { Pager } from "../components/Pager";
+import { Select } from "../components/Select";
 import { Skeleton } from "../components/Skeleton";
 import { leadSourceColor, leadSourceLabel } from "../leadSource";
 import { defaultOwnerFilterValue } from "../ownerFilter";
@@ -474,14 +475,18 @@ export function ContactsListPage() {
 
             {bulkAction === "assign" && (
               <>
-                <select value={bulkOwnerId} onChange={(event) => setBulkOwnerId(event.target.value)}>
-                  <option value="">Assign to…</option>
-                  {users.map((user) => (
-                    <option key={user.id} value={user.id}>
-                      {userDisplayName(users, user.id)}
-                    </option>
-                  ))}
-                </select>
+                <Select
+                  ariaLabel="Assign to"
+                  value={bulkOwnerId}
+                  onChange={setBulkOwnerId}
+                  options={[
+                    { value: "", label: "Assign to…" },
+                    ...users.map((user) => ({
+                      value: user.id,
+                      label: userDisplayName(users, user.id),
+                    })),
+                  ]}
+                />
                 <Button variant="primary" disabled={!bulkOwnerId || bulkBusy} onClick={applyBulkAssign}>
                   Apply
                 </Button>
@@ -544,16 +549,15 @@ export function ContactsListPage() {
             )}
 
             <div style={{ flex: 1 }} />
-            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
               Sort:
-              <select value={sort} onChange={(event) => updateFilter(() => setSort(event.target.value))}>
-                {SORT_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+              <Select
+                ariaLabel="Sort contacts"
+                value={sort}
+                onChange={(value) => updateFilter(() => setSort(value))}
+                options={SORT_OPTIONS}
+              />
+            </div>
           </div>
 
           {bulkError && (

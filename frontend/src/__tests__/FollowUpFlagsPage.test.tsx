@@ -114,8 +114,10 @@ describe("FollowUpFlagsPage", () => {
     renderPage();
 
     await waitFor(() => expect(screen.getByText("Mine")).toBeInTheDocument());
-    expect(screen.getByLabelText("Filter by owner")).toBeInTheDocument();
-    expect(screen.getByText("Everyone")).toBeInTheDocument();
+    const ownerFilter = screen.getByLabelText("Filter by owner");
+    expect(ownerFilter).toBeInTheDocument();
+    fireEvent.click(ownerFilter);
+    expect(screen.getByRole("option", { name: "Everyone" })).toBeInTheDocument();
   });
 
   it("shows the same Mine + Everyone + resource-list control for a manager, not a Mine/My-team toggle", async () => {
@@ -128,8 +130,10 @@ describe("FollowUpFlagsPage", () => {
     renderPage();
 
     await waitFor(() => expect(screen.getByText("Mine")).toBeInTheDocument());
-    expect(screen.getByLabelText("Filter by owner")).toBeInTheDocument();
-    expect(screen.getByText("Everyone")).toBeInTheDocument();
+    const ownerFilter = screen.getByLabelText("Filter by owner");
+    expect(ownerFilter).toBeInTheDocument();
+    fireEvent.click(ownerFilter);
+    expect(screen.getByRole("option", { name: "Everyone" })).toBeInTheDocument();
     expect(screen.queryByText("My team")).not.toBeInTheDocument();
   });
 
@@ -154,7 +158,8 @@ describe("FollowUpFlagsPage", () => {
       expect(mockedListFlags).toHaveBeenCalledWith("test-token", { manager_id: undefined }),
     );
 
-    fireEvent.change(screen.getByLabelText("Filter by owner"), { target: { value: "u2" } });
+    fireEvent.click(screen.getByLabelText("Filter by owner"));
+    fireEvent.click(screen.getByRole("option", { name: "Beth Manager" }));
 
     await waitFor(() =>
       expect(mockedListFlags).toHaveBeenLastCalledWith("test-token", { manager_id: "u2" }),

@@ -17,6 +17,7 @@ import {
 import { useAuth } from "../auth/context";
 import { Badge } from "../components/Badge";
 import { Button } from "../components/Button";
+import { Select } from "../components/Select";
 import { Spinner } from "../components/Spinner";
 
 const TRIGGERS: { value: TriggerType; label: string; sourceType: "contact" | "deal" | "task" }[] = [
@@ -263,21 +264,19 @@ export function WorkflowRuleBuilder({ mode, rule, onSaved, onCancel }: WorkflowR
 
       <label>
         <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>When (trigger)</span>
-        <select
-          disabled={readOnly || mode === "edit"}
-          value={triggerType}
-          onChange={(event) => {
-            setTriggerType(event.target.value as TriggerType);
-            setConditions([]);
-          }}
-          style={{ display: "block", width: "100%", marginTop: 4 }}
-        >
-          {TRIGGERS.map((t) => (
-            <option key={t.value} value={t.value}>
-              {t.label}
-            </option>
-          ))}
-        </select>
+        <div style={{ marginTop: 4 }}>
+          <Select
+            ariaLabel="When (trigger)"
+            disabled={readOnly || mode === "edit"}
+            value={triggerType}
+            onChange={(value) => {
+              setTriggerType(value as TriggerType);
+              setConditions([]);
+            }}
+            options={TRIGGERS}
+            triggerStyle={{ width: "100%" }}
+          />
+        </div>
       </label>
       {triggerType === "elapsed_time" && (
         <label>
@@ -301,36 +300,32 @@ export function WorkflowRuleBuilder({ mode, rule, onSaved, onCancel }: WorkflowR
           {conditions.map((condition, index) => (
             <div key={index} style={{ display: "flex", gap: 6, alignItems: "center" }}>
               {index > 0 && <Badge label="AND" />}
-              <select
-                disabled={readOnly}
-                value={condition.field}
-                onChange={(event) =>
-                  updateCondition(index, {
-                    field: event.target.value,
-                    value: valueOptions(event.target.value)[0]?.value ?? "",
-                  })
-                }
-                style={{ flex: 1 }}
-              >
-                {fieldOptions.map((f) => (
-                  <option key={f.value} value={f.value}>
-                    {f.label}
-                  </option>
-                ))}
-              </select>
+              <div style={{ flex: 1 }}>
+                <Select
+                  ariaLabel="Condition field"
+                  disabled={readOnly}
+                  value={condition.field}
+                  onChange={(value) =>
+                    updateCondition(index, {
+                      field: value,
+                      value: valueOptions(value)[0]?.value ?? "",
+                    })
+                  }
+                  options={fieldOptions}
+                  triggerStyle={{ width: "100%" }}
+                />
+              </div>
               <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>is</span>
-              <select
-                disabled={readOnly}
-                value={String(condition.value)}
-                onChange={(event) => updateCondition(index, { value: event.target.value })}
-                style={{ flex: 1 }}
-              >
-                {valueOptions(condition.field).map((v) => (
-                  <option key={v.value} value={v.value}>
-                    {v.label}
-                  </option>
-                ))}
-              </select>
+              <div style={{ flex: 1 }}>
+                <Select
+                  ariaLabel="Condition value"
+                  disabled={readOnly}
+                  value={String(condition.value)}
+                  onChange={(value) => updateCondition(index, { value })}
+                  options={valueOptions(condition.field)}
+                  triggerStyle={{ width: "100%" }}
+                />
+              </div>
               {!readOnly && (
                 <Button variant="text" type="button" onClick={() => removeCondition(index)}>
                   ✕
@@ -376,20 +371,22 @@ export function WorkflowRuleBuilder({ mode, rule, onSaved, onCancel }: WorkflowR
                       : undefined
                   }
                 />
-                <select
-                  disabled={readOnly}
-                  value={action.type}
-                  onChange={(event) =>
-                    updateAction(index, { type: event.target.value as ActionType, config: {} })
-                  }
-                  style={{ flex: 1 }}
-                >
-                  {ACTIONS.map((a) => (
-                    <option key={a.value} value={a.value} disabled={!a.available}>
-                      {a.label}
-                    </option>
-                  ))}
-                </select>
+                <div style={{ flex: 1 }}>
+                  <Select
+                    ariaLabel="Action type"
+                    disabled={readOnly}
+                    value={action.type}
+                    onChange={(value) =>
+                      updateAction(index, { type: value as ActionType, config: {} })
+                    }
+                    options={ACTIONS.map((a) => ({
+                      value: a.value,
+                      label: a.label,
+                      disabled: !a.available,
+                    }))}
+                    triggerStyle={{ width: "100%" }}
+                  />
+                </div>
                 {!readOnly && (
                   <Button variant="text" type="button" onClick={() => removeAction(index)}>
                     ✕
@@ -405,18 +402,16 @@ export function WorkflowRuleBuilder({ mode, rule, onSaved, onCancel }: WorkflowR
                 />
               )}
               {action.type === "change_stage" && (
-                <select
+                <Select
+                  ariaLabel="Target stage"
                   disabled={readOnly}
                   value={(action.config?.to_stage_id as string) ?? ""}
-                  onChange={(event) => updateActionConfig(index, "to_stage_id", event.target.value)}
-                >
-                  <option value="">Select a stage…</option>
-                  {stages.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(value) => updateActionConfig(index, "to_stage_id", value)}
+                  options={[
+                    { value: "", label: "Select a stage…" },
+                    ...stages.map((s) => ({ value: s.id, label: s.name })),
+                  ]}
+                />
               )}
               {action.type === "notify_manager" && (
                 <input

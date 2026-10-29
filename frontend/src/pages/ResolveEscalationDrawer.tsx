@@ -4,6 +4,7 @@ import { ApiRequestError } from "../api/client";
 import { type Escalation, updateEscalation } from "../api/escalations";
 import { useAuth } from "../auth/context";
 import { Button } from "../components/Button";
+import { Select } from "../components/Select";
 import { SlideOverPanel } from "../components/SlideOverPanel";
 import { Spinner } from "../components/Spinner";
 import { useUsers } from "../useUsers";
@@ -126,19 +127,21 @@ export function ResolveEscalationDrawer({
         {outcome === "reassign" && (
           <label>
             Reassign to
-            <select
-              required
-              value={reassignTo}
-              onChange={(event) => setReassignTo(event.target.value)}
-              style={{ display: "block", width: "100%", marginTop: 4 }}
-            >
-              <option value="">Select a manager…</option>
-              {reassignTargets.map((user) => (
-                <option key={user.id} value={user.id}>
-                  {user.full_name ?? user.email}
-                </option>
-              ))}
-            </select>
+            <div style={{ marginTop: 4 }}>
+              <Select
+                ariaLabel="Reassign to"
+                value={reassignTo}
+                onChange={setReassignTo}
+                options={[
+                  { value: "", label: "Select a manager…" },
+                  ...reassignTargets.map((user) => ({
+                    value: user.id,
+                    label: user.full_name ?? user.email,
+                  })),
+                ]}
+                triggerStyle={{ width: "100%" }}
+              />
+            </div>
           </label>
         )}
 

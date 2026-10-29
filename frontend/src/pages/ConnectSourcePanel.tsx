@@ -7,6 +7,7 @@ import {
 } from "../api/leadSourceConnections";
 import { useAuth } from "../auth/context";
 import { Button } from "../components/Button";
+import { Select } from "../components/Select";
 import { SlideOverPanel } from "../components/SlideOverPanel";
 import { Spinner } from "../components/Spinner";
 
@@ -63,17 +64,15 @@ export function ConnectSourcePanel({ onClose, onCreated }: ConnectSourcePanelPro
       >
         <label>
           Source*
-          <select
-            value={source}
-            onChange={(event) => setSource(event.target.value as LeadSource)}
-            style={{ display: "block", width: "100%", marginTop: 4 }}
-          >
-            {SOURCES.map((s) => (
-              <option key={s.value} value={s.value}>
-                {s.label}
-              </option>
-            ))}
-          </select>
+          <div style={{ marginTop: 4 }}>
+            <Select
+              ariaLabel="Source"
+              value={source}
+              onChange={(value) => setSource(value as LeadSource)}
+              options={SOURCES}
+              triggerStyle={{ width: "100%" }}
+            />
+          </div>
         </label>
 
         {source === "web" ? (

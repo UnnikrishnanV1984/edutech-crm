@@ -1,6 +1,7 @@
 import type { TenantUser } from "../api/users";
 import { userDisplayName } from "../useUsers";
 import { Button } from "./Button";
+import { Select } from "./Select";
 
 interface OwnerFilterProps {
   role: string;
@@ -45,22 +46,18 @@ export function OwnerFilter({ role, meId, users, selectedUserId, onChange }: Own
       >
         Mine
       </Button>
-      <select
-        aria-label="Filter by owner"
-        value={isEveryone ? "everyone" : selectedUserId}
-        onChange={(event) => {
-          const value = event.target.value;
-          onChange(value === "everyone" ? undefined : value);
-        }}
-        style={{ flex: "1 1 auto", minWidth: 0, maxWidth: "100%" }}
-      >
-        <option value="everyone">Everyone</option>
-        {users.map((user) => (
-          <option key={user.id} value={user.id}>
-            {userDisplayName(users, user.id)}
-          </option>
-        ))}
-      </select>
+      <div style={{ flex: "1 1 auto", minWidth: 0, maxWidth: "100%" }}>
+        <Select
+          ariaLabel="Filter by owner"
+          value={isEveryone ? "everyone" : (selectedUserId ?? "everyone")}
+          onChange={(value) => onChange(value === "everyone" ? undefined : value)}
+          options={[
+            { value: "everyone", label: "Everyone" },
+            ...users.map((user) => ({ value: user.id, label: userDisplayName(users, user.id) })),
+          ]}
+          triggerStyle={{ width: "100%", maxWidth: "100%" }}
+        />
+      </div>
     </div>
   );
 }

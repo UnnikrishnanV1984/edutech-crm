@@ -226,7 +226,8 @@ describe("EscalationsPage", () => {
     await screen.findByRole("dialog", { name: "Resolve escalation" });
 
     fireEvent.click(screen.getByText("Reassign owner"));
-    fireEvent.change(screen.getByLabelText(/Reassign to/), { target: { value: "u2" } });
+    fireEvent.click(screen.getByLabelText(/Reassign to/));
+    fireEvent.click(screen.getByRole("option", { name: "Beth Manager" }));
     fireEvent.click(screen.getByRole("button", { name: "Reassign" }));
 
     await waitFor(() =>

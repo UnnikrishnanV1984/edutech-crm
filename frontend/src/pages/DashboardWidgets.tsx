@@ -7,6 +7,7 @@ import { listTasks, updateTask, type Task } from "../api/tasks";
 import { Badge } from "../components/Badge";
 import { Card } from "../components/Card";
 import { EmptyState } from "../components/EmptyState";
+import { Select } from "../components/Select";
 import { Spinner } from "../components/Spinner";
 
 // Shared widgets for the role dashboards, matching
@@ -314,18 +315,13 @@ export function DashboardTopBar({
         {roleLabel}
       </span>
       <div style={{ flex: 1 }} />
-      <select
-        aria-label="Date range"
+      <Select
+        ariaLabel="Date range"
         value={period}
-        onChange={(event) => onPeriodChange(event.target.value as ReportPeriod)}
-        style={{ width: 150 }}
-      >
-        {REPORT_PERIOD_OPTIONS.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
+        onChange={(value) => onPeriodChange(value as ReportPeriod)}
+        options={REPORT_PERIOD_OPTIONS}
+        triggerStyle={{ width: 150 }}
+      />
       {children}
     </div>
   );

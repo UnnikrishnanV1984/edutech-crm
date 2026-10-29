@@ -13,6 +13,7 @@ import { Badge } from "../components/Badge";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
 import { EmptyState } from "../components/EmptyState";
+import { Select } from "../components/Select";
 import { PageSpinner } from "../components/Spinner";
 import { defaultOwnerFilterValue } from "../ownerFilter";
 import { useMe } from "../useMe";
@@ -46,21 +47,15 @@ function ResourceFilter({
       >
         Mine
       </Button>
-      <select
-        aria-label="Filter by owner"
-        value={isEveryone ? "everyone" : selectedUserId}
-        onChange={(event) => {
-          const value = event.target.value;
-          onChange(value === "everyone" ? undefined : value);
-        }}
-      >
-        <option value="everyone">Everyone</option>
-        {users.map((user) => (
-          <option key={user.id} value={user.id}>
-            {userDisplayName(users, user.id)}
-          </option>
-        ))}
-      </select>
+      <Select
+        ariaLabel="Filter by owner"
+        value={isEveryone ? "everyone" : (selectedUserId ?? "everyone")}
+        onChange={(value) => onChange(value === "everyone" ? undefined : value)}
+        options={[
+          { value: "everyone", label: "Everyone" },
+          ...users.map((user) => ({ value: user.id, label: userDisplayName(users, user.id) })),
+        ]}
+      />
     </div>
   );
 }

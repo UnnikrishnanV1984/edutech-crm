@@ -4,6 +4,7 @@ import { ApiRequestError } from "../api/client";
 import { createContact, getContact, type Contact } from "../api/contacts";
 import { useAuth } from "../auth/context";
 import { Button } from "../components/Button";
+import { Select } from "../components/Select";
 import { SlideOverPanel } from "../components/SlideOverPanel";
 import { Spinner } from "../components/Spinner";
 import { useUsers } from "../useUsers";
@@ -125,32 +126,30 @@ export function CreateContactPanel({ onClose, onCreated }: CreateContactPanelPro
         </label>
         <label>
           Lead source
-          <select
-            value={leadSource}
-            onChange={(event) => setLeadSource(event.target.value)}
-            style={{ display: "block", width: "100%", marginTop: 4 }}
-          >
-            {LEAD_SOURCES.map((source) => (
-              <option key={source} value={source}>
-                {source}
-              </option>
-            ))}
-          </select>
+          <div style={{ marginTop: 4 }}>
+            <Select
+              ariaLabel="Lead source"
+              value={leadSource}
+              onChange={setLeadSource}
+              options={LEAD_SOURCES.map((source) => ({ value: source, label: source }))}
+              triggerStyle={{ width: "100%" }}
+            />
+          </div>
         </label>
         <label>
           Owner
-          <select
-            value={ownerId}
-            onChange={(event) => setOwnerId(event.target.value)}
-            style={{ display: "block", width: "100%", marginTop: 4 }}
-          >
-            <option value="">Me</option>
-            {users.map((user) => (
-              <option key={user.id} value={user.id}>
-                {user.full_name ?? user.email}
-              </option>
-            ))}
-          </select>
+          <div style={{ marginTop: 4 }}>
+            <Select
+              ariaLabel="Owner"
+              value={ownerId}
+              onChange={setOwnerId}
+              options={[
+                { value: "", label: "Me" },
+                ...users.map((user) => ({ value: user.id, label: user.full_name ?? user.email })),
+              ]}
+              triggerStyle={{ width: "100%" }}
+            />
+          </div>
         </label>
         {fieldError && (
           <p role="alert" style={{ color: "var(--danger)" }}>

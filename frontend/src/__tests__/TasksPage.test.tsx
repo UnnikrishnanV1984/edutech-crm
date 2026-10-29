@@ -198,7 +198,7 @@ describe("TasksPage owner filter", () => {
 
     renderTasksPage();
     await waitFor(() =>
-      expect(screen.getByLabelText<HTMLSelectElement>("Filter by owner").value).toBe("everyone"),
+      expect(screen.getByLabelText("Filter by owner")).toHaveTextContent("Everyone"),
     );
     // The default load should have gone out with no assignee_id filter.
     const lastCall = mockedListTasks.mock.calls.at(-1)!;

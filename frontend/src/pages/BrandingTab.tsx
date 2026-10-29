@@ -20,6 +20,7 @@ import { useAuth } from "../auth/context";
 import { contrastRatio, WCAG_AA_CONTRAST, HEADER_BACKGROUND_COLORS } from "../branding/colorUtils";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
+import { Select } from "../components/Select";
 import { PageSpinner, Spinner } from "../components/Spinner";
 import { BrandingLivePreview } from "./BrandingLivePreview";
 import { BrandingVersionHistory } from "./BrandingVersionHistory";
@@ -475,19 +476,15 @@ export function BrandingTab() {
 
             <div style={{ flex: 1, minWidth: 160 }}>
               <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>Typeface</span>
-              <select
-                value={draft.typeface}
-                onChange={(event) =>
-                  void saveDraftFields({ typeface: event.target.value as Typeface })
-                }
-                style={{ display: "block", width: "100%", marginTop: 8 }}
-              >
-                {TYPEFACE_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+              <div style={{ marginTop: 8 }}>
+                <Select
+                  ariaLabel="Typeface"
+                  value={draft.typeface}
+                  onChange={(value) => void saveDraftFields({ typeface: value as Typeface })}
+                  options={TYPEFACE_OPTIONS}
+                  triggerStyle={{ width: "100%" }}
+                />
+              </div>
             </div>
 
             <div style={{ flex: 1, minWidth: 160 }}>

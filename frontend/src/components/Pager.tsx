@@ -1,5 +1,7 @@
 import { useMemo } from "react";
 
+import { Select } from "./Select";
+
 const DEFAULT_PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
 interface PagerProps {
@@ -79,19 +81,12 @@ export function Pager({
       />
       <div style={{ flex: 1 }} />
       {onPageSizeChange && (
-        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
-          <select
-            aria-label="Rows per page"
-            value={pageSize}
-            onChange={(event) => onPageSizeChange(Number(event.target.value))}
-          >
-            {pageSizeOptions.map((size) => (
-              <option key={size} value={size}>
-                {size} per page
-              </option>
-            ))}
-          </select>
-        </label>
+        <Select
+          ariaLabel="Rows per page"
+          value={String(pageSize)}
+          onChange={(value) => onPageSizeChange(Number(value))}
+          options={pageSizeOptions.map((size) => ({ value: String(size), label: `${size} per page` }))}
+        />
       )}
     </div>
   );

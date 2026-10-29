@@ -5,6 +5,7 @@ import { useAuth } from "../auth/context";
 import { Badge } from "../components/Badge";
 import { Button } from "../components/Button";
 import { EmptyState } from "../components/EmptyState";
+import { Select } from "../components/Select";
 import { SlideOverPanel } from "../components/SlideOverPanel";
 import { PageSpinner } from "../components/Spinner";
 
@@ -45,21 +46,21 @@ export function WorkflowRunHistoryPanel({ rules, onClose }: WorkflowRunHistoryPa
     <SlideOverPanel title="Run history" onClose={onClose}>
       <label>
         <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>Rule</span>
-        <select
-          value={ruleId ?? "all"}
-          onChange={(event) => {
-            setRuleId(event.target.value === "all" ? undefined : event.target.value);
-            setPage(1);
-          }}
-          style={{ display: "block", width: "100%", marginTop: 4 }}
-        >
-          <option value="all">All rules</option>
-          {rules.map((rule) => (
-            <option key={rule.id} value={rule.id}>
-              {rule.name}
-            </option>
-          ))}
-        </select>
+        <div style={{ marginTop: 4 }}>
+          <Select
+            ariaLabel="Rule"
+            value={ruleId ?? "all"}
+            onChange={(value) => {
+              setRuleId(value === "all" ? undefined : value);
+              setPage(1);
+            }}
+            options={[
+              { value: "all", label: "All rules" },
+              ...rules.map((rule) => ({ value: rule.id, label: rule.name })),
+            ]}
+            triggerStyle={{ width: "100%" }}
+          />
+        </div>
       </label>
 
       {runs === undefined && <PageSpinner />}

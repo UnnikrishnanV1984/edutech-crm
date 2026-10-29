@@ -4,6 +4,7 @@ import { listContacts, type Contact } from "../api/contacts";
 import { createTask, type Task } from "../api/tasks";
 import { useAuth } from "../auth/context";
 import { Button } from "../components/Button";
+import { Select } from "../components/Select";
 import { SlideOverPanel } from "../components/SlideOverPanel";
 import { Spinner } from "../components/Spinner";
 import { useUsers } from "../useUsers";
@@ -143,18 +144,18 @@ export function CreateTaskPanel({
         </label>
         <label>
           Assignee
-          <select
-            value={assigneeId}
-            onChange={(event) => setAssigneeId(event.target.value)}
-            style={{ display: "block", width: "100%", marginTop: 4 }}
-          >
-            <option value="">Me</option>
-            {users.map((user) => (
-              <option key={user.id} value={user.id}>
-                {user.full_name ?? user.email}
-              </option>
-            ))}
-          </select>
+          <div style={{ marginTop: 4 }}>
+            <Select
+              ariaLabel="Assignee"
+              value={assigneeId}
+              onChange={setAssigneeId}
+              options={[
+                { value: "", label: "Me" },
+                ...users.map((user) => ({ value: user.id, label: user.full_name ?? user.email })),
+              ]}
+              triggerStyle={{ width: "100%" }}
+            />
+          </div>
         </label>
         <label>
           Due date

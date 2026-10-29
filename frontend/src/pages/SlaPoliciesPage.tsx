@@ -13,6 +13,7 @@ import { Badge } from "../components/Badge";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
 import { EmptyState } from "../components/EmptyState";
+import { Select } from "../components/Select";
 import { PageSpinner, Spinner } from "../components/Spinner";
 import { useMe } from "../useMe";
 
@@ -197,33 +198,32 @@ function CreatePolicyForm({
       </label>
       <label>
         Applies to*
-        <select
-          value={appliesTo}
-          onChange={(event) => setAppliesTo(event.target.value as SlaAppliesTo)}
-          style={{ display: "block", width: "100%", marginTop: 4 }}
-        >
-          <option value="task_due">Any task, by its due date</option>
-          <option value="stage_entry">Entering a pipeline stage</option>
-        </select>
+        <div style={{ marginTop: 4 }}>
+          <Select
+            ariaLabel="Applies to"
+            value={appliesTo}
+            onChange={(value) => setAppliesTo(value as SlaAppliesTo)}
+            options={[
+              { value: "task_due", label: "Any task, by its due date" },
+              { value: "stage_entry", label: "Entering a pipeline stage" },
+            ]}
+            triggerStyle={{ width: "100%" }}
+          />
+        </div>
       </label>
       {appliesTo === "stage_entry" && (
         <label>
           Stage*
-          <select
-            required
-            value={stageId}
-            onChange={(event) => setStageId(event.target.value)}
-            style={{ display: "block", width: "100%", marginTop: 4 }}
-          >
-            <option value="" disabled>
-              Select a stage
-            </option>
-            {stages.map((stage) => (
-              <option key={stage.id} value={stage.id}>
-                {stage.name}
-              </option>
-            ))}
-          </select>
+          <div style={{ marginTop: 4 }}>
+            <Select
+              ariaLabel="Stage"
+              value={stageId}
+              onChange={setStageId}
+              placeholder="Select a stage"
+              options={stages.map((stage) => ({ value: stage.id, label: stage.name }))}
+              triggerStyle={{ width: "100%" }}
+            />
+          </div>
         </label>
       )}
       <label>
