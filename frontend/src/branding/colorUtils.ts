@@ -93,9 +93,13 @@ export function deriveAccentShades(accentHex: string): AccentShades {
 }
 
 export const HEADER_BACKGROUND_COLORS: Record<"light" | "dark" | "accent", string | undefined> = {
-  // Reuses this app's own real surface tokens (index.css) rather than
-  // inventing new colors — "dark" is the exact value the app's own dark
-  // theme already uses for --surface.
+  // Real hex values, not CSS vars — BrandingTab's contrast checker needs
+  // actual RGB to compute a ratio against the admin's accent color, and
+  // BrandingLivePreview's swatch is a fixed preview, not theme-aware.
+  // TopBar.tsx (the live app chrome) swaps "light" for the theme-aware
+  // --header-bg-light var itself rather than using this map, so a tenant
+  // on the default "light" header doesn't get a jarring pure-white bar
+  // when the app is in dark mode.
   light: "#ffffff",
   dark: "#1e1a16",
   accent: undefined, // resolved by the caller from the tenant's own accent_color

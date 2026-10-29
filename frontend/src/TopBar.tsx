@@ -48,7 +48,9 @@ export function TopBar() {
   const headerBackground = branding?.updated_at
     ? branding.header_background === "accent"
       ? (branding.accent_color ?? "var(--surface)")
-      : (HEADER_BACKGROUND_COLORS[branding.header_background] ?? "var(--surface)")
+      : branding.header_background === "light"
+        ? "var(--header-bg-light)"
+        : (HEADER_BACKGROUND_COLORS[branding.header_background] ?? "var(--surface)")
     : "var(--surface)";
   const hasHeaderImage = Boolean(branding?.header_image_url);
 

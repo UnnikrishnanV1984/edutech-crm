@@ -89,6 +89,14 @@
   --kpi-3: #e0a526;
   --kpi-4: #7a5af0;
 
+  /* Branding tab's header-background options (TopBar.tsx,
+     branding/colorUtils.ts). "dark" is a deliberate always-dark bar
+     regardless of theme; "light" tracks the current theme's own surface
+     so a tenant that picked "light" (the default) doesn't end up with a
+     jarring pure-white bar over an otherwise dark app. */
+  --header-bg-light: #ffffff;
+  --header-bg-dark: #1e1a16;
+
   --sans: system-ui, "Segoe UI", Roboto, sans-serif;
   --font-heading: "Manrope", system-ui, "Segoe UI", Roboto, sans-serif;
   --font-body: "Manrope", system-ui, "Segoe UI", Roboto, sans-serif;
@@ -144,6 +152,8 @@
     --kpi-2: #3dd9a0;
     --kpi-3: #ffc46b;
     --kpi-4: #a58bff;
+
+    --header-bg-light: #1e1a16;
   }
 }
 
@@ -181,6 +191,8 @@
   --kpi-2: #3dd9a0;
   --kpi-3: #ffc46b;
   --kpi-4: #a58bff;
+
+  --header-bg-light: #1e1a16;
 }
 
 * {
