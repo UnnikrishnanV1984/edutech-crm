@@ -198,9 +198,24 @@ export function AdminDashboard() {
                 {funnel.map((row) => (
                   <div
                     key={row.stage_id}
-                    style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "140px 1fr auto",
+                      alignItems: "center",
+                      gap: "var(--space-3)",
+                    }}
                   >
-                    <span style={{ width: 140, fontSize: "var(--text-sm)" }}>{row.stage_name}</span>
+                    <span
+                      title={row.stage_name}
+                      style={{
+                        fontSize: "var(--text-sm)",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {row.stage_name}
+                    </span>
                     <div
                       style={{
                         height: 14,
@@ -210,7 +225,13 @@ export function AdminDashboard() {
                         minWidth: row.count > 0 ? 4 : 0,
                       }}
                     />
-                    <span style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>
+                    <span
+                      style={{
+                        fontSize: "var(--text-sm)",
+                        color: "var(--text-muted)",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
                       {row.count}
                       {Number(row.value) > 0 && ` · ${Number(row.value).toLocaleString()}`}
                     </span>
