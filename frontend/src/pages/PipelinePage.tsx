@@ -182,6 +182,14 @@ function DealCard({
             border: "1px solid var(--border)",
             background: "transparent",
             color: "var(--text-muted)",
+            // Native <select> sizes its closed box to the widest <option>
+            // (e.g. a long stage name), not the "Move ▾" text actually
+            // shown — without a fixed width it balloons past the 196px
+            // column and paints over the next one.
+            width: 64,
+            maxWidth: 64,
+            boxSizing: "border-box",
+            flexShrink: 0,
           }}
         >
           <option value="">Move ▾</option>
