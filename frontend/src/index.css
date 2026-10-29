@@ -263,35 +263,6 @@ textarea {
   color: var(--text-h);
 }
 
-/* Opts every <select> into Chromium's Customizable Select API so its
-   open dropdown panel can be themed like the rest of the app (rounded
-   corners, our accent instead of the UA's blue option-hover). Browsers
-   without support just keep the native popup — this is additive, not a
-   dependency, so there's nothing to fall back to by hand. */
-select {
-  appearance: base-select;
-}
-
-select::picker(select) {
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--elevation-2);
-  overflow: hidden;
-}
-
-select option {
-  padding: var(--space-2) var(--space-3);
-  background: var(--elevation-2);
-  color: var(--text-h);
-}
-
-select option:hover,
-select option:focus,
-select option:checked {
-  background: var(--accent-subtle);
-  color: var(--accent-hover);
-}
-
 a {
   color: var(--accent);
 }
