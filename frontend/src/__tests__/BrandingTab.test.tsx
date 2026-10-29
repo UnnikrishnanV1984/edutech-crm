@@ -115,10 +115,10 @@ describe("BrandingTab", () => {
     render(<BrandingTab />);
 
     await screen.findByText("Company identity");
-    fireEvent.click(screen.getByLabelText("Use accent #b68235"));
+    fireEvent.click(screen.getByLabelText("Use accent #b93b0a"));
 
     await waitFor(() =>
-      expect(mockedUpdateDraft).toHaveBeenCalledWith("test-token", { accent_color: "#b68235" }),
+      expect(mockedUpdateDraft).toHaveBeenCalledWith("test-token", { accent_color: "#b93b0a" }),
     );
   });
 
@@ -142,7 +142,7 @@ describe("BrandingTab", () => {
     await screen.findByText("Company identity");
     expect(screen.queryByText("Reset to default")).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByLabelText("Use accent #b68235"));
+    fireEvent.click(screen.getByLabelText("Use accent #b93b0a"));
     fireEvent.click(await screen.findByText("Reset to default"));
 
     await waitFor(() =>

@@ -97,7 +97,7 @@ describe("TopBar branding", () => {
     await waitFor(() => expect(mockedGetBranding).toHaveBeenCalled());
     await screen.findByText("OpenFunnel");
     const header = container.querySelector("header");
-    expect(header).toHaveStyle({ backgroundColor: "#221f1c" });
+    expect(header).toHaveStyle({ backgroundColor: "#1e1a16" });
   });
 
   it("does not apply a header_background before anything has been published", async () => {

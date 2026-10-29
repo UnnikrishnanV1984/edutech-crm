@@ -22,18 +22,24 @@ export function MetricCard({
   label,
   value,
   accent,
+  bar,
 }: {
   label: string;
   value: string | number;
   accent?: boolean;
+  /** 1-4 picks one of the --kpi-N top-bar hues (index.css); omitted keeps a plain border. */
+  bar?: 1 | 2 | 3 | 4;
 }) {
   return (
     <div
       style={{
         flex: 1,
         border: "1px solid var(--border)",
+        borderTop: bar ? `4px solid var(--kpi-${bar})` : "1px solid var(--border)",
         borderRadius: "var(--radius-lg)",
-        padding: "var(--space-4)",
+        background: "var(--elevation-2)",
+        boxShadow: "var(--shadow-sm)",
+        padding: bar ? "calc(var(--space-4) - 3px) var(--space-4) var(--space-4)" : "var(--space-4)",
       }}
     >
       <div
@@ -51,7 +57,9 @@ export function MetricCard({
         style={{
           fontSize: "var(--text-2xl)",
           lineHeight: "var(--line-2xl)",
-          fontWeight: "var(--weight-semibold)",
+          fontWeight: 800,
+          letterSpacing: "-0.02em",
+          fontVariantNumeric: "tabular-nums",
           color: accent ? "var(--accent)" : "var(--text-h)",
           marginTop: "var(--space-2)",
         }}

@@ -1,5 +1,9 @@
 # Design system refresh — visual tokens & component polish
 
+> **Current palette and fonts: see §12 (Ember theme).** The color and font
+> values in §2, §7 and §8 below are the original violet palette and are
+> kept for history; §12 supersedes them.
+
 Produced by the `ui-designer` skill. Pure visual refresh — every
 interaction state, layout, and component structure in
 `PHASE_1_UI_DESIGN.md` stays exactly as specified there; only token
@@ -371,6 +375,59 @@ above.
 no loading/error state since this never touches the network.
 
 ---
+
+## 12. Ember theme (supersedes §2, §7, §8's palette values and the fonts)
+
+Replaces both the original violet palette (§2/§7) and the later "Classical"
+gold/serif palette. Token *names*, the three-layer architecture (§1),
+elevation (§3), the stage position-based rule (§8) and the Light/System/Dark
+control (§11) are unchanged — only values, fonts and two component looks
+change. Preview mockups: the "OpenFunnel Theme Options" canvas, option B.
+
+**Typography.** Manrope (variable, weights 200-800, SIL OFL) for headings and
+body, vendored as one Latin-subset woff2 (`public/fonts/manrope-latin-wght.woff2`)
+so client-VPC installs need no font CDN. `h1` is 800 with -0.02em tracking;
+figures use `font-variant-numeric: tabular-nums`. The earlier serif pair
+(Cormorant Garamond / Lora) is removed.
+
+**Neutrals** (warm, not pure grey):
+
+| Token | Light | Dark |
+|---|---|---|
+| `--bg` | `#f8f5f1` | `#15120f` |
+| `--surface` | `#ffffff` | `#1e1a16` |
+| `--surface-hover` | `#f1ece6` | `#2a2420` |
+| `--elevation-2` | `#ffffff` | `#241f1a` |
+| `--border` | `#e8dfd6` | `#2e2822` |
+| `--text-muted` | `#6f6359` | `#a79d92` |
+| `--text` | `#3a2f27` | `#e9e2d9` |
+| `--text-h` | `#201812` | `#f6f1ea` |
+
+**Accent (orange).** `--accent` is the text/stroke orange: `#b93b0a` in light
+(5.7:1 on white, 4.8:1 on `--accent-subtle`), `#ff7a3d` in dark. The bright
+look comes from `--accent-fill: linear-gradient(135deg, #ff7a3d, #ffa53f)`,
+used only for filled surfaces (the primary Button), with `--accent-fg:
+#1a0f08` on top in both themes (>= 7:1). A tenant's brand color
+(`ApplyBranding.tsx`) overrides `--accent`, `--accent-fill` and
+`--accent-fg` together; the ink flips to white when dark ink would fall
+below 4.5:1.
+
+**Status colors.** Light: danger `#a3301f` on `#fde4e0`, success `#0c6b47`
+on `#ddf5ea`, warning `#7a4e06` on `#fcefd0`. Dark: danger `#ff9e8f` on
+`#3d1d1a`, success `#6ee0aa` on `#153027`, warning `#ffc46b` on `#3a2a12`.
+
+**KPI tiles.** `MetricCard` takes `bar` 1-4, drawing a 4px top bar in
+`--kpi-1..4` (light `#e8590c #12a57a #e0a526 #7a5af0`; dark `#ff7a3d #3dd9a0
+#ffc46b #a58bff`). Decorative only; the label and value carry the meaning.
+Dashboards use: Open deals 1, SLA at risk 3, Breached 4, Conversion 2.
+
+**Stage hues (§8).** The amber stage hue is replaced by violet
+(`#ede7ff / #4b2fb0 / #dcd0ff` light, `#2b2440 / #cdbfff / #3f3560` dark) so no
+stage chip sits next to the orange accent family. Sky, teal, rose, sage and
+slate are unchanged.
+
+**Primary Button.** Filled gradient, dark ink, weight 700, no border; hover
+is `filter: brightness(1.07)`. (Previously accent-outlined only.)
 
 ## Deferred / out of scope
 

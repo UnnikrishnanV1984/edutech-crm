@@ -1,58 +1,36 @@
 /* Vendored locally rather than a Google Fonts @import — this app is
    client-VPC deployable (CLAUDE.md) with no guaranteed egress to an
    external font CDN, same reasoning already applied to db/redis/keycloak
-   needing to work without a fixed external dependency. Latin subset only
-   (this app's UI is English-only); both are SIL Open Font License. */
+   needing to work without a fixed external dependency. Manrope variable
+   font, Latin subset only (this app's UI is English-only), one file
+   covering weights 200-800; SIL Open Font License. */
 @font-face {
-  font-family: "Cormorant Garamond";
+  font-family: "Manrope";
   font-style: normal;
-  font-weight: 400;
+  font-weight: 200 800;
   font-display: swap;
-  src: url("/fonts/cormorant-garamond-400.woff2") format("woff2");
-}
-@font-face {
-  font-family: "Cormorant Garamond";
-  font-style: normal;
-  font-weight: 600;
-  font-display: swap;
-  src: url("/fonts/cormorant-garamond-600.woff2") format("woff2");
-}
-@font-face {
-  font-family: "Lora";
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url("/fonts/lora-400.woff2") format("woff2");
-}
-@font-face {
-  font-family: "Lora";
-  font-style: normal;
-  font-weight: 600;
-  font-display: swap;
-  src: url("/fonts/lora-600.woff2") format("woff2");
+  src: url("/fonts/manrope-latin-wght.woff2") format("woff2");
 }
 
 :root {
-  /* Neutral scale (light) — Classical design system palette
-     (OPENFUNNEL_REBRAND_7A_PLAN.md §7 Commit 1), remapped onto this app's
-     existing token names. Source values from design_handoff_crm_wireframes/
-     tokens.css. */
-  --bg: #fdfcfa;
+  /* Neutral scale (light) — "Ember" theme (DESIGN_SYSTEM_REFRESH.md §12):
+     warm off-white page, white cards, warm-brown ink. Supersedes the
+     earlier Classical palette. */
+  --bg: #f8f5f1;
   --surface: #ffffff;
-  --surface-hover: #f7f5ef;
-  --border: #e6e2d8;
-  --text-muted: #6f6a61;
-  --text: #4c473f;
-  --text-h: #201f1d;
+  --surface-hover: #f1ece6;
+  --border: #e8dfd6;
+  --text-muted: #6f6359;
+  --text: #3a2f27;
+  --text-h: #201812;
 
   /* Elevation (§3) */
   --elevation-2: #ffffff;
 
-  /* Shadows (§4) — ink-tinted, matching the Classical system's shadow
-     approach (styles.css) rather than the old blue-purple tint. */
-  --shadow-sm: 0 1px 2px rgba(32, 31, 29, 0.06);
-  --shadow-md: 0 4px 16px rgba(32, 31, 29, 0.1);
-  --shadow-lg: 0 8px 24px rgba(32, 31, 29, 0.16);
+  /* Shadows (§4) — warm-brown tinted. */
+  --shadow-sm: 0 1px 2px rgba(60, 40, 20, 0.06);
+  --shadow-md: 0 4px 16px rgba(60, 40, 20, 0.1);
+  --shadow-lg: 0 8px 24px rgba(60, 40, 20, 0.16);
 
   /* Spacing (§5) — shifted toward the Classical system's tighter rhythm */
   --space-1: 5px;
@@ -85,27 +63,35 @@
   --weight-medium: 500;
   --weight-semibold: 600;
 
-  /* Action/status colors (§7) — single saturated accent, kept quiet
-     elsewhere. Values tuned to clear WCAG AA 4.5:1 against their own
-     background (verified numerically, not eyeballed — see the design
-     doc's contrast-check note). Accent from tokens.css's --ac/--act/--at;
-     tokens.css has no danger/success/warning roles (Classical is
-     deliberately single-accent), so these three are hand-picked to read as
-     warm-palette-consistent and mutually distinguishable at a glance. */
-  --accent: #b68235;
-  --accent-hover: #8a6323;
-  --accent-fg: #201f1d;
-  --accent-subtle: #f7f0e2;
-  --danger: #a83e2c;
-  --danger-bg: #fbeae6;
-  --success: #5c7a2e;
-  --success-bg: #eef3e3;
-  --warning: #96660b;
-  --warning-bg: #fdf0da;
+  /* Action/status colors (§7) — Ember orange accent. --accent is the
+     *text/stroke* orange (a deeper burnt orange in light so it clears WCAG
+     AA 4.5:1 as text on white/off-white; bright orange in dark). The bright
+     gradient lives in --accent-fill, used only for filled surfaces (primary
+     button) with the dark ink --accent-fg on top — that pairing is >=7:1 in
+     both themes. Every text/background pair below was checked numerically
+     against WCAG AA 4.5:1. */
+  --accent: #b93b0a;
+  --accent-hover: #8f2d06;
+  --accent-fg: #1a0f08;
+  --accent-fill: linear-gradient(135deg, #ff7a3d, #ffa53f);
+  --accent-subtle: #ffebdc;
+  --danger: #a3301f;
+  --danger-bg: #fde4e0;
+  --success: #0c6b47;
+  --success-bg: #ddf5ea;
+  --warning: #7a4e06;
+  --warning-bg: #fcefd0;
+
+  /* KPI tile top bars — one distinct hue per tile (MetricCard's `bar`
+     prop picks 1-4). Decorative, never the only carrier of meaning. */
+  --kpi-1: #e8590c;
+  --kpi-2: #12a57a;
+  --kpi-3: #e0a526;
+  --kpi-4: #7a5af0;
 
   --sans: system-ui, "Segoe UI", Roboto, sans-serif;
-  --font-heading: "Cormorant Garamond", Georgia, serif;
-  --font-body: "Lora", Georgia, serif;
+  --font-heading: "Manrope", system-ui, "Segoe UI", Roboto, sans-serif;
+  --font-body: "Manrope", system-ui, "Segoe UI", Roboto, sans-serif;
 
   font: var(--text-base) / var(--line-base) var(--font-body);
   color-scheme: light dark;
@@ -127,33 +113,37 @@
    Keep both blocks identical — nothing else enforces that. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    /* Neutral scale (dark) — Classical palette's dark companion set
-       (tokens.css [data-theme="dark"]), remapped onto the same token
-       names as the light block above. */
-    --bg: #1b1917;
-    --surface: #221f1c;
-    --surface-hover: #272320;
-    --border: #332f29;
-    --text-muted: #a49b8c;
-    --text: #cec7ba;
-    --text-h: #efe9de;
+    /* Neutral scale (dark) — Ember: warm charcoal, not pure black. */
+    --bg: #15120f;
+    --surface: #1e1a16;
+    --surface-hover: #2a2420;
+    --border: #2e2822;
+    --text-muted: #a79d92;
+    --text: #e9e2d9;
+    --text-h: #f6f1ea;
 
-    --elevation-2: #221f1c;
+    --elevation-2: #241f1a;
 
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
     --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.35);
     --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.45);
 
-    --accent: #c99a4e;
-    --accent-hover: #dcb877;
-    --accent-fg: #efe9de;
-    --accent-subtle: #2f2618;
-    --danger: #d97b62;
-    --danger-bg: #3a241c;
-    --success: #9cbf6e;
-    --success-bg: #26301a;
-    --warning: #dba847;
-    --warning-bg: #3a2c10;
+    --accent: #ff7a3d;
+    --accent-hover: #ffa070;
+    --accent-fg: #1a0f08;
+    --accent-fill: linear-gradient(135deg, #ff7a3d, #ffa53f);
+    --accent-subtle: #2a1d14;
+    --danger: #ff9e8f;
+    --danger-bg: #3d1d1a;
+    --success: #6ee0aa;
+    --success-bg: #153027;
+    --warning: #ffc46b;
+    --warning-bg: #3a2a12;
+
+    --kpi-1: #ff7a3d;
+    --kpi-2: #3dd9a0;
+    --kpi-3: #ffc46b;
+    --kpi-4: #a58bff;
   }
 }
 
@@ -161,30 +151,36 @@
   /* Identical to the block above — an explicit dark choice must apply
      even when the OS itself is light, which the media query above
      cannot express. */
-  --bg: #1b1917;
-  --surface: #221f1c;
-  --surface-hover: #272320;
-  --border: #332f29;
-  --text-muted: #a49b8c;
-  --text: #cec7ba;
-  --text-h: #efe9de;
+  --bg: #15120f;
+  --surface: #1e1a16;
+  --surface-hover: #2a2420;
+  --border: #2e2822;
+  --text-muted: #a79d92;
+  --text: #e9e2d9;
+  --text-h: #f6f1ea;
 
-  --elevation-2: #221f1c;
+  --elevation-2: #241f1a;
 
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.35);
   --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.45);
 
-  --accent: #c99a4e;
-  --accent-hover: #dcb877;
-  --accent-fg: #efe9de;
-  --accent-subtle: #2f2618;
-  --danger: #d97b62;
-  --danger-bg: #3a241c;
-  --success: #9cbf6e;
-  --success-bg: #26301a;
-  --warning: #dba847;
-  --warning-bg: #3a2c10;
+  --accent: #ff7a3d;
+  --accent-hover: #ffa070;
+  --accent-fg: #1a0f08;
+  --accent-fill: linear-gradient(135deg, #ff7a3d, #ffa53f);
+  --accent-subtle: #2a1d14;
+  --danger: #ff9e8f;
+  --danger-bg: #3d1d1a;
+  --success: #6ee0aa;
+  --success-bg: #153027;
+  --warning: #ffc46b;
+  --warning-bg: #3a2a12;
+
+  --kpi-1: #ff7a3d;
+  --kpi-2: #3dd9a0;
+  --kpi-3: #ffc46b;
+  --kpi-4: #a58bff;
 }
 
 * {
@@ -213,7 +209,8 @@ h6 {
 h1 {
   font-size: var(--text-2xl);
   line-height: var(--line-2xl);
-  font-weight: var(--weight-semibold);
+  font-weight: 800;
+  letter-spacing: -0.02em;
   color: var(--text-h);
   margin: 0 0 var(--space-2);
 }
@@ -234,10 +231,11 @@ button:disabled {
   cursor: not-allowed;
 }
 
+/* Primary is a filled gradient button (Button.tsx); hover brightens it
+   rather than swapping its background, which an inline background would
+   otherwise win over anyway. */
 .btn-primary:not(:disabled):hover {
-  background: var(--accent-subtle);
-  border-color: var(--accent-hover);
-  color: var(--accent-hover);
+  filter: brightness(1.07);
 }
 
 .btn-secondary:not(:disabled):hover {

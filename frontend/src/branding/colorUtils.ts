@@ -97,6 +97,6 @@ export const HEADER_BACKGROUND_COLORS: Record<"light" | "dark" | "accent", strin
   // inventing new colors — "dark" is the exact value the app's own dark
   // theme already uses for --surface.
   light: "#ffffff",
-  dark: "#221f1c",
+  dark: "#1e1a16",
   accent: undefined, // resolved by the caller from the tenant's own accent_color
 };

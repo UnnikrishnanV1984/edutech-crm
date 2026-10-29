@@ -13,9 +13,16 @@ const variantClass: Record<Variant, string> = {
 };
 
 const variantStyles: Record<Variant, React.CSSProperties> = {
-  // Accent-outlined, never filled — the Classical design system applies
-  // accent as stroke/tint only (design_handoff_crm_wireframes/README.md).
-  primary: { background: "transparent", color: "var(--accent)", border: "1px solid var(--accent)" },
+  // Ember theme (DESIGN_SYSTEM_REFRESH.md §12): a filled gradient with dark
+  // ink on top, so the primary action is the one bright thing on screen.
+  // --accent-fill falls back to the flat accent when a tenant's own brand
+  // color overrides it (branding/ApplyBranding.tsx).
+  primary: {
+    background: "var(--accent-fill, var(--accent))",
+    color: "var(--accent-fg)",
+    border: "none",
+    fontWeight: 700,
+  },
   secondary: { background: "transparent", color: "var(--text-h)" },
   text: {
     background: "transparent",

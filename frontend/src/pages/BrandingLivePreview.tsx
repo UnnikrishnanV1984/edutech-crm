@@ -42,7 +42,7 @@ function resolveHeaderBg(draft: BrandingDraft): string {
 // filled-button convention, so this preview matches what the admin will
 // actually see once published.
 function AppPreview({ draft }: { draft: BrandingDraft }) {
-  const accent = draft.accent_color ?? "#b68235";
+  const accent = draft.accent_color ?? "#b93b0a";
   return (
     <div style={{ border: "1px solid var(--border)", borderRadius: "var(--radius-sm)" }}>
       <div
@@ -110,7 +110,7 @@ function PreviewOnlyNote() {
 }
 
 function LoginPreview({ draft }: { draft: BrandingDraft }) {
-  const accent = draft.accent_color ?? "#b68235";
+  const accent = draft.accent_color ?? "#b93b0a";
   return (
     <div>
       <div

@@ -7,14 +7,15 @@ export interface ColorTone {
 // Position-based, not name-based — pipeline_stages are tenant-configurable
 // (name and count), so a fixed name->color map would break the moment a
 // tenant renames a stage or two tenants pick colliding names
-// (DESIGN_SYSTEM_REFRESH.md §8). Deliberately excludes the accent's violet
-// hue, so a stage color never competes with a primary-action button.
+// (DESIGN_SYSTEM_REFRESH.md §8). Deliberately excludes orange/amber (the
+// Ember accent family), so a stage color never competes with a primary-action
+// button.
 // fg values tuned to clear WCAG AA 4.5:1 against their own bg (verified
 // numerically — see DESIGN_SYSTEM_REFRESH.md's contrast-check note).
 const STAGE_COLOR_SEQUENCE: { light: ColorTone; dark: ColorTone }[] = [
   { light: { bg: "#e6f1fc", fg: "#1f6fb8", border: "#c9e2f7" }, dark: { bg: "#16283a", fg: "#7ec1f2", border: "#234a68" } }, // sky
   { light: { bg: "#e1f5f1", fg: "#0f6c60", border: "#bfe8df" }, dark: { bg: "#123430", fg: "#5fd8c4", border: "#1d5348" } }, // teal
-  { light: { bg: "#fdf1de", fg: "#a15c07", border: "#f6ddad" }, dark: { bg: "#3a2a10", fg: "#f0b84e", border: "#5c431c" } }, // amber
+  { light: { bg: "#ede7ff", fg: "#4b2fb0", border: "#dcd0ff" }, dark: { bg: "#2b2440", fg: "#cdbfff", border: "#3f3560" } }, // violet
   { light: { bg: "#fce8ee", fg: "#b23760", border: "#f6cddb" }, dark: { bg: "#3a1c28", fg: "#f4a0bb", border: "#5c2d3f" } }, // rose
   { light: { bg: "#eef3e3", fg: "#4d6c26", border: "#d9e6c2" }, dark: { bg: "#26301a", fg: "#b7d688", border: "#3c4d28" } }, // sage
   { light: { bg: "#eceef2", fg: "#4b5567", border: "#d7dce4" }, dark: { bg: "#22242e", fg: "#b7bccb", border: "#343747" } }, // slate

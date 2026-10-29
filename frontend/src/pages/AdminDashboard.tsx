@@ -91,10 +91,10 @@ export function AdminDashboard() {
       {loaded && (
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)" }}>
         <div className="grid-4col">
-          <MetricCard label="Open deals" value={openDeals} />
-          <MetricCard label="SLA at risk" value={atRisk} accent />
-          <MetricCard label="Breached" value={breached} />
-          <MetricCard label="Conversion" value={`${conversion}%`} />
+          <MetricCard label="Open deals" value={openDeals} bar={1} />
+          <MetricCard label="SLA at risk" value={atRisk} accent bar={3} />
+          <MetricCard label="Breached" value={breached} bar={4} />
+          <MetricCard label="Conversion" value={`${conversion}%`} bar={2} />
         </div>
 
         {invoiceSummary && (

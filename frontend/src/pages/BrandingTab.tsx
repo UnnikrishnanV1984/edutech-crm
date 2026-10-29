@@ -25,7 +25,7 @@ import { PageSpinner, Spinner } from "../components/Spinner";
 import { BrandingLivePreview } from "./BrandingLivePreview";
 import { BrandingVersionHistory } from "./BrandingVersionHistory";
 
-const ACCENT_PRESETS = ["#b68235", "#201f1d", "#6b6a67"];
+const ACCENT_PRESETS = ["#b93b0a", "#201812", "#6f6359"];
 
 const HEADER_BACKGROUND_OPTIONS: { value: HeaderBackground; label: string }[] = [
   { value: "light", label: "Light" },
@@ -35,7 +35,7 @@ const HEADER_BACKGROUND_OPTIONS: { value: HeaderBackground; label: string }[] = 
 
 const TYPEFACE_OPTIONS: { value: Typeface; label: string }[] = [
   { value: "system", label: "System" },
-  { value: "serif", label: "Serif (Cormorant Garamond / Lora)" },
+  { value: "serif", label: "Serif (Georgia)" },
 ];
 
 interface UploadWellProps {
@@ -422,7 +422,7 @@ export function BrandingTab() {
                 ref={customColorInputRef}
                 aria-label="Custom accent color"
                 type="color"
-                value={draft.accent_color ?? "#b68235"}
+                value={draft.accent_color ?? "#b93b0a"}
                 onChange={(event) => void saveDraftFields({ accent_color: event.target.value })}
                 style={{ width: 0, height: 0, padding: 0, border: "none", opacity: 0 }}
               />
