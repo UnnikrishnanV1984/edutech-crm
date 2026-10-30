@@ -113,6 +113,12 @@ function stageBarColor(stageName: string, isWon: boolean | undefined): string {
   if (NEGATIVE_STAGE_NAMES.some((name) => lower.includes(name))) {
     return "var(--chart-bar-negative)";
   }
+  if (lower.includes("demo scheduled")) {
+    return "var(--chart-bar-demo-scheduled)";
+  }
+  if (lower.includes("contacted")) {
+    return "var(--chart-bar-contacted)";
+  }
   return "var(--chart-bar)";
 }
 

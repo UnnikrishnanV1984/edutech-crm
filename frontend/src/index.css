@@ -108,7 +108,9 @@
      themes by design, so they read as a distinct tint against either a
      light or dark card rather than tracking the neutral palette. */
   --chart-bar-positive: #8fd9b6;
-  --chart-bar-negative: #f3a9a0;
+  --chart-bar-negative: #db8378;
+  --chart-bar-contacted: #f0e267;
+  --chart-bar-demo-scheduled: #dfba74;
 
   --sans: system-ui, "Segoe UI", Roboto, sans-serif;
   --font-heading: "Manrope", system-ui, "Segoe UI", Roboto, sans-serif;
