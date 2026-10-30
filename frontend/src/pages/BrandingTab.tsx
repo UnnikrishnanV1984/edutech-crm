@@ -22,6 +22,7 @@ import { Button } from "../components/Button";
 import { Card } from "../components/Card";
 import { Select } from "../components/Select";
 import { PageSpinner, Spinner } from "../components/Spinner";
+import { notifyBrandingPublished } from "../useBranding";
 import { BrandingLivePreview } from "./BrandingLivePreview";
 import { BrandingVersionHistory } from "./BrandingVersionHistory";
 
@@ -247,6 +248,7 @@ export function BrandingTab() {
     try {
       await publishBranding(token);
       loadVersions();
+      notifyBrandingPublished();
     } catch (err) {
       setActionError(err instanceof ApiRequestError ? err.message : "Couldn't publish");
     } finally {
