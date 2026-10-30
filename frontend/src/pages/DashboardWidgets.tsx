@@ -158,7 +158,7 @@ export function PipelineByStageCard({
                     style={{
                       width: "100%",
                       height: `${Math.max(pct, 3)}%`,
-                      background: stage?.is_won ? "var(--accent)" : "var(--surface-hover)",
+                      background: stage?.is_won ? "var(--accent)" : "var(--chart-bar)",
                       borderRadius: "var(--radius-sm) var(--radius-sm) 0 0",
                     }}
                   />

@@ -97,6 +97,12 @@
   --header-bg-light: #ffffff;
   --header-bg-dark: #1e1a16;
 
+  /* Dashboard "Pipeline by stage" bar fill for non-won stages
+     (DashboardWidgets.tsx) — needs its own token because --surface-hover
+     is too close to --bg/--surface to read as a bar once elevated on a
+     dark card. */
+  --chart-bar: #e8dfd6;
+
   --sans: system-ui, "Segoe UI", Roboto, sans-serif;
   --font-heading: "Manrope", system-ui, "Segoe UI", Roboto, sans-serif;
   --font-body: "Manrope", system-ui, "Segoe UI", Roboto, sans-serif;
@@ -154,6 +160,7 @@
     --kpi-4: #a58bff;
 
     --header-bg-light: #1e1a16;
+    --chart-bar: #4a4038;
   }
 }
 
@@ -193,6 +200,7 @@
   --kpi-4: #a58bff;
 
   --header-bg-light: #1e1a16;
+  --chart-bar: #4a4038;
 }
 
 * {
