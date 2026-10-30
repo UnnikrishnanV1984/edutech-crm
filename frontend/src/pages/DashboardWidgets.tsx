@@ -98,6 +98,24 @@ function ToggleChip({
   );
 }
 
+const POSITIVE_STAGE_NAMES = ["fee paid", "enrolled", "payment received"];
+const NEGATIVE_STAGE_NAMES = ["dropped"];
+
+// Pastel green/red for the stages the outcome is already known for
+// (fee paid/enrolled/payment received vs. dropped), independent of the
+// is_won/is_lost flags — those only ever mark the single final stage of
+// each kind, not every stage a tenant considers "a good sign".
+function stageBarColor(stageName: string, isWon: boolean | undefined): string {
+  const lower = stageName.toLowerCase();
+  if (isWon || POSITIVE_STAGE_NAMES.some((name) => lower.includes(name))) {
+    return "var(--chart-bar-positive)";
+  }
+  if (NEGATIVE_STAGE_NAMES.some((name) => lower.includes(name))) {
+    return "var(--chart-bar-negative)";
+  }
+  return "var(--chart-bar)";
+}
+
 export function PipelineByStageCard({
   funnel,
   stages,
@@ -158,7 +176,7 @@ export function PipelineByStageCard({
                     style={{
                       width: "100%",
                       height: `${Math.max(pct, 3)}%`,
-                      background: stage?.is_won ? "var(--accent)" : "var(--chart-bar)",
+                      background: stageBarColor(row.stage_name, stage?.is_won),
                       borderRadius: "var(--radius-sm) var(--radius-sm) 0 0",
                     }}
                   />

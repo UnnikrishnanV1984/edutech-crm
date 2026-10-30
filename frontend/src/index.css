@@ -103,6 +103,13 @@
      dark card. */
   --chart-bar: #e8dfd6;
 
+  /* Pastel semantic bar fills for positive (fee paid/enrolled/payment
+     received) and negative (dropped) stages — same pastel value in both
+     themes by design, so they read as a distinct tint against either a
+     light or dark card rather than tracking the neutral palette. */
+  --chart-bar-positive: #8fd9b6;
+  --chart-bar-negative: #f3a9a0;
+
   --sans: system-ui, "Segoe UI", Roboto, sans-serif;
   --font-heading: "Manrope", system-ui, "Segoe UI", Roboto, sans-serif;
   --font-body: "Manrope", system-ui, "Segoe UI", Roboto, sans-serif;
