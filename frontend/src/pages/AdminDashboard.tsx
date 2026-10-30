@@ -22,6 +22,7 @@ import { Card } from "../components/Card";
 import { EmptyState } from "../components/EmptyState";
 import { PageSpinner } from "../components/Spinner";
 import { DashboardTopBar, MetricCard, MyQueueTodayCard, PipelineByStageCard } from "./DashboardWidgets";
+import { stageBarColor } from "../stageBarColor";
 import { useMe } from "../useMe";
 
 export function AdminDashboard() {
@@ -220,7 +221,10 @@ export function AdminDashboard() {
                       style={{
                         height: 14,
                         borderRadius: "var(--radius-sm)",
-                        background: "var(--accent-subtle)",
+                        background: stageBarColor(
+                          row.stage_name,
+                          stages.find((s) => s.id === row.stage_id)?.is_won,
+                        ),
                         width: `${(row.count / Math.max(1, ...funnel.map((f) => f.count))) * 100}%`,
                         minWidth: row.count > 0 ? 4 : 0,
                       }}
