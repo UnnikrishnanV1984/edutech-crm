@@ -137,7 +137,7 @@ export function PipelineByStageCard({
         </div>
       ) : (
         <>
-          <div style={{ display: "flex", alignItems: "flex-end", gap: 10, height: 150, marginTop: "var(--space-4)" }}>
+          <div style={{ display: "flex", alignItems: "flex-end", gap: 10, height: 190, marginTop: "var(--space-4)" }}>
             {funnel.map((row) => {
               const stage = stages.find((s) => s.id === row.stage_id);
               const pct =
@@ -224,7 +224,7 @@ function QueueRow({
 }) {
   const bucket = dueBucket(task.due_at);
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "var(--space-2) 0" }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "var(--space-1) 0" }}>
       <input
         type="checkbox"
         aria-label={`Complete ${task.title}`}
@@ -234,7 +234,16 @@ function QueueRow({
         style={{ flex: 1, cursor: task.contact_id ? "pointer" : undefined, minWidth: 0 }}
         onClick={() => task.contact_id && onOpenContact(task.contact_id)}
       >
-        <div style={{ fontSize: "var(--text-sm)" }}>{task.title}</div>
+        <div
+          style={{
+            fontSize: "var(--text-xs)",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {task.title}
+        </div>
         {task.description && (
           <div
             style={{
