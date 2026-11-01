@@ -5,9 +5,11 @@ import type { PipelineStage } from "../api/pipelineStages";
 import { REPORT_PERIOD_OPTIONS, type FunnelRow, type ReportPeriod } from "../api/reports";
 import { listTasks, updateTask, type Task } from "../api/tasks";
 import { Badge } from "../components/Badge";
+import { Button } from "../components/Button";
 import { Card } from "../components/Card";
 import { EmptyState } from "../components/EmptyState";
 import { Select } from "../components/Select";
+import { SlideOverPanel } from "../components/SlideOverPanel";
 import { Spinner } from "../components/Spinner";
 import { stageBarColor } from "../stageBarColor";
 
@@ -205,19 +207,67 @@ function dueBucket(dueAt: string | null): { label: string; accent?: boolean } {
   return { label: new Date(dueAt).toLocaleDateString(undefined, { weekday: "short" }) };
 }
 
+// Matches PipelineByStageCard's content height (its 150px chart plus
+// header/label rows) closely enough that the two cards in grid-split-14
+// come out about the same height, rather than one towering over the
+// other — see MyQueueTodayCard's "View more" popup for the rest.
+const VISIBLE_QUEUE_ITEMS = 4;
+
+function QueueRow({
+  task,
+  onComplete,
+  onOpenContact,
+}: {
+  task: Task & { due_at: string };
+  onComplete: (task: Task) => void;
+  onOpenContact: (contactId: string) => void;
+}) {
+  const bucket = dueBucket(task.due_at);
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "var(--space-2) 0" }}>
+      <input
+        type="checkbox"
+        aria-label={`Complete ${task.title}`}
+        onChange={() => onComplete(task)}
+      />
+      <div
+        style={{ flex: 1, cursor: task.contact_id ? "pointer" : undefined, minWidth: 0 }}
+        onClick={() => task.contact_id && onOpenContact(task.contact_id)}
+      >
+        <div style={{ fontSize: "var(--text-sm)" }}>{task.title}</div>
+        {task.description && (
+          <div
+            style={{
+              fontSize: "var(--text-xs)",
+              color: "var(--text-muted)",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {task.description}
+          </div>
+        )}
+      </div>
+      <Badge variant="chip" label={bucket.label} tone={bucket.accent ? ACCENT_TINT : undefined} />
+    </div>
+  );
+}
+
 // A compact preview of the viewer's own open tasks, nearest-due-first —
 // the full experience (grouping, undo-on-complete) lives on TasksPage;
 // this widget completes a task immediately, no undo, since it's a
 // dashboard preview rather than the task list itself.
 export function MyQueueTodayCard({ token, meId }: { token: string; meId: string }) {
   const navigate = useNavigate();
-  const [tasks, setTasks] = useState<Task[] | undefined>(undefined);
+  const [tasks, setTasks] = useState<(Task & { due_at: string })[] | undefined>(undefined);
+  const [showAll, setShowAll] = useState(false);
 
   function load() {
     listTasks(token, { assignee_id: meId, status: "open", page_size: 100 }).then((response) => {
       const withDue = response.data.filter((t): t is Task & { due_at: string } => t.due_at !== null);
       withDue.sort((a, b) => new Date(a.due_at).getTime() - new Date(b.due_at).getTime());
-      setTasks(withDue.slice(0, 5));
+      setTasks(withDue);
     });
   }
 
@@ -233,6 +283,12 @@ export function MyQueueTodayCard({ token, meId }: { token: string; meId: string 
     }
   }
 
+  function openContact(contactId: string) {
+    navigate(`/contacts/${contactId}`);
+  }
+
+  const hiddenCount = tasks ? Math.max(0, tasks.length - VISIBLE_QUEUE_ITEMS) : 0;
+
   return (
     <Card title="My queue today">
       {tasks === undefined ? (
@@ -243,48 +299,29 @@ export function MyQueueTodayCard({ token, meId }: { token: string; meId: string 
         <EmptyState headline="You're all caught up" />
       ) : (
         <div>
-          {tasks.map((task, index) => {
-            const bucket = dueBucket(task.due_at);
-            return (
-              <div
-                key={task.id}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 9,
-                  padding: "var(--space-2) 0",
-                  borderTop: index === 0 ? "none" : "1px solid var(--border)",
-                }}
-              >
-                <input
-                  type="checkbox"
-                  aria-label={`Complete ${task.title}`}
-                  onChange={() => void complete(task)}
-                />
-                <div
-                  style={{ flex: 1, cursor: task.contact_id ? "pointer" : undefined, minWidth: 0 }}
-                  onClick={() => task.contact_id && navigate(`/contacts/${task.contact_id}`)}
-                >
-                  <div style={{ fontSize: "var(--text-sm)" }}>{task.title}</div>
-                  {task.description && (
-                    <div
-                      style={{
-                        fontSize: "var(--text-xs)",
-                        color: "var(--text-muted)",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {task.description}
-                    </div>
-                  )}
-                </div>
-                <Badge variant="chip" label={bucket.label} tone={bucket.accent ? ACCENT_TINT : undefined} />
-              </div>
-            );
-          })}
+          {tasks.slice(0, VISIBLE_QUEUE_ITEMS).map((task, index) => (
+            <div key={task.id} style={{ borderTop: index === 0 ? "none" : "1px solid var(--border)" }}>
+              <QueueRow task={task} onComplete={(t) => void complete(t)} onOpenContact={openContact} />
+            </div>
+          ))}
+          {hiddenCount > 0 && (
+            <div style={{ borderTop: "1px solid var(--border)", paddingTop: "var(--space-1)" }}>
+              <Button variant="text" onClick={() => setShowAll(true)}>
+                View {hiddenCount} more
+              </Button>
+            </div>
+          )}
         </div>
+      )}
+
+      {showAll && tasks && (
+        <SlideOverPanel title="My queue today" onClose={() => setShowAll(false)}>
+          {tasks.map((task, index) => (
+            <div key={task.id} style={{ borderTop: index === 0 ? "none" : "1px solid var(--border)" }}>
+              <QueueRow task={task} onComplete={(t) => void complete(t)} onOpenContact={openContact} />
+            </div>
+          ))}
+        </SlideOverPanel>
       )}
     </Card>
   );
