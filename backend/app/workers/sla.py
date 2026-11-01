@@ -18,7 +18,6 @@ import uuid
 from datetime import UTC, datetime
 
 from sqlalchemy import select, text
-from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.core.logging import get_logger
 from app.db.session import get_sessionmaker
@@ -85,35 +84,47 @@ async def _upsert_sla_state(
     )
     row = existing.scalar_one_or_none()
     was_breached = row is not None and row.state == "breached"
+    breached_at = (
+        (row.breached_at if row is not None and row.breached_at else now)
+        if state == "breached"
+        else None
+    )
 
-    stmt = pg_insert(SlaState).values(
-        id=uuid.uuid4(),
-        tenant_id=tenant_id,
-        sla_policy_id=policy.id,
-        deal_id=deal_id,
-        task_id=task_id,
-        target_at=target_at,
-        warning_at=warning_at,
-        state=state,
-        breached_at=now if state == "breached" else None,
-        computed_at=now,
-    ).on_conflict_do_update(
-        index_elements=[
-            SlaState.tenant_id,
-            SlaState.sla_policy_id,
-            SlaState.deal_id,
-            SlaState.task_id,
-        ],
-        set_={
-            "state": state,
-            "computed_at": now,
-            "breached_at": text("CASE WHEN excluded.state = 'breached' "
-                                 "THEN COALESCE(sla_states.breached_at, excluded.computed_at) "
-                                 "ELSE NULL END"),
-        },
-    ).returning(SlaState.id)
-    result = await db.execute(stmt)
-    sla_state_id = result.scalar_one()
+    # Plain select-then-update-or-insert rather than INSERT ... ON CONFLICT:
+    # uq_sla_states_policy_target (0031) is a COALESCE expression index —
+    # needed because deal_id/task_id are each NULL on one side of every row
+    # (NULL isn't distinct-from-NULL for a plain unique index) — and
+    # Postgres' ON CONFLICT inference on a *partitioned* table only matches
+    # an expression index against literal SQL text, not the parameterized
+    # form SQLAlchemy compiles (confirmed: identical raw SQL with literals
+    # succeeds, the ORM-bound version raises "no unique or exclusion
+    # constraint matching the ON CONFLICT specification"). The unique index
+    # still does its job here — it's just enforced as a race guard rather
+    # than targeted by an upsert.
+    if row is not None:
+        row.state = state
+        row.target_at = target_at
+        row.warning_at = warning_at
+        row.breached_at = breached_at
+        row.computed_at = now
+        sla_state_id = row.id
+    else:
+        sla_state_id = uuid.uuid4()
+        db.add(
+            SlaState(
+                id=sla_state_id,
+                tenant_id=tenant_id,
+                sla_policy_id=policy.id,
+                deal_id=deal_id,
+                task_id=task_id,
+                target_at=target_at,
+                warning_at=warning_at,
+                state=state,
+                breached_at=breached_at,
+                computed_at=now,
+            )
+        )
+    await db.flush()
     return sla_state_id, state, (state == "breached" and not was_breached)
 
 
