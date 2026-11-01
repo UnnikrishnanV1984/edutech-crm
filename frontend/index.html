@@ -11,6 +11,10 @@
           var pref = localStorage.getItem("theme-preference");
           if (pref === "light" || pref === "dark") {
             document.documentElement.dataset.theme = pref;
+            // Ember only applies with an explicit mode; System is always Meridian.
+            if (localStorage.getItem("theme-palette") === "ember") {
+              document.documentElement.dataset.palette = "ember";
+            }
           }
         } catch (e) {}
       })();

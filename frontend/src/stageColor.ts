@@ -1,3 +1,4 @@
+import { isDarkTheme } from "./theme";
 export interface ColorTone {
   bg: string;
   fg: string;
@@ -27,16 +28,12 @@ const WON_TONE = { light: { bg: "#e6f7ef", fg: "#0e6e4a", border: "#c7ecdc" }, d
 // tone's own pastel background, and reusing it fell short of 4.5:1 here.
 const LOST_TONE = { light: { bg: "#f1eff5", fg: "#68617a", border: "#e6e3ec" }, dark: { bg: "#21222c", fg: "#8d8fa3", border: "#2b2c38" } };
 
-function prefersDark(): boolean {
-  return typeof window !== "undefined" && window.matchMedia?.("(prefers-color-scheme: dark)").matches;
-}
-
 /** The raw 6-hue sequence, exposed for Avatar.tsx's deterministic
  * hash-by-user-id color assignment (DESIGN_SYSTEM_REFRESH.md §10) — reuses
  * the same palette rather than introducing a seventh one. */
 export function toneByIndex(index: number): ColorTone {
   const entry = STAGE_COLOR_SEQUENCE[index % STAGE_COLOR_SEQUENCE.length] ?? STAGE_COLOR_SEQUENCE[0]!;
-  return prefersDark() ? entry.dark : entry.light;
+  return isDarkTheme() ? entry.dark : entry.light;
 }
 
 export const STAGE_HUE_COUNT = STAGE_COLOR_SEQUENCE.length;
@@ -55,7 +52,7 @@ interface StageFlags {
  * §8), since those two flags carry fixed meaning regardless of what the
  * tenant named/ordered the stage. */
 export function stageColor(stage: StageFlags, index: number): ColorTone {
-  const dark = prefersDark();
+  const dark = isDarkTheme();
   if (stage.is_won) return dark ? WON_TONE.dark : WON_TONE.light;
   if (stage.is_lost) return dark ? LOST_TONE.dark : LOST_TONE.light;
   const entry = STAGE_COLOR_SEQUENCE[index % STAGE_COLOR_SEQUENCE.length] ?? STAGE_COLOR_SEQUENCE[5];

@@ -1,6 +1,6 @@
 # Design system refresh — visual tokens & component polish
 
-> **Current palette and fonts: see §12 (Ember theme).** The color and font
+> **Current palettes and fonts: see §12 (Ember) and §13 (Meridian default + palette picker).** The color and font
 > values in §2, §7 and §8 below are the original violet palette and are
 > kept for history; §12 supersedes them.
 
@@ -428,6 +428,34 @@ slate are unchanged.
 
 **Primary Button.** Filled gradient, dark ink, weight 700, no border; hover
 is `filter: brightness(1.07)`. (Previously accent-outlined only.)
+
+## 13. Meridian palette and the palette picker (supersedes §12's "Ember is the only theme")
+
+Two palettes, each with light and dark:
+
+| Palette | Character | Key tokens (light / dark) |
+|---|---|---|
+| **Meridian** (default) | Cool navy + electric blue | `--bg #f2f5fb / #0a1220`, `--accent #2450e6 / #6a90ff`, `--accent-fill #2b59ff` (white ink), KPI bars blue / teal / amber / coral |
+| **Ember** | Warm charcoal + orange | see §12 |
+
+**Selection rules**
+- **System** = Meridian, always, following the OS light/dark. A stored Ember choice is kept but not applied while System is active.
+- Clicking **Light** or **Dark** in the sidebar footer applies that mode and opens an upward popover (`role="dialog"`) listing Meridian and Ember with swatches and a one-line description. Picking one applies it and closes the popover; Escape or an outside click also closes it.
+- Storage: `theme-preference` (`light`|`dark`, absent = System) and `theme-palette` (`ember`, absent = Meridian).
+
+**CSS cascade (`index.css`, `<html>` attributes `data-theme`, `data-palette`)**
+1. `:root` — Meridian light
+2. `@media (prefers-color-scheme: dark) :root:not([data-theme="light"])` — Meridian dark (System on a dark OS)
+3. `:root[data-theme="dark"]` — Meridian dark (explicit); **identical to 2**
+4. `:root[data-palette="ember"]` — Ember light
+5. `:root[data-palette="ember"][data-theme="dark"]` — Ember dark
+
+`data-palette="ember"` is only ever set alongside an explicit `data-theme`, so Ember never needs its own media query. The inline script in `index.html` and `src/theme.ts` apply the same rules.
+
+**Supporting changes**
+- JS-computed colors (`stageColor.ts`, `leadSource.ts`) use `isDarkTheme()` (explicit `data-theme` first, then the OS), and `App.tsx` calls `useThemeVersion()` so chips re-render on change. Previously they looked only at the OS setting and ignored an explicit Light/Dark choice.
+- Tenant branding (`ApplyBranding.tsx`) now uses `:root:root:root:root` so it beats the palette blocks, including the explicit dark ones.
+- Contrast: all Meridian text/surface pairs were checked against WCAG AA 4.5:1 (accent on subtle, white on `--accent-fill`, status colors on their backgrounds).
 
 ## Deferred / out of scope
 

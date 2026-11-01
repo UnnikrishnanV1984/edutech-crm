@@ -28,8 +28,8 @@ export function ApplyBranding() {
       styleTag.id = styleId;
       document.head.appendChild(styleTag);
     }
-    // A later, more specific rule than the base :root token definitions
-    // in index.css — overrides the value, doesn't touch the base
+    // A later rule with deliberately boosted specificity (:root x4) so it beats
+    // the palette/theme blocks in index.css (:root[data-palette][data-theme]) — overrides the value, doesn't touch the base
     // definitions themselves, so light/dark theme switching still works
     // underneath a branding override.
     // A tenant color replaces the theme's orange gradient too (--accent-fill),
@@ -37,7 +37,7 @@ export function ApplyBranding() {
     // below WCAG AA against that color.
     const inkRatio = contrastRatio(accent, "#1a0f08") ?? 0;
     const accentFg = inkRatio >= WCAG_AA_CONTRAST ? "#1a0f08" : "#ffffff";
-    styleTag.textContent = `:root { --accent: ${accent}; --accent-hover: ${accentHover}; --accent-subtle: ${accentSubtle}; --accent-fill: ${accent}; --accent-fg: ${accentFg}; }`;
+    styleTag.textContent = `:root:root:root:root { --accent: ${accent}; --accent-hover: ${accentHover}; --accent-subtle: ${accentSubtle}; --accent-fill: ${accent}; --accent-fg: ${accentFg}; }`;
 
     return () => {
       styleTag?.remove();

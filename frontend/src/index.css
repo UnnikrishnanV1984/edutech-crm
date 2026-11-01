@@ -12,27 +12,23 @@
   src: url("/fonts/manrope-latin-wght.woff2") format("woff2");
 }
 
+/* Two palettes x light/dark (DESIGN_SYSTEM_REFRESH.md §12-13):
+     Meridian (cool navy + electric blue) — the default, and always what
+       "System" resolves to.
+     Ember (warm charcoal + orange) — only when the user has explicitly
+       picked Light or Dark *and* chosen Ember in the theme popup.
+   theme.ts sets `data-theme="light|dark"` (absent = System) and
+   `data-palette="ember"` (absent = Meridian) on <html>. Cascade:
+     :root                                    Meridian light (System, light OS)
+     @media dark :root:not([data-theme=light])  Meridian dark (System, dark OS)
+     :root[data-theme=dark]                   Meridian dark (explicit)
+     :root[data-palette=ember]                Ember light (explicit light)
+     :root[data-palette=ember][data-theme=dark]  Ember dark (explicit)
+   A media query alone can never force dark on a light OS, so the two
+   Meridian-dark blocks must be kept identical — nothing else enforces it. */
+
 :root {
-  /* Neutral scale (light) — "Ember" theme (DESIGN_SYSTEM_REFRESH.md §12):
-     warm off-white page, white cards, warm-brown ink. Supersedes the
-     earlier Classical palette. */
-  --bg: #f8f5f1;
-  --surface: #ffffff;
-  --surface-hover: #f1ece6;
-  --border: #e8dfd6;
-  --text-muted: #6f6359;
-  --text: #3a2f27;
-  --text-h: #201812;
-
-  /* Elevation (§3) */
-  --elevation-2: #ffffff;
-
-  /* Shadows (§4) — warm-brown tinted. */
-  --shadow-sm: 0 1px 2px rgba(60, 40, 20, 0.06);
-  --shadow-md: 0 4px 16px rgba(60, 40, 20, 0.1);
-  --shadow-lg: 0 8px 24px rgba(60, 40, 20, 0.16);
-
-  /* Spacing (§5) — shifted toward the Classical system's tighter rhythm */
+  /* Spacing (§5) */
   --space-1: 5px;
   --space-2: 9px;
   --space-3: 14px;
@@ -41,7 +37,7 @@
   --space-6: 28px;
   --space-7: 48px;
 
-  /* Radius (§5) — from tokens.css's --wf-radius-* scale */
+  /* Radius (§5) */
   --radius-sm: 5px;
   --radius: 8px;
   --radius-lg: 10px;
@@ -63,13 +59,163 @@
   --weight-medium: 500;
   --weight-semibold: 600;
 
-  /* Action/status colors (§7) — Ember orange accent. --accent is the
-     *text/stroke* orange (a deeper burnt orange in light so it clears WCAG
-     AA 4.5:1 as text on white/off-white; bright orange in dark). The bright
-     gradient lives in --accent-fill, used only for filled surfaces (primary
-     button) with the dark ink --accent-fg on top — that pairing is >=7:1 in
-     both themes. Every text/background pair below was checked numerically
-     against WCAG AA 4.5:1. */
+  --sans: system-ui, "Segoe UI", Roboto, sans-serif;
+  --font-heading: "Manrope", system-ui, "Segoe UI", Roboto, sans-serif;
+  --font-body: "Manrope", system-ui, "Segoe UI", Roboto, sans-serif;
+
+  /* Branding tab header options (TopBar.tsx, branding/colorUtils.ts).
+     "dark" is a deliberate always-dark bar in every theme; "light" tracks
+     the theme's own surface (--header-bg-light, per palette below) so the
+     default doesn't leave a pure-white bar over a dark app. */
+  --header-bg-dark: #1e1a16;
+
+  /* Pastel semantic "Pipeline by stage" bar fills — same value in every
+     theme and palette by design, so they read against light or dark cards. */
+  --chart-bar-positive: #8fd9b6;
+  --chart-bar-negative: #db8378;
+  --chart-bar-contacted: #f0e267;
+  --chart-bar-demo-scheduled: #dfba74;
+
+  /* ---- Meridian light (default) ----
+     --accent is the text/stroke blue (5.2:1 on --accent-subtle, 5.7:1 on
+     --bg); --accent-fill is the brighter button surface with white ink
+     (--accent-fg) at 5.3:1. Every pair was checked numerically against
+     WCAG AA 4.5:1. */
+  --bg: #f2f5fb;
+  --surface: #ffffff;
+  --surface-hover: #e8eef9;
+  --border: #dde4f1;
+  --text-muted: #5b6785;
+  --text: #26324d;
+  --text-h: #0b1b3a;
+
+  --elevation-2: #ffffff;
+
+  --shadow-sm: 0 1px 2px rgba(11, 27, 58, 0.06);
+  --shadow-md: 0 4px 16px rgba(11, 27, 58, 0.1);
+  --shadow-lg: 0 8px 24px rgba(11, 27, 58, 0.16);
+
+  --accent: #2450e6;
+  --accent-hover: #1e3fbf;
+  --accent-fg: #ffffff;
+  --accent-fill: #2b59ff;
+  --accent-subtle: #e4ebff;
+  --danger: #a8321f;
+  --danger-bg: #fde8e4;
+  --success: #0b6b53;
+  --success-bg: #ddf5ee;
+  --warning: #7a4e06;
+  --warning-bg: #fbefd6;
+
+  /* KPI tile top bars — MetricCard's `bar` prop picks 1-4. Decorative,
+     never the only carrier of meaning. */
+  --kpi-1: #2b59ff;
+  --kpi-2: #12a58a;
+  --kpi-3: #e0a526;
+  --kpi-4: #ff6b4a;
+  --header-bg-light: #ffffff;
+  --chart-bar: #dde4f1;
+
+  font: var(--text-base) / var(--line-base) var(--font-body);
+  color-scheme: light dark;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    /* Meridian dark — deep midnight navy, not black. */
+    --bg: #0a1220;
+    --surface: #111c30;
+    --surface-hover: #1a2740;
+    --border: #22324f;
+    --text-muted: #8fa0c2;
+    --text: #c3cfea;
+    --text-h: #f1f5ff;
+
+    --elevation-2: #16233c;
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.35);
+    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.45);
+
+    --accent: #6a90ff;
+    --accent-hover: #9bb4ff;
+    --accent-fg: #ffffff;
+    --accent-fill: #2b59ff;
+    --accent-subtle: #12214d;
+    --danger: #ffa58c;
+    --danger-bg: #3e211b;
+    --success: #7fe0c6;
+    --success-bg: #123a33;
+    --warning: #ffc46b;
+    --warning-bg: #3a2a12;
+
+    --kpi-1: #5b84ff;
+    --kpi-2: #35d0c0;
+    --kpi-3: #ffc46b;
+    --kpi-4: #ff7a5c;
+    --header-bg-light: #111c30;
+    --chart-bar: #2f4268;
+  }
+}
+
+:root[data-theme="dark"] {
+  /* Identical to the Meridian-dark block above — an explicit dark choice
+     must apply even when the OS itself is light. */
+  --bg: #0a1220;
+  --surface: #111c30;
+  --surface-hover: #1a2740;
+  --border: #22324f;
+  --text-muted: #8fa0c2;
+  --text: #c3cfea;
+  --text-h: #f1f5ff;
+
+  --elevation-2: #16233c;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.45);
+
+  --accent: #6a90ff;
+  --accent-hover: #9bb4ff;
+  --accent-fg: #ffffff;
+  --accent-fill: #2b59ff;
+  --accent-subtle: #12214d;
+  --danger: #ffa58c;
+  --danger-bg: #3e211b;
+  --success: #7fe0c6;
+  --success-bg: #123a33;
+  --warning: #ffc46b;
+  --warning-bg: #3a2a12;
+
+  --kpi-1: #5b84ff;
+  --kpi-2: #35d0c0;
+  --kpi-3: #ffc46b;
+  --kpi-4: #ff7a5c;
+  --header-bg-light: #111c30;
+  --chart-bar: #2f4268;
+}
+
+:root[data-palette="ember"] {
+  /* Ember light — warm off-white page, white cards, warm-brown ink.
+     --accent is a burnt orange so it clears 4.5:1 as text; the bright
+     gradient lives in --accent-fill with dark ink on top (>= 7:1). */
+  --bg: #f8f5f1;
+  --surface: #ffffff;
+  --surface-hover: #f1ece6;
+  --border: #e8dfd6;
+  --text-muted: #6f6359;
+  --text: #3a2f27;
+  --text-h: #201812;
+
+  --elevation-2: #ffffff;
+
+  --shadow-sm: 0 1px 2px rgba(60, 40, 20, 0.06);
+  --shadow-md: 0 4px 16px rgba(60, 40, 20, 0.1);
+  --shadow-lg: 0 8px 24px rgba(60, 40, 20, 0.16);
+
   --accent: #b93b0a;
   --accent-hover: #8f2d06;
   --accent-fg: #1a0f08;
@@ -82,101 +228,16 @@
   --warning: #7a4e06;
   --warning-bg: #fcefd0;
 
-  /* KPI tile top bars — one distinct hue per tile (MetricCard's `bar`
-     prop picks 1-4). Decorative, never the only carrier of meaning. */
   --kpi-1: #e8590c;
   --kpi-2: #12a57a;
   --kpi-3: #e0a526;
   --kpi-4: #7a5af0;
-
-  /* Branding tab's header-background options (TopBar.tsx,
-     branding/colorUtils.ts). "dark" is a deliberate always-dark bar
-     regardless of theme; "light" tracks the current theme's own surface
-     so a tenant that picked "light" (the default) doesn't end up with a
-     jarring pure-white bar over an otherwise dark app. */
   --header-bg-light: #ffffff;
-  --header-bg-dark: #1e1a16;
-
-  /* Dashboard "Pipeline by stage" bar fill for non-won stages
-     (DashboardWidgets.tsx) — needs its own token because --surface-hover
-     is too close to --bg/--surface to read as a bar once elevated on a
-     dark card. */
   --chart-bar: #e8dfd6;
-
-  /* Pastel semantic bar fills for positive (fee paid/enrolled/payment
-     received) and negative (dropped) stages — same pastel value in both
-     themes by design, so they read as a distinct tint against either a
-     light or dark card rather than tracking the neutral palette. */
-  --chart-bar-positive: #8fd9b6;
-  --chart-bar-negative: #db8378;
-  --chart-bar-contacted: #f0e267;
-  --chart-bar-demo-scheduled: #dfba74;
-
-  --sans: system-ui, "Segoe UI", Roboto, sans-serif;
-  --font-heading: "Manrope", system-ui, "Segoe UI", Roboto, sans-serif;
-  --font-body: "Manrope", system-ui, "Segoe UI", Roboto, sans-serif;
-
-  font: var(--text-base) / var(--line-base) var(--font-body);
-  color-scheme: light dark;
-  color: var(--text);
-  background: var(--bg);
-  -webkit-font-smoothing: antialiased;
 }
 
-/* Theme picker (DESIGN_SYSTEM_REFRESH.md §11): `data-theme` on <html>,
-   set by frontend/src/theme.ts from the user's Light/System/Dark choice.
-   No attribute = "system" = follow the OS via prefers-color-scheme,
-   exactly today's behavior. An explicit choice must win over the OS
-   either direction, which a media query alone can never do — only an
-   attribute selector can force dark on a light OS. So the same dark
-   values necessarily appear twice below: once guarded by
-   `:not([data-theme="light"])` inside the media query (system-dark,
-   unless the user explicitly chose light), and once unconditionally
-   under `:root[data-theme="dark"]` (explicit dark, regardless of OS).
-   Keep both blocks identical — nothing else enforces that. */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    /* Neutral scale (dark) — Ember: warm charcoal, not pure black. */
-    --bg: #15120f;
-    --surface: #1e1a16;
-    --surface-hover: #2a2420;
-    --border: #2e2822;
-    --text-muted: #a79d92;
-    --text: #e9e2d9;
-    --text-h: #f6f1ea;
-
-    --elevation-2: #241f1a;
-
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-    --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.35);
-    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.45);
-
-    --accent: #ff7a3d;
-    --accent-hover: #ffa070;
-    --accent-fg: #1a0f08;
-    --accent-fill: linear-gradient(135deg, #ff7a3d, #ffa53f);
-    --accent-subtle: #2a1d14;
-    --danger: #ff9e8f;
-    --danger-bg: #3d1d1a;
-    --success: #6ee0aa;
-    --success-bg: #153027;
-    --warning: #ffc46b;
-    --warning-bg: #3a2a12;
-
-    --kpi-1: #ff7a3d;
-    --kpi-2: #3dd9a0;
-    --kpi-3: #ffc46b;
-    --kpi-4: #a58bff;
-
-    --header-bg-light: #1e1a16;
-    --chart-bar: #4a4038;
-  }
-}
-
-:root[data-theme="dark"] {
-  /* Identical to the block above — an explicit dark choice must apply
-     even when the OS itself is light, which the media query above
-     cannot express. */
+:root[data-palette="ember"][data-theme="dark"] {
+  /* Ember dark — warm charcoal, not pure black. */
   --bg: #15120f;
   --surface: #1e1a16;
   --surface-hover: #2a2420;
@@ -207,7 +268,6 @@
   --kpi-2: #3dd9a0;
   --kpi-3: #ffc46b;
   --kpi-4: #a58bff;
-
   --header-bg-light: #1e1a16;
   --chart-bar: #4a4038;
 }

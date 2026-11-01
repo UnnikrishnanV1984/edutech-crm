@@ -1,4 +1,5 @@
 import type { ColorTone } from "./stageColor";
+import { isDarkTheme } from "./theme";
 
 // lead_source is a fixed backend enum, not tenant-configurable, so direct
 // per-value color is safe here — unlike pipeline stages (see stageColor.ts).
@@ -20,13 +21,9 @@ const LEAD_SOURCE_LABELS: Record<string, string> = {
   manual: "Manual",
 };
 
-function prefersDark(): boolean {
-  return typeof window !== "undefined" && window.matchMedia?.("(prefers-color-scheme: dark)").matches;
-}
-
 export function leadSourceColor(source: string): ColorTone {
   const entry = LEAD_SOURCE_COLORS[source] ?? LEAD_SOURCE_COLORS.web!;
-  return prefersDark() ? entry.dark : entry.light;
+  return isDarkTheme() ? entry.dark : entry.light;
 }
 
 export function leadSourceLabel(source: string): string {

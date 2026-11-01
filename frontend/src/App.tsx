@@ -15,10 +15,13 @@ import { WorkflowRulesPage } from "./pages/WorkflowRulesPage";
 import { MobileNav } from "./MobileNav";
 import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
+import { useThemeVersion } from "./theme";
 import { useIsMobile } from "./useIsMobile";
 
 function AppRoutes() {
   const isMobile = useIsMobile();
+  // Stage/lead-source chip colors are computed in JS; re-render on theme change.
+  useThemeVersion();
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100svh" }}>
       <ApplyBranding />
