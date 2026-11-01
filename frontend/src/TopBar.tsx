@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
 import { useAuth } from "./auth/context";
-import { HEADER_BACKGROUND_COLORS } from "./branding/colorUtils";
 import { Avatar } from "./components/Avatar";
 import { useBranding } from "./useBranding";
 import { useMe } from "./useMe";
@@ -45,13 +44,6 @@ export function TopBar() {
   // unbranded tenant (or branding still loading) must render the plain
   // default, never a partial/hardcoded theme leak.
   const displayName = branding?.company_display_name ?? undefined;
-  const headerBackground = branding?.updated_at
-    ? branding.header_background === "accent"
-      ? (branding.accent_color ?? "var(--surface)")
-      : branding.header_background === "light"
-        ? "var(--header-bg-light)"
-        : (HEADER_BACKGROUND_COLORS[branding.header_background] ?? "var(--surface)")
-    : "var(--surface)";
   const hasHeaderImage = Boolean(branding?.header_image_url);
 
   return (
@@ -64,7 +56,7 @@ export function TopBar() {
         justifyContent: "space-between",
         padding: "0 var(--space-4)",
         borderBottom: "1px solid var(--border)",
-        backgroundColor: headerBackground,
+        backgroundColor: "var(--surface)",
         backgroundImage: hasHeaderImage ? `url(${branding!.header_image_url})` : undefined,
         backgroundSize: "cover",
         backgroundPosition: "center",

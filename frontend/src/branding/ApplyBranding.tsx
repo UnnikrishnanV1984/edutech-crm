@@ -1,7 +1,6 @@
 import { useEffect } from "react";
 
 import { useBranding } from "../useBranding";
-import { contrastRatio, deriveAccentShades, WCAG_AA_CONTRAST } from "./colorUtils";
 
 // Mounted once at the app shell level (App.tsx) — applies the two
 // branding effects that reach beyond any single component: the accent
@@ -12,37 +11,6 @@ import { contrastRatio, deriveAccentShades, WCAG_AA_CONTRAST } from "./colorUtil
 // the two effects nothing else can express as a normal render.
 export function ApplyBranding() {
   const { branding } = useBranding();
-
-  useEffect(() => {
-    const styleId = "branding-accent-override";
-    let styleTag = document.getElementById(styleId) as HTMLStyleElement | null;
-
-    if (!branding?.accent_color) {
-      styleTag?.remove();
-      return;
-    }
-
-    const { accent, accentHover, accentSubtle } = deriveAccentShades(branding.accent_color);
-    if (!styleTag) {
-      styleTag = document.createElement("style");
-      styleTag.id = styleId;
-      document.head.appendChild(styleTag);
-    }
-    // A later rule with deliberately boosted specificity (:root x4) so it beats
-    // the palette/theme blocks in index.css (:root[data-palette][data-theme]) — overrides the value, doesn't touch the base
-    // definitions themselves, so light/dark theme switching still works
-    // underneath a branding override.
-    // A tenant color replaces the theme's orange gradient too (--accent-fill),
-    // and the ink on top of it flips to white when the dark ink would fall
-    // below WCAG AA against that color.
-    const inkRatio = contrastRatio(accent, "#1a0f08") ?? 0;
-    const accentFg = inkRatio >= WCAG_AA_CONTRAST ? "#1a0f08" : "#ffffff";
-    styleTag.textContent = `:root:root:root:root { --accent: ${accent}; --accent-hover: ${accentHover}; --accent-subtle: ${accentSubtle}; --accent-fill: ${accent}; --accent-fg: ${accentFg}; }`;
-
-    return () => {
-      styleTag?.remove();
-    };
-  }, [branding?.accent_color]);
 
   useEffect(() => {
     let link = document.querySelector<HTMLLinkElement>('link[rel="icon"]');

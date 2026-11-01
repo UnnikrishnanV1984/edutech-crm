@@ -82,13 +82,13 @@ afterEach(() => {
 });
 
 describe("BrandingTab", () => {
-  it("loads the draft and renders the company identity and palette sections", async () => {
+  it("loads the draft and renders the company identity and type sections", async () => {
     setup();
     render(<BrandingTab />);
 
     await screen.findByText("Company identity");
     expect(screen.getByText("Company identity")).toBeInTheDocument();
-    expect(screen.getByText("Palette & type")).toBeInTheDocument();
+    expect(screen.getByText("Type & domain")).toBeInTheDocument();
     expect(screen.getByText("Live preview")).toBeInTheDocument();
     expect(screen.getByText("Version history")).toBeInTheDocument();
   });
@@ -110,52 +110,14 @@ describe("BrandingTab", () => {
     expect(screen.getAllByText(/Preview only/).length).toBeGreaterThan(0);
   });
 
-  it("picking an accent preset saves it to the draft immediately", async () => {
+  it("no longer offers accent or header background color options", async () => {
     setup();
     render(<BrandingTab />);
 
     await screen.findByText("Company identity");
-    fireEvent.click(screen.getByLabelText("Use accent #b93b0a"));
-
-    await waitFor(() =>
-      expect(mockedUpdateDraft).toHaveBeenCalledWith("test-token", { accent_color: "#b93b0a" }),
-    );
-  });
-
-  it("picking a custom color via the + swatch saves it immediately", async () => {
-    setup();
-    render(<BrandingTab />);
-
-    await screen.findByText("Company identity");
-    const input = screen.getByLabelText("Custom accent color");
-    fireEvent.change(input, { target: { value: "#4287f5" } });
-
-    await waitFor(() =>
-      expect(mockedUpdateDraft).toHaveBeenCalledWith("test-token", { accent_color: "#4287f5" }),
-    );
-  });
-
-  it("shows a Reset to default control once an accent is set, which clears it", async () => {
-    setup();
-    render(<BrandingTab />);
-
-    await screen.findByText("Company identity");
-    expect(screen.queryByText("Reset to default")).not.toBeInTheDocument();
-
-    fireEvent.click(screen.getByLabelText("Use accent #b93b0a"));
-    fireEvent.click(await screen.findByText("Reset to default"));
-
-    await waitFor(() =>
-      expect(mockedUpdateDraft).toHaveBeenCalledWith("test-token", { accent_color: null }),
-    );
-  });
-
-  it("warns when accent-on-header contrast is below the WCAG AA threshold", async () => {
-    setup(draft({ accent_color: "#f5f0e6", header_background: "light" }));
-    render(<BrandingTab />);
-
-    await screen.findByText("Company identity");
-    expect(screen.getByText("Low contrast")).toBeInTheDocument();
+    expect(screen.queryByLabelText(/accent/i)).toBeNull();
+    expect(screen.queryByText("Header background")).toBeNull();
+    expect(screen.queryByText(/contrast/i)).toBeNull();
   });
 
   it("company display name saves on blur", async () => {

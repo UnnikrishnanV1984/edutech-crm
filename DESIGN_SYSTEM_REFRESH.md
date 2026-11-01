@@ -457,6 +457,8 @@ Two palettes, each with light and dark:
 - Tenant branding (`ApplyBranding.tsx`) now uses `:root:root:root:root` so it beats the palette blocks, including the explicit dark ones.
 - Contrast: all Meridian text/surface pairs were checked against WCAG AA 4.5:1 (accent on subtle, white on `--accent-fill`, status colors on their backgrounds).
 
+**Tenant colour branding removed.** The Branding tab no longer has accent-colour or header-background options, and `ApplyBranding` no longer overrides `--accent*`. Colour now comes only from the user's Meridian/Ember choice; Branding keeps logo, header image, favicon, login backdrop, company name, typeface and custom domain. The header bar always uses `--surface`. The backend `accent_color` / `header_background` columns are left in place and ignored (no migration).
+
 ## Deferred / out of scope
 
 Same as `PHASE_1_UI_DESIGN.md`'s own deferred list, unchanged: no

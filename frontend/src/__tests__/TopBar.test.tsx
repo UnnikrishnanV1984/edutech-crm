@@ -85,25 +85,10 @@ describe("TopBar branding", () => {
     );
   });
 
-  it("applies a published header_background override, but not before anything is published", async () => {
+  it("always uses the theme surface for the header, ignoring any stored header_background", async () => {
     setup();
     mockedGetBranding.mockResolvedValue({
       data: branding({ header_background: "dark", updated_at: "2026-01-01" }),
-      meta: { request_id: "r1" },
-    });
-
-    const { container } = render(<TopBar />);
-
-    await waitFor(() => expect(mockedGetBranding).toHaveBeenCalled());
-    await screen.findByText("OpenFunnel");
-    const header = container.querySelector("header");
-    expect(header).toHaveStyle({ backgroundColor: "#1e1a16" });
-  });
-
-  it("does not apply a header_background before anything has been published", async () => {
-    setup();
-    mockedGetBranding.mockResolvedValue({
-      data: branding({ header_background: "dark" }),
       meta: { request_id: "r1" },
     });
 

@@ -1,7 +1,6 @@
 import { useState } from "react";
 
 import type { BrandingDraft } from "../api/branding";
-import { HEADER_BACKGROUND_COLORS } from "../branding/colorUtils";
 import { Card } from "../components/Card";
 
 type PreviewTab = "app" | "login" | "email";
@@ -31,18 +30,13 @@ function Chip({ label, selected }: { label: string; selected: boolean }) {
   );
 }
 
-function resolveHeaderBg(draft: BrandingDraft): string {
-  if (draft.header_background === "accent") return draft.accent_color ?? "#ffffff";
-  return HEADER_BACKGROUND_COLORS[draft.header_background] ?? "#ffffff";
-}
-
 // Renders a small, honest mockup of this app's own real component style
 // (accent-outlined primary button, per Button.tsx — never a filled
 // block) using the draft's current values, not the wireframe's own
 // filled-button convention, so this preview matches what the admin will
 // actually see once published.
 function AppPreview({ draft }: { draft: BrandingDraft }) {
-  const accent = draft.accent_color ?? "#b93b0a";
+  const accent = "var(--accent)";
   return (
     <div style={{ border: "1px solid var(--border)", borderRadius: "var(--radius-sm)" }}>
       <div
@@ -52,7 +46,7 @@ function AppPreview({ draft }: { draft: BrandingDraft }) {
           gap: 9,
           padding: "9px 11px",
           borderBottom: "1px solid var(--border)",
-          background: resolveHeaderBg(draft),
+          background: "var(--surface)",
         }}
       >
         {draft.logo_url && (
@@ -110,7 +104,7 @@ function PreviewOnlyNote() {
 }
 
 function LoginPreview({ draft }: { draft: BrandingDraft }) {
-  const accent = draft.accent_color ?? "#b93b0a";
+  const accent = "var(--accent)";
   return (
     <div>
       <div
@@ -158,7 +152,7 @@ function EmailPreview({ draft }: { draft: BrandingDraft }) {
           style={{
             padding: "9px 11px",
             borderBottom: "1px solid var(--border)",
-            background: resolveHeaderBg(draft),
+            background: "var(--surface)",
             display: "flex",
             alignItems: "center",
             gap: 8,

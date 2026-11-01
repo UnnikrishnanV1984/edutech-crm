@@ -11,13 +11,11 @@ import {
   type BrandingAssetType,
   type BrandingDraft,
   type BrandingVersion,
-  type HeaderBackground,
   type Typeface,
 } from "../api/branding";
 import { ApiRequestError } from "../api/client";
 import { uploadFileToS3 } from "../api/documents";
 import { useAuth } from "../auth/context";
-import { contrastRatio, WCAG_AA_CONTRAST, HEADER_BACKGROUND_COLORS } from "../branding/colorUtils";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
 import { Select } from "../components/Select";
@@ -25,14 +23,6 @@ import { PageSpinner, Spinner } from "../components/Spinner";
 import { notifyBrandingPublished } from "../useBranding";
 import { BrandingLivePreview } from "./BrandingLivePreview";
 import { BrandingVersionHistory } from "./BrandingVersionHistory";
-
-const ACCENT_PRESETS = ["#b93b0a", "#201812", "#6f6359"];
-
-const HEADER_BACKGROUND_OPTIONS: { value: HeaderBackground; label: string }[] = [
-  { value: "light", label: "Light" },
-  { value: "dark", label: "Dark" },
-  { value: "accent", label: "Accent" },
-];
 
 const TYPEFACE_OPTIONS: { value: Typeface; label: string }[] = [
   { value: "system", label: "System" },
@@ -207,7 +197,6 @@ export function BrandingTab() {
   const { token } = useAuth();
   const [draft, setDraft] = useState<BrandingDraft | undefined>(undefined);
   const [versions, setVersions] = useState<BrandingVersion[] | undefined>(undefined);
-  const customColorInputRef = useRef<HTMLInputElement>(null);
   const [publishing, setPublishing] = useState(false);
   const [discarding, setDiscarding] = useState(false);
   const [actionError, setActionError] = useState<string | undefined>(undefined);
@@ -230,8 +219,6 @@ export function BrandingTab() {
   async function saveDraftFields(
     updates: Partial<{
       company_display_name: string | null;
-      accent_color: string | null;
-      header_background: HeaderBackground;
       typeface: Typeface;
       custom_domain: string | null;
     }>,
@@ -276,12 +263,6 @@ export function BrandingTab() {
   }
 
   if (!draft) return <PageSpinner />;
-
-  const headerBgColor =
-    draft.header_background === "accent"
-      ? (draft.accent_color ?? "#ffffff")
-      : (HEADER_BACKGROUND_COLORS[draft.header_background] ?? "#ffffff");
-  const ratio = draft.accent_color ? contrastRatio(draft.accent_color, headerBgColor) : undefined;
 
   return (
     <div className="split-row">
@@ -359,123 +340,8 @@ export function BrandingTab() {
           </div>
         </Card>
 
-        <Card title="Palette & type">
-          <div>
-            <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>Accent</span>
-            <div style={{ display: "flex", gap: 7, marginTop: 8, alignItems: "center", flexWrap: "wrap" }}>
-              {ACCENT_PRESETS.map((color) => (
-                <button
-                  key={color}
-                  type="button"
-                  aria-label={`Use accent ${color}`}
-                  onClick={() => void saveDraftFields({ accent_color: color })}
-                  style={{
-                    width: 30,
-                    height: 30,
-                    background: color,
-                    border: "1px solid var(--border)",
-                    outline: draft.accent_color === color ? "2px solid var(--text-h)" : "none",
-                    outlineOffset: 2,
-                    cursor: "pointer",
-                    borderRadius: 4,
-                  }}
-                />
-              ))}
-              {draft.accent_color && !ACCENT_PRESETS.includes(draft.accent_color) && (
-                <button
-                  type="button"
-                  aria-label={`Custom accent ${draft.accent_color}`}
-                  onClick={() => customColorInputRef.current?.click()}
-                  style={{
-                    width: 30,
-                    height: 30,
-                    background: draft.accent_color,
-                    border: "1px solid var(--border)",
-                    outline: "2px solid var(--text-h)",
-                    outlineOffset: 2,
-                    cursor: "pointer",
-                    borderRadius: 4,
-                  }}
-                />
-              )}
-              <button
-                type="button"
-                aria-label="Pick a custom accent color"
-                title="Pick a custom color"
-                onClick={() => customColorInputRef.current?.click()}
-                style={{
-                  width: 30,
-                  height: 30,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  background: "transparent",
-                  border: "1px dashed var(--border)",
-                  color: "var(--text-muted)",
-                  cursor: "pointer",
-                  borderRadius: 4,
-                  fontSize: "var(--text-base)",
-                  lineHeight: 1,
-                }}
-              >
-                +
-              </button>
-              <input
-                ref={customColorInputRef}
-                aria-label="Custom accent color"
-                type="color"
-                value={draft.accent_color ?? "#b93b0a"}
-                onChange={(event) => void saveDraftFields({ accent_color: event.target.value })}
-                style={{ width: 0, height: 0, padding: 0, border: "none", opacity: 0 }}
-              />
-              {draft.accent_color && (
-                <button
-                  type="button"
-                  onClick={() => void saveDraftFields({ accent_color: null })}
-                  style={{
-                    fontSize: "var(--text-xs)",
-                    color: "var(--text-muted)",
-                    background: "transparent",
-                    border: "none",
-                    cursor: "pointer",
-                    textDecoration: "underline",
-                    padding: 0,
-                  }}
-                >
-                  Reset to default
-                </button>
-              )}
-            </div>
-          </div>
-
-          <div style={{ display: "flex", gap: 14, marginTop: 16, flexWrap: "wrap" }}>
-            <div style={{ flex: 1, minWidth: 160 }}>
-              <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
-                Header background
-              </span>
-              <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
-                {HEADER_BACKGROUND_OPTIONS.map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => void saveDraftFields({ header_background: option.value })}
-                    style={{
-                      fontSize: "var(--text-xs)",
-                      padding: "3px 10px",
-                      borderRadius: 999,
-                      border: `1px solid ${draft.header_background === option.value ? "var(--text-h)" : "var(--border)"}`,
-                      background: "transparent",
-                      color:
-                        draft.header_background === option.value ? "var(--text-h)" : "var(--text-muted)",
-                      cursor: "pointer",
-                    }}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
+        <Card title="Type & domain">
+          <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
             <div style={{ flex: 1, minWidth: 160 }}>
               <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>Typeface</span>
               <div style={{ marginTop: 8 }}>
@@ -506,45 +372,6 @@ export function BrandingTab() {
             </div>
           </div>
 
-          {draft.accent_color && (
-            <div
-              style={{
-                marginTop: 14,
-                background: "var(--surface)",
-                border: "1px solid var(--border)",
-                borderRadius: "var(--radius-sm)",
-                padding: 10,
-                display: "flex",
-                gap: 11,
-                alignItems: "flex-start",
-              }}
-            >
-              <span
-                style={{
-                  fontSize: "var(--text-xs)",
-                  fontWeight: "var(--weight-medium)",
-                  padding: "2px 8px",
-                  borderRadius: "var(--radius-sm)",
-                  background:
-                    ratio !== undefined && ratio < WCAG_AA_CONTRAST
-                      ? "var(--danger-bg)"
-                      : "var(--success-bg)",
-                  color: ratio !== undefined && ratio < WCAG_AA_CONTRAST ? "var(--danger)" : "var(--success)",
-                }}
-              >
-                {ratio !== undefined && ratio < WCAG_AA_CONTRAST ? "Low contrast" : "Check"}
-              </span>
-              <div>
-                <div style={{ fontSize: "var(--text-sm)" }}>
-                  {ratio !== undefined ? `${ratio.toFixed(2)}:1` : "—"}
-                  {ratio !== undefined && ratio < WCAG_AA_CONTRAST && ` (WCAG AA wants ${WCAG_AA_CONTRAST}:1)`}
-                </div>
-                <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
-                  Contrast of accent on header background
-                </span>
-              </div>
-            </div>
-          )}
         </Card>
       </div>
 

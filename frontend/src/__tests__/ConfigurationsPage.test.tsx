@@ -136,6 +136,6 @@ describe("ConfigurationsPage", () => {
 
     await waitFor(() => expect(mockedGetBrandingDraft).toHaveBeenCalled());
     expect(await screen.findByText("Company identity")).toBeInTheDocument();
-    expect(screen.getByText("Palette & type")).toBeInTheDocument();
+    expect(screen.getByText("Type & domain")).toBeInTheDocument();
   });
 });
