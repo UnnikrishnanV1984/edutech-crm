@@ -333,6 +333,10 @@ a {
   display: grid;
   grid-template-columns: 1fr;
   gap: var(--space-5);
+  /* Without this, grid's default row-stretch forces the shorter
+     Pipeline-by-stage card to match My-queue-today's height whenever the
+     queue has several items, leaving a large empty gap under the chart. */
+  align-items: start;
 }
 @media (min-width: 900px) {
   .grid-2col {
