@@ -50,6 +50,7 @@ export function ThemeToggle() {
   function chooseMode(value: ThemePreference) {
     setThemePreference(value);
     setPreference(value);
+    if (value === "system") setPalette("meridian");
     // Light/Dark offer a palette choice; clicking the active one toggles the popup.
     setOpen(value === "system" ? false : value !== preference || !open);
   }

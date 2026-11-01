@@ -43,13 +43,17 @@ export function getEffectivePalette(): ThemePalette {
 
 /** Persists the mode and applies it via the data-theme attribute that
  * index.css's cascade (DESIGN_SYSTEM_REFRESH.md §11-13) keys off of.
- * Choosing System also forces the Meridian palette. Mirrors the inline
+ * Choosing System also resets the palette to Meridian. Mirrors the inline
  * script in index.html that applies the stored choice before first paint
  * — same storage keys, same attributes. */
 export function setThemePreference(preference: ThemePreference): void {
   try {
     if (preference === "system") {
       localStorage.removeItem(MODE_KEY);
+      // System is Meridian, so leaving it also forgets an earlier Ember pick:
+      // going back to Light/Dark must start from Meridian, not silently
+      // re-apply Ember.
+      localStorage.removeItem(PALETTE_KEY);
     } else {
       localStorage.setItem(MODE_KEY, preference);
     }

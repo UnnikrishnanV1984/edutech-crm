@@ -24,7 +24,7 @@ describe("theme", () => {
     expect(document.documentElement.dataset.palette).toBe("ember");
   });
 
-  it("System always resolves to Meridian but keeps the stored palette", () => {
+  it("System resets to Meridian, and Light/Dark afterwards start from Meridian", () => {
     setThemePalette("ember");
     setThemePreference("dark");
     setThemePreference("system");
@@ -32,7 +32,15 @@ describe("theme", () => {
     expect(document.documentElement.dataset.theme).toBeUndefined();
     expect(getEffectivePalette()).toBe("meridian");
     setThemePreference("light");
+    expect(document.documentElement.dataset.palette).toBeUndefined();
+  });
+
+  it("switching Ember back to Meridian removes the attribute", () => {
+    setThemePreference("light");
+    setThemePalette("ember");
     expect(document.documentElement.dataset.palette).toBe("ember");
+    setThemePalette("meridian");
+    expect(document.documentElement.dataset.palette).toBeUndefined();
   });
 
   it("isDarkTheme honors an explicit data-theme", () => {
