@@ -40,9 +40,9 @@ function linkStyle({ isActive }: { isActive: boolean }): React.CSSProperties {
     padding: "var(--space-2) var(--space-3)",
     marginInline: "var(--space-2)",
     borderRadius: "var(--radius)",
-    borderLeft: isActive ? "3px solid var(--accent)" : "3px solid transparent",
-    background: isActive ? "var(--accent-subtle)" : "transparent",
-    color: isActive ? "var(--text-h)" : "var(--text)",
+    borderLeft: isActive ? "3px solid var(--sidebar-stripe)" : "3px solid transparent",
+    background: isActive ? "var(--sidebar-active-bg)" : "transparent",
+    color: isActive ? "var(--sidebar-text-active)" : "var(--sidebar-text)",
     fontWeight: isActive ? "var(--weight-semibold)" : "var(--weight-normal)",
     textDecoration: "none",
     fontSize: "var(--text-sm)",
@@ -55,7 +55,7 @@ function GroupLabel({ children }: { children: string }) {
       style={{
         fontSize: "var(--text-xs)",
         fontWeight: "var(--weight-semibold)",
-        color: "var(--text-muted)",
+        color: "var(--sidebar-label)",
         textTransform: "uppercase",
         letterSpacing: "0.04em",
         padding: "var(--space-4) var(--space-3) var(--space-1)",
@@ -91,8 +91,8 @@ export function Sidebar() {
         display: "flex",
         flexDirection: "column",
         height: "100%",
-        background: "var(--surface)",
-        borderRight: "1px solid var(--border)",
+        background: "var(--sidebar-bg)",
+        borderRight: "1px solid var(--sidebar-border)",
       }}
     >
       <div style={{ flex: 1, minHeight: 0, overflowY: "auto", paddingBottom: "var(--space-3)", paddingTop: "var(--space-3)" }}>
@@ -134,7 +134,7 @@ export function Sidebar() {
       <div
         style={{
           padding: "var(--space-3)",
-          borderTop: "1px solid var(--border)",
+          borderTop: "1px solid var(--sidebar-border)",
           display: "flex",
           justifyContent: "center",
         }}

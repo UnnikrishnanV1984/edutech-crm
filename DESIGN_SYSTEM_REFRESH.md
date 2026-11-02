@@ -457,6 +457,8 @@ Two palettes, each with light and dark:
 - Tenant branding (`ApplyBranding.tsx`) now uses `:root:root:root:root` so it beats the palette blocks, including the explicit dark ones.
 - Contrast: all Meridian text/surface pairs were checked against WCAG AA 4.5:1 (accent on subtle, white on `--accent-fill`, status colors on their backgrounds).
 
+**Sidebar tokens.** The left nav reads `--sidebar-*` tokens (bg, text, text-active, label, active-bg, stripe, border, control-bg, control-text). Meridian light: navy `#0b1b3a` with a solid `#2b59ff` active item; Meridian dark: `#060c18` with a `#16295c` active item and blue stripe; Ember keeps the surface-based look. Contrast checked (text 7.4-10:1, labels >= 5.4:1, active 5.3-11:1).
+
 **Tenant colour branding removed.** The Branding tab no longer has accent-colour or header-background options, and `ApplyBranding` no longer overrides `--accent*`. Colour now comes only from the user's Meridian/Ember choice; Branding keeps logo, header image, favicon, login backdrop, company name, typeface and custom domain. The header bar always uses `--surface`. The backend `accent_color` / `header_background` columns are left in place and ignored (no migration).
 
 ## Deferred / out of scope

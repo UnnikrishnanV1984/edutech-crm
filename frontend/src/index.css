@@ -115,6 +115,15 @@
   --kpi-4: #ff6b4a;
   --header-bg-light: #ffffff;
   --chart-bar: #dde4f1;
+  --sidebar-bg: #0b1b3a;
+  --sidebar-text: #b9c6e4;
+  --sidebar-text-active: #ffffff;
+  --sidebar-label: #8a9bc2;
+  --sidebar-active-bg: #2b59ff;
+  --sidebar-stripe: #2b59ff;
+  --sidebar-border: rgba(255, 255, 255, 0.1);
+  --sidebar-control-bg: rgba(255, 255, 255, 0.08);
+  --sidebar-control-text: #b9c6e4;
 
   font: var(--text-base) / var(--line-base) var(--font-body);
   color-scheme: light dark;
@@ -158,6 +167,15 @@
     --kpi-4: #ff7a5c;
     --header-bg-light: #111c30;
     --chart-bar: #2f4268;
+    --sidebar-bg: #060c18;
+    --sidebar-text: #8fa0c2;
+    --sidebar-text-active: #dce5ff;
+    --sidebar-label: #7587ad;
+    --sidebar-active-bg: #16295c;
+    --sidebar-stripe: #5b84ff;
+    --sidebar-border: #18243c;
+    --sidebar-control-bg: #101a2e;
+    --sidebar-control-text: #8fa0c2;
   }
 }
 
@@ -196,6 +214,15 @@
   --kpi-4: #ff7a5c;
   --header-bg-light: #111c30;
   --chart-bar: #2f4268;
+  --sidebar-bg: #060c18;
+  --sidebar-text: #8fa0c2;
+  --sidebar-text-active: #dce5ff;
+  --sidebar-label: #7587ad;
+  --sidebar-active-bg: #16295c;
+  --sidebar-stripe: #5b84ff;
+  --sidebar-border: #18243c;
+  --sidebar-control-bg: #101a2e;
+  --sidebar-control-text: #8fa0c2;
 }
 
 :root[data-palette="ember"] {
@@ -234,6 +261,15 @@
   --kpi-4: #7a5af0;
   --header-bg-light: #ffffff;
   --chart-bar: #e8dfd6;
+  --sidebar-bg: var(--surface);
+  --sidebar-text: var(--text);
+  --sidebar-text-active: var(--text-h);
+  --sidebar-label: var(--text-muted);
+  --sidebar-active-bg: var(--accent-subtle);
+  --sidebar-stripe: var(--accent);
+  --sidebar-border: var(--border);
+  --sidebar-control-bg: var(--surface);
+  --sidebar-control-text: var(--text-muted);
 }
 
 :root[data-palette="ember"][data-theme="dark"] {
@@ -270,6 +306,15 @@
   --kpi-4: #a58bff;
   --header-bg-light: #1e1a16;
   --chart-bar: #4a4038;
+  --sidebar-bg: var(--surface);
+  --sidebar-text: var(--text);
+  --sidebar-text-active: var(--text-h);
+  --sidebar-label: var(--text-muted);
+  --sidebar-active-bg: var(--accent-subtle);
+  --sidebar-stripe: var(--accent);
+  --sidebar-border: var(--border);
+  --sidebar-control-bg: var(--surface);
+  --sidebar-control-text: var(--text-muted);
 }
 
 * {

@@ -72,8 +72,8 @@ export function ThemeToggle() {
           display: "inline-flex",
           gap: 2,
           padding: 2,
-          background: "var(--surface)",
-          border: "1px solid var(--border)",
+          background: "var(--sidebar-control-bg)",
+          border: "1px solid var(--sidebar-border)",
           borderRadius: "var(--radius)",
         }}
       >
@@ -101,7 +101,7 @@ export function ThemeToggle() {
                 borderRadius: "calc(var(--radius) - 2px)",
                 background: selected ? "var(--elevation-2)" : "transparent",
                 boxShadow: selected ? "var(--shadow-sm)" : "none",
-                color: selected ? "var(--accent)" : "var(--text-muted)",
+                color: selected ? "var(--accent)" : "var(--sidebar-control-text)",
                 fontSize: 14,
                 lineHeight: 1,
                 padding: 0,
