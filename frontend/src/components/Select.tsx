@@ -59,9 +59,9 @@ export function Select({
 }: SelectProps) {
   const [open, setOpen] = useState(false);
   const [highlighted, setHighlighted] = useState(0);
-  const [rect, setRect] = useState<{ top: number; left: number; width: number } | undefined>(
-    undefined,
-  );
+  const [rect, setRect] = useState<
+    { top: number; left: number; width: number; maxHeight: number } | undefined
+  >(undefined);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const optionIdPrefix = useId();
@@ -75,7 +75,14 @@ export function Select({
     const el = triggerRef.current;
     if (el) {
       const r = el.getBoundingClientRect();
-      setRect({ top: r.bottom + 4, left: r.left, width: r.width });
+      // Cap at the space actually available below the trigger (up to a
+      // sane ceiling) rather than a flat 280 — a short options list (e.g.
+      // this app's 8-ish pipeline stages) was getting an unnecessary
+      // scrollbar even though the viewport had plenty of room to just
+      // show it all.
+      const spaceBelow = window.innerHeight - r.bottom - 8;
+      const maxHeight = Math.max(120, Math.min(spaceBelow, 400));
+      setRect({ top: r.bottom + 4, left: r.left, width: r.width, maxHeight });
     }
     const currentIndex = options.findIndex((o) => o.value === value);
     setHighlighted(currentIndex >= 0 ? currentIndex : 0);
@@ -209,7 +216,7 @@ export function Select({
               minWidth: rect.width,
               width: "max-content",
               maxWidth: 320,
-              maxHeight: 280,
+              maxHeight: rect.maxHeight,
               overflowY: "auto",
               background: "var(--elevation-2)",
               border: "1px solid var(--border)",
